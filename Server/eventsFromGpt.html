@@ -1,0 +1,51 @@
+<html>
+<head>
+<script>
+async function submitClicked(id) {
+	const div = document.getElementById("idea" + id);
+	const name = div.dataset.name;
+	const city = div.dataset.city;
+	const state = div.dataset.state;
+	const description = div.dataset.description;
+	div.innerHTML = "<div>Submitting: " + name + "</div>...";
+	try {
+		const response =
+				await fetch("/submit?name=" + encodeURIComponent(name) + "&city=" + encodeURIComponent(city) + "&state=" + encodeURIComponent(state) + "&description=" + encodeURIComponent(description));
+		const submissionId = await response.text();
+		div.innerHTML = "<div>Submitted: " + name + "</div>" + submissionId;
+	} catch (e) {
+		console.log(e);
+		div.innerHTML = "<div>Error: " + name + "</div>" + e;
+	}
+}
+async function rejectClicked(id) {
+	document.getElementById("idea" + id).remove();
+}
+</script>
+<style>
+.idea {
+	margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+Glory to the neosporin.<br /><br />
+
+<% it.events.forEach(function(event, i){ %>
+	<div
+			class="idea"
+			id="idea<%= i %>"
+			data-name="<%= event.name %>"
+			data-city="<%= event.city %>"
+			data-state="<%= event.state %>"
+			data-description="<%= event.description %>">
+		<div>
+			<button onclick="submitClicked(<%= i %>)">Submit</button>
+			<button onclick="rejectClicked(<%= i %>)">Reject</button>
+			<%= event.name %> in <%= event.city %>, <%= event.state %>:
+		</div>
+		<%= event.description %>
+	</div>
+<% }) %>
+</body>
+</html>

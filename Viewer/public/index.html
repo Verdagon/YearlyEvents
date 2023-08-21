@@ -1,0 +1,154 @@
+<html>
+  <head>
+    <title>Add Map</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <!--script type="module" src="./index.js"></script-->
+  </head>
+  <body>
+      <label for="monthFilter">Filter for month:</label>
+      <select name="monthFilter" id="monthFilter">
+        <option value="all" selected>(all)</option>
+        <option value="unknown">(unknown)</option>
+        <option value="january">January</option>
+        <option value="february">February</option>
+        <option value="march">March</option>
+        <option value="april">April</option>
+        <option value="may">May</option>
+        <option value="june">June</option>
+        <option value="july">July</option>
+        <option value="august">August</option>
+        <option value="september">September</option>
+        <option value="october">October</option>
+        <option value="november">November</option>
+        <option value="december">December</option>
+      </select> 
+
+    <!--The div element for the map -->
+    <div id="map" style="height: 600px"></div>
+
+    <!-- prettier-ignore -->
+    <script>(g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})
+        ({key: "AIzaSyCVKULMvP8TPRwh3B6VmwIq_8dWR9_GkSI", v: "beta"});</script>
+ <script src="https://cdn.rawgit.com/googlemaps/js-marker-clusterer/gh-pages/src/markerclusterer.js"></script>
+<script>
+
+let events;
+
+async function initMap() {
+  // Request needed libraries.
+  const { Map } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+  const map = new Map(document.getElementById("map"), {
+    center: { lat: 35.0555736, lng: -85.1479083 },
+    zoom: 6,
+    mapId: "4504f8b37365c3d0",
+  });
+
+  const markers = [];
+
+  const response = await fetch("events.json");
+  events = await response.json();
+  console.log("got events:", events);
+
+  // const marker = new AdvancedMarkerElement({
+  //   map,
+  //   position: { lat: 37.4239163, lng: -122.0947209 },
+  // });
+
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const contentString =
+      event.name + " (" + event.city + ")<br />" +
+      "Month: " + (event.month || "unknown") + "<br/>" +
+      "<br/>" +
+      event.confirms[0].analysis.summary + "<br />" +
+      event.confirms.map(c => {
+        "<a href=\"" + c.url + "\">(source)</a>"
+      }).join("") + "<br />" +
+      "<br />" +
+      event.id;
+
+    const infowindow = new google.maps.InfoWindow({
+      content: contentString,
+      ariaLabel: event.name,
+    });
+    const movedCoords = {
+      lat: (event.coords.lat-0) + Math.random() * .1 - 0.05,
+      lng: (event.coords.lng-0) + Math.random() * .1 - 0.05
+    };
+    const marker =
+      new google.maps.Marker({
+        position: movedCoords,
+        map: map
+        // label: event.name,
+        // title: event.name + " (" + event.city + ")",
+      });
+
+    // var mapLabel = new MapLabel({
+    //     text: event.name,
+    //     position: new google.maps.LatLng(34.515233, -100.918565),
+    //     map: map,
+    //     fontSize: 35,
+    //     align: 'right'
+    // });
+    marker.originEventIndex = i;
+
+
+  // google.maps.event.addListener(marker, "mouseover", function(evt) {
+  //   var label = this.getLabel();
+  //   label.color="black";
+  //   this.setLabel(label);
+  // });
+  //   google.maps.event.addListener(marker, "mouseout", function(evt) {
+  //   var label = this.getLabel();
+  //   label.color="white";
+  //   this.setLabel(label);
+  // });
+
+    marker.addListener("click", () => {
+      infowindow.open({
+        anchor: marker,
+        map,
+      });
+    });
+    markers.push(marker);
+  }
+
+
+  // Initialize MarkerClusterer
+  var markerCluster = new MarkerClusterer(map, markers, {
+    imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'
+  });
+
+  function filter(month) {
+    console.log("Filter to:", month);
+
+    markerCluster.clearMarkers();
+    for (const marker of markers) {
+      const event = events[marker.originEventIndex];
+      if (month == "all" ||
+          event.month.toLowerCase() == month.toLowerCase() ||
+          (month == "unknown" && !event.month)) {
+        console.log("Enabling marker: " + event.name);
+        //marker.setMap(map);
+        markerCluster.addMarker(marker);
+      } else {
+        //console.log("Disabling marker: " + event.name);
+        //marker.setMap(null);
+      }
+    }
+  }
+
+  document.getElementById("monthFilter").addEventListener("click", function(event) {
+    filter(document.getElementById("monthFilter").value);
+  });
+  filter(document.getElementById("monthFilter").value);
+}
+
+initMap();
+
+</script>
+</body>
+</html>

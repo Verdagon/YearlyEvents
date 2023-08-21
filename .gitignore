@@ -1,0 +1,8 @@
+Searcher/node_modules
+Coordinator/node_modules
+EventLister/node_modules
+Server/node_modules
+DoubleChecker/node_modules
+pagetexts
+events
+db.sqlite
