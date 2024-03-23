@@ -3,15 +3,9 @@ import { execFile } from 'node:child_process'
 import { compareEvents, interrogatePage } from './compareEvents.js'
 import fs from "fs/promises";
 import { addEvent } from '../Server/add.js'
-import knexBuilder from 'knex';
+import { connectKnex } from '../db.js'
 
-const knex = knexBuilder({
-  client: 'sqlite3', // or 'better-sqlite3'
-  connection: {
-    filename: "./db.sqlite"
-  },
-  useNullAsDefault: true
-});
+const knex = connectKnex("./db.sqlite");
 
 
 const operation = process.argv[2];

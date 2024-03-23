@@ -11,6 +11,7 @@ use headless_chrome::protocol::cdp::Page;
 fn browse_wikipedia() -> Result<(), Box<dyn Error>> {
     let url = env::args().nth(1).expect("Must provide url");
     let destination = env::args().nth(2).expect("Must provide destination");
+    println!("Asked for URL {:?} to PDF file {:?}", url, destination);
 
     let browser = Browser::default()?;
 
@@ -29,6 +30,6 @@ fn browse_wikipedia() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-	browse_wikipedia().expect("Browse wikipedia failed");
-	println!("Hello, world!");
+	browse_wikipedia().expect("Browse failed!");
+	println!("Success!");
 }

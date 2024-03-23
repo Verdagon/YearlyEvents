@@ -1,11 +1,11 @@
-import { delay, normalizeName } from "./utils.js";
+import { normalizeName } from "./utils.js";
 import { askTruncated } from "./gptUtils.js";
 
 export async function gptListEvents(openai, throttler, question) {
 	const query =
 			question + ". Do not number the responses, and please format " +
 			"the response in semicolon-separated CSV format where the four columns are the name, " +
-			"the city, the state, and a max two-sentence description. Please say nothing else.";
+			"the city, the state, and a max two-sentence description including anything unique or unusual. Please say nothing else.";
 
 	const response =
 			await openai.createChatCompletion({
@@ -38,7 +38,7 @@ export async function gptListEvents(openai, throttler, question) {
 
 		const name = normalizeName(originalEventName, city, state);
 
-		results.push({name: name, city: city, state: state, description: description});
+		results.push({name, city, state, description});
 	}
 
 	return results;

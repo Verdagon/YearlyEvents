@@ -6,3 +6,9 @@ DoubleChecker/node_modules
 pagetexts
 events
 db.sqlite
+cache
+node_modules
+temp
+DoubleChecker.zip
+EventLister.zip
+Coordinator/oldanalyze.js.zip

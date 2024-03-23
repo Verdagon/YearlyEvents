@@ -15,3 +15,5 @@ for page in reader.pages:
 
 with open(result_file_path, "w") as text_file:
     text_file.write(combined)
+
+print("Success!")

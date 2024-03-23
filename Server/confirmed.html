@@ -1,0 +1,64 @@
+<html>
+<head>
+<script>
+async function publishClicked(index) {
+	const div = document.getElementById("idea" + index);
+	const name = div.dataset.name;
+	const eventId = div.dataset.eventId;
+	div.innerHTML = "<div>Publishing: " + name + "</div>...";
+	try {
+		const response =
+				await fetch("/publish?event_id=" + encodeURIComponent(eventId));
+		await response.text();
+		div.innerHTML = "<div>Published: " + name + "</div>" + eventId;
+	} catch (e) {
+		console.log(e);
+		div.innerHTML = "<div>Error: " + name + "</div>" + e;
+	}
+}
+async function rejectClicked(index) {
+	const div = document.getElementById("idea" + index);
+	const name = div.dataset.name;
+	const eventId = div.dataset.eventId;
+	div.innerHTML = "<div>Rejecting: " + name + "</div>...";
+	try {
+		const response =
+				await fetch("/reject?event_id=" + encodeURIComponent(eventId));
+		await response.text();
+		div.innerHTML = "<div>Rejected: " + name + "</div>" + eventId;
+	} catch (e) {
+		console.log(e);
+		div.innerHTML = "<div>Error: " + name + "</div>" + e;
+	}
+}
+</script>
+<style>
+.idea {
+	margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+Glory to the neosporin.<br /><br />
+
+<% it.events.forEach(function(event, eventI){ %>
+	<div
+			class="idea"
+			id="idea<%= eventI %>"
+			data-name="<%= event.name %>"
+			data-event-id="<%= event.id %>">
+		<div>
+			<button onclick="publishClicked(<%= eventI %>)">Publish</button>
+			<button onclick="rejectClicked(<%= eventI %>)">Reject</button>
+			<%= event.name %> in <%= event.city %>, <%= event.state %>:
+		</div>
+		<% event.confirmations.forEach(function(confirmation, confirmationI){ %>
+			<div>
+				<a href="<%= confirmation.url %>" target="_blank"><%= confirmation.url %></a>:
+				<%= confirmation.event_short_summary %>
+			</div>
+		<% }) %>
+	</div>
+<% }) %>
+</body>
+</html>
