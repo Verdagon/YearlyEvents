@@ -52,7 +52,8 @@ Glory to the neosporin.<br /><br />
 			<button onclick="rejectClicked(<%= i %>)">Reject</button>
 			<%= submission.name %> in <%= submission.city %>, <%= submission.state %>:
 		</div>
-		<%= submission.description %>
+		<div><%= submission.description %></div>
+		<div><%= submission.notes %></div>
 	</div>
 <% }) %>
 </body>

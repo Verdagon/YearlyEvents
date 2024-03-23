@@ -1,0 +1,80 @@
+<html>
+<head>
+<style type="text/css">
+	.analysis {
+		margin: 1em 0;
+	}
+</style>
+</head>
+<body>
+
+<% if (it.event) { %>
+	<div>Event:</div>
+	<div><%= it.event.name %> in <%= it.event.city %>, <%= it.event.state %></div>
+
+	<% it.event.confirmations.forEach(function(confirmation, confirmationI){ %>
+		<div>
+			<a href="<%= confirmation.url %>" target="_blank"><%= confirmation.url %></a>:
+			<%= confirmation.event_short_summary %>
+		</div>
+	<% }) %>
+<% } %>
+
+<div>Submission:</div>
+<div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %></div>
+<div>month: <%= it.submission.investigation.month %></div>
+<div>num_errors: <%= it.submission.investigation.num_errors %></div>
+<div>num_promising: <%= it.submission.investigation.num_promising %></div>
+
+<% it.submission.investigation.analyses.forEach(function(analysis){ %>
+	<div class="analysis">
+		<div>Confirmed: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
+		<div>analysis.month: <%= analysis.month %></div>
+		
+		<div>yearly: <%= analysis && analysis.analysis && analysis.analysis.yearly %></div>
+		<div>name: <%= analysis && analysis.analysis && analysis.analysis.name %></div>
+		<div>city: <%= analysis && analysis.analysis && analysis.analysis.city %></div>
+		<div>state: <%= analysis && analysis.analysis && analysis.analysis.state %></div>
+		<div>month: <%= analysis && analysis.analysis && analysis.analysis.month %></div>
+		<div>firstDate: <%= analysis && analysis.analysis && analysis.analysis.firstDate %></div>
+		<div>lastDate: <%= analysis && analysis.analysis && analysis.analysis.lastDate %></div>
+		<div>nextDate: <%= analysis && analysis.analysis && analysis.analysis.nextDate %></div>
+		<div>summary: <%= analysis && analysis.analysis && analysis.analysis.summary %></div>
+		<div>description: <%= analysis && analysis.analysis && analysis.analysis.description %></div>
+		<div>matches city: <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.city %></div>
+		<div>matches state: <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.state %></div>
+		<div>matches anywhere: <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.anywhere %></div>
+
+		<ul>
+			<% analysis.steps.forEach(function(step) { %>
+				<li>
+					<% if (typeof step == 'object') { %>
+						<%= step[""] %>
+						<% Object.entries(step).forEach(([key, member]) => { %>
+							<% if (key) { %>
+								<% if (key == 'pageTextUrl') { %>
+									<a href="/pagetext?url=<%= member %>">(page text)</a>
+								<% } else if (key == 'details') { %>
+									<details>
+									  <summary>Show full text</summary>
+									  <div><%= member %></div>
+									</details>
+								<% } else { %>
+									<b>Unknown key</b> <%= key %>: <%= member %>
+								<% } %>
+							<% } %>
+						<% }) %>
+					<% } else { %>
+						<%= step %>
+					<% } %>
+				</li>
+			<% }) %>
+		</ul>
+		
+		<div><%= analysis.pageText %></div>
+		<div><%= analysis.pageTextError %></div>
+	</div>
+<% }) %>
+
+</body>
+</html>

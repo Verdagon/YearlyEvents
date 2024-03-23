@@ -1,8 +1,8 @@
 {
-  "name": "yearlyevents",
+  "name": "YearlyEventsLocalDB",
   "version": "1.0.0",
   "description": "",
-  "main": "gptListEvents.js",
+  "main": "db.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,9 +10,7 @@
   "type": "module",
   "dependencies": {
     "knex": "^2.5.1",
-    "openai": "^3.3.0",
-    "sqlite3": "^5.1.6",
-    "urlencode": "^1.1.0"
+    "sqlite3": "^5.1.6"
   },
   "author": "",
   "license": "ISC"

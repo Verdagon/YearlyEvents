@@ -18,7 +18,7 @@ async function submitClicked(id) {
 		div.innerHTML = "<div>Error: " + name + "</div>" + e;
 	}
 }
-async function rejectClicked(id) {
+async function ignoreClicked(id) {
 	document.getElementById("idea" + id).remove();
 }
 </script>
@@ -44,7 +44,7 @@ async function rejectClicked(id) {
 			data-description="<%= idea.description %>">
 		<div>
 			<button onclick="submitClicked(<%= i %>)">Submit</button>
-			<button onclick="rejectClicked(<%= i %>)">Reject</button>
+			<button onclick="ignoreClicked(<%= i %>)">Ignore</button>
 			<%= idea.normalizedName %> in <%= idea.city %>, <%= idea.state %>:
 		</div>
 		<div><%= idea.description %></div>

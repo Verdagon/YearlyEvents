@@ -5,7 +5,7 @@ import https from "https";
 import util from 'node:util';
 import { execFile } from 'node:child_process'
 import { delay } from "../parallel.js";
-import { connectKnex, dbCachedZ, getFromDb } from '../db.js'
+import { LocalDb } from '../LocalDb/localdb.js'
 // import { getUnanalyzedSubmissions } from '../getUnanalyzedSubmissions.js'
 import { analyzePage } from './analyze.js'
 import { addSubmission } from '../addSubmission.js'
@@ -14,6 +14,7 @@ import rawfs from "fs";
 import { Configuration, OpenAIApi } from "openai";
 import { Semaphore, parallelEachI, makeMsThrottler } from "../parallel.js";
 import { normalizeName } from "../utils.js";
+import urlencode from 'urlencode';
 
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
@@ -96,17 +97,16 @@ async function retry(n, func, numAttempts) {
 	}
 }
 
-async function addOtherEventSubmission(knex, otherEvent) {
+async function addOtherEventSubmission(db, otherEvent) {
 	const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
 	console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
-	return await addSubmission(knex, {name, city, state, description: summary, url}, false);
+	return await addSubmission(db, {name, city, state, description: summary, url}, false);
 }
 
-async function getPageText(knex, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
-	return await knex.transaction(async (trx) => {
+async function getPageText(db, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+	return await db.transaction(async (trx) => {
 		const cachedPageTextRow =
-				await getFromDb(
-						trx, "PageTextCache", chromeCacheCounter, {"url": url});
+				await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
 		if (cachedPageTextRow) {
 			chromeCacheCounter.count++;
 			return cachedPageTextRow;
@@ -129,7 +129,7 @@ async function getPageText(knex, chromeThrottler, chromeCacheCounter, throttlerP
 		if (!fetcher_result) {
 			const error = "Bad fetch/browse for event " + eventName + " result " + url;
 			console.log(error)
-			await trx.into("PageTextCache").insert({url, text: null, error});
+			await trx.cachePageText({url, text: null, error});
 			return {text: null, error};
 		}
 
@@ -140,7 +140,7 @@ async function getPageText(knex, chromeThrottler, chromeCacheCounter, throttlerP
 		if (pdftotext_result != 0) {
 			const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
 			console.log(error);
-			await trx.into("PageTextCache").insert({url, text: null, error});
+			await trx.cachePageText({url, text: null, error});
 			return {text: null, error};
 		}
 		steps.push("Created text in " + txt_path)
@@ -148,40 +148,69 @@ async function getPageText(knex, chromeThrottler, chromeCacheCounter, throttlerP
 		if (!text) {
 			const error = "No result text found for " + eventName + " at url " + url;
 			console.log(error);
-			await trx.into("PageTextCache").insert({url, text: null, error});
+			await trx.cachePageText({url, text: null, error});
 			return {text: null, error};
 		}
 
-		await trx.into("PageTextCache").insert({url, text, error: null});
+		await trx.cachePageText({url, text, error: null});
 		return {text, error: null};
 	});
 }
 
-async function doublecheck(knex, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeThrottler, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl, steps) {
+async function googleSearch(googleSearchApiKey, query) {
+	try {
+		const url =
+				"https://www.googleapis.com/customsearch/v1?key=" + googleSearchApiKey +
+				"&cx=8710d4180bdfd4ba9&q=" + urlencode(query);
+		const response = await fetch(url);
+		if (!response.ok) {
+      throw response;
+    }
+    const body = await response.json();
+		if (!body.items) {
+			throw "Bad response error: " + body;
+		}
+		if (!body.items.length) {
+			throw "Bad response error: " + body;
+		}
+		return body.items.slice(0, 7).map(x => x.link);
+	} catch (error) {
+    if (typeof error.json === "function") {
+    	const jsonError = await error.json();
+    	throw jsonError;
+    } else {
+      throw "Generic error from API: " + error + ": " + JSON.stringify(error);
+    }
+	}
+}
+
+async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
+	const maybeSearcherResult =
+			await db.getFromDb("GoogleCache", searchCacheCounter, {"query": googleQuery}, ["response"]);
+	if (maybeSearcherResult) {
+		const {response} = maybeSearcherResult;
+		console.log({response});
+		return {response};
+	}
+	const response =
+			await searchThrottler.prioritized(throttlerPriority, async () => {
+				console.log("Released for Google!", throttlerPriority)
+				return await googleSearch(googleSearchApiKey, googleQuery);
+			});
+	await db.cacheGoogleResult({query: googleQuery, response: response});
+	console.log({response: response});
+	return {response: response};
+}
+
+async function investigate(db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeThrottler, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
+	const broadSteps = [];
 	const googleQuery = event_name + " " + event_city + " " + event_state;
 	console.log("Googling: " + googleQuery);
-	const searcherResult =
-			await dbCachedZ(
-					knex,
-					"GoogleCache",
-					searchCacheCounter,
-					{"query": googleQuery},
-					async () => {
-						return await searchThrottler.prioritized(throttlerPriority, async () => {
-							console.log("Released for Google!", throttlerPriority)
-							const unsplitResult =
-							    await runCommandForNullableStdout(
-									"node",
-									["./Searcher/index.js", googleSearchApiKey, googleQuery]);
-							const response = unsplitResult && unsplitResult.split("\n");
-							return {response};
-						});
-					},
-					async (response) => response, // transform
-					response => !!response, // cacheIf
-					["response"]);
+	broadSteps.push("Googling: " + googleQuery);
+	const searcherResult = await getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
 	if (searcherResult == null) {
 		console.log("Bad search for event " + event_name)
+		broadSteps.push("Bad search for event " + event_name);
 		const result = {
 			confirms: [],
 			rejects: [],
@@ -208,42 +237,80 @@ async function doublecheck(knex, googleSearchApiKey, searchThrottler, searchCach
 	let num_errors = 0
 
 
+	// Order them by shortest first, shorter URLs tend to be more canonical
+	response.sort((a, b) => a.length - b.length);
+
 	// We dont parallelize this loop because we want it to early-exit if it finds
 	// enough to confirm.
 	for (const [search_result_i, search_result_url] of response.entries()) {
+		const pageSteps = [];
+
+		console.log("Considering", search_result_url);
+		pageSteps.push("Considering " + search_result_url);
+		broadSteps.push("Considering " + search_result_url);
+
 		if (search_result_url == "") {
+			console.log("Skipping blank url");
+			pageSteps.push("Skipping blank url");
+			broadSteps.push("Skipping blank url");
 			continue
 		}
-		console.log("Considering", search_result_url);
-		steps.push("Considering " + search_result_url);
 		if (search_result_url.includes("youtube.com")) {
-			steps.push("Skipping blacklisted domain");
+			console.log("Skipping blacklisted domain");
+			pageSteps.push("Skipping blacklisted domain");
+			broadSteps.push("Skipping blacklisted domain");
 			continue
 		}
 		if (search_result_url.includes("twitter.com")) {
-			steps.push("Skipping blacklisted domain");
+			console.log("Skipping blacklisted domain");
+			pageSteps.push("Skipping blacklisted domain");
+			broadSteps.push("Skipping blacklisted domain");
 			continue
 		}
 
 		const {text: pageText, error: pageTextError} =
 				await getPageText(
-						knex, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, event_i, event_name, search_result_i, search_result_url);
+						db, chromeThrottler, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
 		if (!pageText) {
 			console.log("No page text, skipping.");
-			steps.push("No page text, skipping.");
+			pageSteps.push("No page text, skipping.");
+			broadSteps.push("No page text, skipping.");
 			num_errors++;
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: null,
+				steps: pageSteps
+			});
+
 			continue;
 		}
 
+		pageSteps.push("Analyzing page...");
 		const [matchness, analysis] =
 			await analyzePage(
-				knex, gptCacheCounter, gptThrottler, throttlerPriority, steps, openai, search_result_url, pageText, event_name, event_city, event_state);
+				db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, search_result_url, pageText, event_name, event_city, event_state);
 
 		if (matchness == 5) { // Multiple events
-			// Do nothing
+			console.log("Multiple events, ignoring.");
+			pageSteps.push("Multiple events, ignoring.");
+			broadSteps.push("Multiple events, ignoring.");
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: analysis,
+				steps: pageSteps
+			});
 		} else if (matchness == 4) { // Same city, confirmed.
 			console.log(event_name + " confirmed by " + search_result_url)
-			steps.push(event_name + " confirmed by " + search_result_url);
+			pageSteps.push(event_name + " confirmed by " + search_result_url);
+			broadSteps.push(event_name + " confirmed by " + search_result_url);
 
 			const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
 			const promising = yearly || (nextDate != null)
@@ -251,38 +318,86 @@ async function doublecheck(knex, googleSearchApiKey, searchThrottler, searchCach
 				num_promising++;
 			}
 
-			confirms.push({ url: search_result_url, steps: steps, pageText, analysis: analysis, month: month });
+			confirms.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				analysis: analysis,
+				month: month,
+				steps: pageSteps
+			});
 
 			if (confirms.length + num_promising >= 4) {
 				console.log("Found enough confirming " + event_name + ", continuing!");
-				steps.push("Found enough confirming " + event_name + ", continuing!");
+				pageSteps.push("Found enough confirming " + event_name + ", continuing!");
+				broadSteps.push("Found enough confirming " + event_name + ", continuing!");
 				break;
 			}
 		} else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
 			const success =
-					await addOtherEventSubmission(knex, { url: search_result_url, pageText, analysis: analysis });
+					await addOtherEventSubmission(db, { url: search_result_url, pageText, analysis: analysis });
 			if (!success) {
 				console.log("Rediscovered:", analysis.name);
+				pageSteps.push("Rediscovered:" + analysis.name);
+				broadSteps.push("Rediscovered:" + analysis.name);
 			}
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: analysis,
+				steps: pageSteps
+			});
 		} else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
 			const success =
-					await addOtherEventSubmission(knex, { url: search_result_url, pageText, analysis: analysis });
+					await addOtherEventSubmission(db, { url: search_result_url, pageText, analysis: analysis });
 			if (!success) {
 				console.log("Rediscovered:", analysis.name);
-				steps.push("Rediscovered:" + analysis.name);
+				pageSteps.push("Rediscovered:" + analysis.name);
+				broadSteps.push("Rediscovered:" + analysis.name);
 			}
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: analysis,
+				steps: pageSteps
+			});
 		} else if (matchness == 1) { // Not same event, ignore it.
-			// Do nothing
+			console.log("Not same event at all, ignoring.");
+			pageSteps.push("Not same event at all, ignoring.");
+			broadSteps.push("Not same event at all, ignoring.");
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: analysis,
+				steps: pageSteps
+			});
 		} else if (matchness == 0) { // Not an event, skip
 			console.log("Not an event, skipping.")
-			steps.push("Not an event, skipping.");
-			// Not a match at all
-			continue;
+			pageSteps.push("Not an event, skipping.");
+			broadSteps.push("Not an event, skipping.");
+
+			rejects.push({
+				url: search_result_url,
+				pageSteps: pageSteps,
+				pageText,
+				pageTextError,
+				analysis: analysis,
+				steps: pageSteps
+			});
 		} else {
 			console.log("Wat response:", matchness, analysis);
-			steps.push("Wat response: " + matchness + " " + JSON.stringify(analysis));
+			pageSteps.push("Wat response: " + matchness + " " + JSON.stringify(analysis));
+			broadSteps.push("Wat response: " + matchness + " " + JSON.stringify(analysis));
 			num_errors++;
-			continue;
 		}
 	}
 
@@ -295,7 +410,7 @@ async function doublecheck(knex, googleSearchApiKey, searchThrottler, searchCach
 	months = distinct(months);
 	const month = months.length == 1 ? months[0] : "";
 
-	const result = {
+	const investigation = {
 		confirms: confirms,
 		rejects: rejects,
 		month: month,
@@ -303,9 +418,10 @@ async function doublecheck(knex, googleSearchApiKey, searchThrottler, searchCach
 		num_promising: num_promising,
 		name: event_name,
 		city: event_city,
-		state: event_state
+		state: event_state,
+		broad_steps: broadSteps
 	};
-	return result;
+	return investigation;
 }
 
 const execFileAsync = util.promisify(execFile);
@@ -333,7 +449,7 @@ const configuration =
 		});
 const openai = new OpenAIApi(configuration);
 
-const knex = connectKnex("./db.sqlite");
+const db = new LocalDb(null, "./db.sqlite");
 
 try {
 	const gptThrottler = new Semaphore(null, 120);
@@ -345,12 +461,7 @@ try {
 
 
 	const otherEvents = [];
-	const approvedSubmissions =
-			await knex.select().from("Submissions")
-		      .whereNotNull("name")
-		      .whereNotNull("state")
-		      .whereNotNull("city")
-		      .where({status: 'approved'});
+	const approvedSubmissions = await db.getApprovedSubmissions();
 
 	console.log("Considering approved submissions:");
 	for (const submission of approvedSubmissions) {
@@ -382,9 +493,9 @@ try {
 		const steps = [];
 		steps.push("Starting doublecheck for event " + eventName + " in " + eventCity + ", " + eventState);
 
-		const doublecheckResult =
-			await doublecheck(
-				knex,
+		const investigation =
+			await investigate(
+				db,
 				googleSearchApiKey,
 				searchThrottler,
 				searchCacheCounter,
@@ -401,36 +512,26 @@ try {
 				maybeUrl,
 				steps)
 
-		if (!doublecheckResult) {
+		if (!investigation) {
 			console.log("Doublecheck failed for \"" + eventName + "\" in " + eventCity + ", " + eventState);
 			steps.push("Doublecheck null so failed for \"" + eventName + "\" in " + eventCity + ", " + eventState);
-			doublecheckResult = {confirms: [], found_month: "", num_errors: 1, num_promising: 0};
+			investigation = {confirms: [], found_month: "", num_errors: 1, num_promising: 0};
 		}
 
-		const {confirms, rejects, found_month: foundMonth, num_errors, num_promising} = doublecheckResult;
+		const {confirms, rejects, found_month: foundMonth, num_errors, num_promising} = investigation;
 		
-		await knex.transaction(async (trx) => {
+		await db.transaction(async (trx) => {
 			if (confirms.length == 0) {
 				if (num_errors > 0) {
 					console.log("Concluded ERRORS for " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 					steps.push("Concluded ERRORS for " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 
-					await trx("Submissions").where({'submission_id': submissionId})
-							.update({
-								status: 'errors',
-								analysis: JSON.stringify(doublecheckResult),
-								steps: JSON.stringify(steps)
-							});
+					trx.updateSubmissionStatus(submissionId, 'errors', null, investigation, steps);
 				} else {
 					console.log("Concluded HALLUCINATED " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 					steps.push("Concluded HALLUCINATED " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 
-					await trx("Submissions").where({'submission_id': submissionId})
-							.update({
-								status: 'failed',
-								analysis: JSON.stringify(doublecheckResult),
-								steps: JSON.stringify(steps)
-							});
+					trx.updateSubmissionStatus(submissionId, 'failed', null, investigation, steps);
 				}
 			} else {
 				console.log("Concluded FOUND " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + "), see:");
@@ -439,14 +540,8 @@ try {
 					console.log("    " + confirm.url);
 				}
 				const eventId = crypto.randomUUID();
-				await trx("Submissions").where({'submission_id': submissionId})
-						.update({
-							status: 'confirmed',
-							event_id: eventId,
-							analysis: JSON.stringify(doublecheckResult),
-							steps: JSON.stringify(steps)
-						});
-				await trx.into("ConfirmedEvents").insert({
+				trx.updateSubmissionStatus(submissionId, 'confirmed', eventId, investigation, steps);
+				await trx.insertEvent({
 					id: eventId,
 					submission_id: submissionId,
 		    	name: eventName,
@@ -456,7 +551,7 @@ try {
 		    	status: "analyzed"
 		    });
 		    for (const {url, steps, pageText, pageLongSummary, analysis, month} of confirms) {
-					await trx.into("EventConfirmations").insert({
+					await trx.insertConfirmation({
 						id: crypto.randomUUID(),
 						event_id: eventId,
 						url,
@@ -478,5 +573,5 @@ try {
 	process.exit(1);
 }
 
-knex.destroy();
+db.destroy();
 console.log("Done!")

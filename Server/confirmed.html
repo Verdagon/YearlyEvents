@@ -23,7 +23,7 @@ async function rejectClicked(index) {
 	div.innerHTML = "<div>Rejecting: " + name + "</div>...";
 	try {
 		const response =
-				await fetch("/reject?event_id=" + encodeURIComponent(eventId));
+				await fetch("/rejectEvent?event_id=" + encodeURIComponent(eventId));
 		await response.text();
 		div.innerHTML = "<div>Rejected: " + name + "</div>" + eventId;
 	} catch (e) {
@@ -50,6 +50,9 @@ Glory to the neosporin.<br /><br />
 		<div>
 			<button onclick="publishClicked(<%= eventI %>)">Publish</button>
 			<button onclick="rejectClicked(<%= eventI %>)">Reject</button>
+			<a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
+		</div>
+		<div>
 			<%= event.name %> in <%= event.city %>, <%= event.state %>:
 		</div>
 		<% event.confirmations.forEach(function(confirmation, confirmationI){ %>

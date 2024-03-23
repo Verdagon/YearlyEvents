@@ -1,5 +1,5 @@
 import { Configuration, OpenAIApi } from "openai";
-import { connectKnex, dbCachedZ, getFromDb } from '../db.js'
+// import { dbCachedZ, getFromDb } from '../db.js'
 import { delay } from "../parallel.js";
 import { normalizeName } from "../utils.js";
 import { askTruncated } from "../gptUtils.js";
@@ -57,10 +57,9 @@ function getMonthOrNull(month_response) {
 	return (match && match.length > 1 && match[1]) || null;
 }
 
-async function getCachedAnswer(knex, cacheCounter, url, question) {
+async function getCachedAnswer(db, cacheCounter, url, question) {
 	const maybeRow =
-	    await getFromDb(
-					knex,
+	    await db.getFromDb(
 					"AnalyzeCache",
 					cacheCounter,
 					{
@@ -76,6 +75,23 @@ async function getCachedAnswer(knex, cacheCounter, url, question) {
 	return answer;
 }
 
+
+async function getCachedDescription(db, gptCacheCounter, url) {
+	const maybeRow =
+	    await db.getFromDb(
+					"SummarizeCache",
+					gptCacheCounter,
+					{
+						"url": url,
+						prompt_version: SUMMARIZE_PROMPT_VERSION
+					});
+	if (!maybeRow) {
+		return null;
+	}
+	const {response} = maybeRow;
+	return response;
+}
+
 // Returns:
 // - How closely it matches.
 //   - 0: not event.
@@ -85,29 +101,22 @@ async function getCachedAnswer(knex, cacheCounter, url, question) {
 //   - 4: same event same city.
 //.  - 5: multiple events.
 // - information about the event, or null if not an event.
-export async function analyzePage(knex, gptCacheCounter, gptThrottler, throttlerPriority, steps, openai, url, page_text, event_name, event_city, event_state) {
+export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPriority, steps, openai, url, page_text, event_name, event_city, event_state) {
 
 	console.log("Asking GPT to describe...");
-	steps.push("Asking GPT to describe:");
-	steps.push(page_text);
+	steps.push({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 
-	const {response: description} =
-		await dbCachedZ(
-			knex,
-			"SummarizeCache",
-			gptCacheCounter,
-			{"url": url, prompt_version: SUMMARIZE_PROMPT_VERSION},
-			async () => {
-				const response = await askTruncated(gptThrottler, throttlerPriority, openai, SUMMARIZE_PROMPT + "\n------\n" + page_text);
-				return {response};
-			},
-			async (response) => response, // transform
-			response => !!response); // cacheIf
+	let description =
+			await getCachedDescription(db, gptCacheCounter, url);
+	if (!description) {
+		description =
+		    await askTruncated(gptThrottler, throttlerPriority, openai, SUMMARIZE_PROMPT + "\n------\n" + page_text);
+		await db.cachePageSummary({url, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
+	}
 
 	// console.log("GPT:");
 	// console.log(description);
-	steps.push("GPT response:");
-	steps.push(description);
+	steps.push({ "": "GPT response:", "details": description });
 
 	if (description.trim().toLowerCase().startsWith("nothing")) {
 		console.log("Not an event, skipping.");
@@ -149,7 +158,7 @@ export async function analyzePage(knex, gptCacheCounter, gptThrottler, throttler
 	const questionToMaybeCachedAnswer = {};
 	for (const question of questions) {
 		questionToMaybeCachedAnswer[question] =
-			await getCachedAnswer(knex, gptCacheCounter, url, question);
+			await getCachedAnswer(db, gptCacheCounter, url, question);
 	}
 
 	let analyzeQuestion =
@@ -182,7 +191,7 @@ export async function analyzePage(knex, gptCacheCounter, gptThrottler, throttler
 			await askTruncated(gptThrottler, throttlerPriority, openai, analyzeQuestion + "\n------\n" + description);
 		// console.log("GPT:")
 		// console.log(analysisResponse);
-		steps.push(analysisResponse);
+		// steps.push(analysisResponse);
 
 		for (const lineUntrimmed of analysisResponse.split("\n")) {
 			const line = lineUntrimmed.trim().replace(/"/g, "");
@@ -232,8 +241,14 @@ export async function analyzePage(knex, gptCacheCounter, gptThrottler, throttler
 			throw "Error: no answer anywhere for question" + question + " in GPT answer:\n" + analysisResponse;
 		}
 		questionToAnswer[question] = answer;
+		steps.push("Answered \"" + answer + "\" to: " + question + (questionToMaybeCachedAnswer[question] ? " (cached)" : ""))
 	}
 
+	const matches = {
+		city: null,
+		state: null,
+		anywhere: null
+	}
 	const analysis = {
 		yearly: null,
 		name: null,
@@ -244,13 +259,9 @@ export async function analyzePage(knex, gptCacheCounter, gptThrottler, throttler
 		lastDate: null,
 		nextDate: null,
 		summary: null,
+		matches: matches, // We could remove this to make the analysis query agnostic
 		description: description
 	};
-	const matches = {
-		city: null,
-		state: null,
-		anywhere: null
-	}
 
 	const multipleEventsAnswer =  questionToAnswer[MULTIPLE_EVENTS_QUESTION];
 	if (getStartBoolOrNull(multipleEventsAnswer) !== false) {
