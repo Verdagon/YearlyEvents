@@ -412,8 +412,8 @@ try {
 		await knex.transaction(async (trx) => {
 			if (confirms.length == 0) {
 				if (num_errors > 0) {
-					console.log("Concluded ERRORS for " + eventName + " in " + eventCity + " (" + submissionIndex + ")");
-					steps.push("Concluded ERRORS for " + eventName + " in " + eventCity + " (" + submissionIndex + ")");
+					console.log("Concluded ERRORS for " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
+					steps.push("Concluded ERRORS for " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 
 					await trx("Submissions").where({'submission_id': submissionId})
 							.update({
@@ -422,8 +422,8 @@ try {
 								steps: JSON.stringify(steps)
 							});
 				} else {
-					console.log("Concluded HALLUCINATED " + eventName + " in " + eventCity + " (" + submissionIndex + ")");
-					steps.push("Concluded HALLUCINATED " + eventName + " in " + eventCity + " (" + submissionIndex + ")");
+					console.log("Concluded HALLUCINATED " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
+					steps.push("Concluded HALLUCINATED " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ")");
 
 					await trx("Submissions").where({'submission_id': submissionId})
 							.update({
@@ -433,8 +433,8 @@ try {
 							});
 				}
 			} else {
-				console.log("Concluded FOUND " + eventName + " in " + eventCity + " (" + submissionIndex + "), see:");
-				steps.push("Concluded FOUND " + eventName + " in " + eventCity + " (" + submissionIndex + ").");
+				console.log("Concluded FOUND " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + "), see:");
+				steps.push("Concluded FOUND " + eventName + " in " + eventCity + ", " + eventState + " (" + submissionIndex + ").");
 				for (const confirm of confirms) {
 					console.log("    " + confirm.url);
 				}

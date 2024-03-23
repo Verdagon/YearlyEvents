@@ -29,23 +29,26 @@ async function rejectClicked(id) {
 </style>
 </head>
 <body>
-Glory to the neosporin.<br /><br />
+<form method="GET" action="/eventsFromGpt.html">
+<div><input style="width: 100%" name="query" type="text" value="<%= it.query %>"/></div>
+<div><input type="submit"/></div>
+</form>
 
-<% it.events.forEach(function(event, i){ %>
+<% it.ideas.forEach(function(idea, i){ %>
 	<div
 			class="idea"
 			id="idea<%= i %>"
-			data-name="<%= event.name %>"
-			data-city="<%= event.city %>"
-			data-state="<%= event.state %>"
-			data-description="<%= event.description %>">
+			data-name="<%= idea.name %>"
+			data-city="<%= idea.city %>"
+			data-state="<%= idea.state %>"
+			data-description="<%= idea.description %>">
 		<div>
 			<button onclick="submitClicked(<%= i %>)">Submit</button>
 			<button onclick="rejectClicked(<%= i %>)">Reject</button>
-			<%= event.name %> in <%= event.city %>, <%= event.state %>:
+			<%= idea.normalizedName %> in <%= idea.city %>, <%= idea.state %>:
 		</div>
-		<div><%= event.description %></div>
-		<div><%= event.notes %></div>
+		<div><%= idea.description %></div>
+		<div><%= idea.notes %></div>
 	</div>
 <% }) %>
 </body>

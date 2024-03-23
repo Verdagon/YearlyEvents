@@ -7,69 +7,13 @@ import http from 'http';
 import { connectKnex } from '../db.js'
 import { gptListEvents}  from '../gptListEvents.js';
 import { addEvent }  from '../addEvent.js';
+import { normalizeName } from '../utils.js'
 import { addSubmission, getSimilarSubmission }  from '../addSubmission.js';
 import { approveSubmission, rejectSubmission }  from '../approveSubmission.js';
 // import { getUnconsideredSubmissions }  from '../getUnconsideredSubmissions.js';
 import { Semaphore, parallelEachI } from "../parallel.js"
 import { Eta } from "eta";
-
-function abbreviateState(stateName) {
-    const stateAbbreviations = {
-        'Alabama': 'AL',
-        'Alaska': 'AK',
-        'Arizona': 'AZ',
-        'Arkansas': 'AR',
-        'California': 'CA',
-        'Colorado': 'CO',
-        'Connecticut': 'CT',
-        'Delaware': 'DE',
-        'Florida': 'FL',
-        'Georgia': 'GA',
-        'Hawaii': 'HI',
-        'Idaho': 'ID',
-        'Illinois': 'IL',
-        'Indiana': 'IN',
-        'Iowa': 'IA',
-        'Kansas': 'KS',
-        'Kentucky': 'KY',
-        'Louisiana': 'LA',
-        'Maine': 'ME',
-        'Maryland': 'MD',
-        'Massachusetts': 'MA',
-        'Michigan': 'MI',
-        'Minnesota': 'MN',
-        'Mississippi': 'MS',
-        'Missouri': 'MO',
-        'Montana': 'MT',
-        'Nebraska': 'NE',
-        'Nevada': 'NV',
-        'New Hampshire': 'NH',
-        'New Jersey': 'NJ',
-        'New Mexico': 'NM',
-        'New York': 'NY',
-        'North Carolina': 'NC',
-        'North Dakota': 'ND',
-        'Ohio': 'OH',
-        'Oklahoma': 'OK',
-        'Oregon': 'OR',
-        'Pennsylvania': 'PA',
-        'Rhode Island': 'RI',
-        'South Carolina': 'SC',
-        'South Dakota': 'SD',
-        'Tennessee': 'TN',
-        'Texas': 'TX',
-        'Utah': 'UT',
-        'Vermont': 'VT',
-        'Virginia': 'VA',
-        'Washington': 'WA',
-        'West Virginia': 'WV',
-        'Wisconsin': 'WI',
-        'Wyoming': 'WY'
-    };
-    
-    const abbreviation = stateAbbreviations[stateName];
-    return abbreviation || stateName;
-}
+import { abbreviateState } from "../utils.js"
 
 const eta = new Eta();
 
@@ -111,28 +55,38 @@ const server = http.createServer(async function (req, res) {
       if (!queryParams.query) {
         throw "Missing query!";
       }
-      const submissions = await gptListEvents(openai, gptThrottler, queryParams.query);
-      console.log("submissions:", submissions);
-			await parallelEachI(submissions, async (submissionIndex, submission) => {
-				const {name, city, state} = submission;
-		  	const similar = await getSimilarSubmission(knex, name, city, state);
-		  	if (similar) {
-		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-		  				similar;
+      const query = queryParams.query;
+      const ideas = await gptListEvents(openai, gptThrottler, query);
+      console.log("ideas:", ideas);
+			await parallelEachI(ideas, async (ideaIndex, idea) => {
+				const {name, city, state} = idea;
+				const normalizedName = normalizeName(name, city, state);
+				idea.normalizedName = normalizedName;
+		  	const maybeSimilarSubmission = await getSimilarSubmission(knex, name, city, state);
+		  	if (maybeSimilarSubmission) {
+		  		const {name: similarideaName, city: similarideaCity, state: similarideastate} =
+		  				maybeSimilarSubmission;
 
-		  		console.log("Checking similar:", submission.city, submission.state, similarSubmissionCity, similarSubmissionState, abbreviateState(submission.state), abbreviateState(similarSubmissionState));
-				  if (submission.city == similarSubmissionCity &&
-				  		abbreviateState(submission.state) == abbreviateState(similarSubmissionState)) {
-				  	submission.notes = "(Already known)";
+		  		console.log(
+		  				"Checking similar:",
+		  				idea.city,
+		  				idea.state,
+		  				similarideaCity,
+		  				similarideastate,
+		  				abbreviateState(idea.state),
+		  				abbreviateState(similarideastate));
+				  if (idea.city == similarideaCity &&
+				  		abbreviateState(idea.state) == abbreviateState(similarideastate)) {
+				  	idea.notes = "(Already known)";
 				  } else {
-			  		submission.notes = "(Similar known: " + name + " in " + city + ", " + state + ")";
+			  		idea.notes = "(Similar known: " + name + " in " + city + ", " + state + ")";
 			  	}
 			  } else {
-			  	submission.notes = "";
+			  	idea.notes = "";
 			  	// Do nothing
 			  }
 			});
-			submissions.sort((a, b) => {
+			ideas.sort((a, b) => {
 				if (a.notes.length != b.notes.length) {
 					return a.notes.length - b.notes.length;
 				}
@@ -140,7 +94,7 @@ const server = http.createServer(async function (req, res) {
 			});
 
       const pageHtml = await fs.readFile("eventsFromGpt.html", { encoding: 'utf8' });
-      const response = eta.renderString(pageHtml, { events: submissions });
+      const response = eta.renderString(pageHtml, { ideas, query });
       console.log("Response:", response);
       res.write(response);
     } break;
