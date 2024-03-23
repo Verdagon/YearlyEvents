@@ -1,5 +1,6 @@
 // challenges, competitions, festivals, events, celebrations
 
+import syncFs from "fs";
 import http from "http";
 import https from "https";
 import util from 'node:util';
@@ -103,7 +104,7 @@ async function addOtherEventSubmission(db, otherEvent) {
 	return await addSubmission(db, {name, city, state, description: summary, url}, false);
 }
 
-async function getPageText(db, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
 	return await db.transaction(async (trx) => {
 		const cachedPageTextRow =
 				await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
@@ -114,7 +115,7 @@ async function getPageText(db, chromeThrottler, chromeCacheCounter, throttlerPri
 
 		console.log("Asking for browse to " + url);
 		steps.push("Browsing to " + url);
-		const pdf_path = "temp/result" + eventI + "-" + resultI + ".pdf"
+		const pdf_path = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
 		const fetcher_result =
 				url.endsWith(".pdf") ?
 						await fetchPDF(url, pdf_path) :
@@ -133,7 +134,7 @@ async function getPageText(db, chromeThrottler, chromeCacheCounter, throttlerPri
 			return {text: null, error};
 		}
 
-		const txt_path = "pagetexts/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
+		const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
 		const pdftotext_result =
 			  await runCommandForStatus(
 			  		"/opt/homebrew/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
@@ -202,7 +203,7 @@ async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCa
 	return {response: response};
 }
 
-async function investigate(db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeThrottler, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
+async function investigate(scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeThrottler, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
 	const broadSteps = [];
 	const googleQuery = event_name + " " + event_city + " " + event_state;
 	console.log("Googling: " + googleQuery);
@@ -270,7 +271,7 @@ async function investigate(db, googleSearchApiKey, searchThrottler, searchCacheC
 
 		const {text: pageText, error: pageTextError} =
 				await getPageText(
-						db, chromeThrottler, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
+						scratchDir, db, chromeThrottler, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
 		if (!pageText) {
 			console.log("No page text, skipping.");
 			pageSteps.push("No page text, skipping.");
@@ -327,7 +328,7 @@ async function investigate(db, googleSearchApiKey, searchThrottler, searchCacheC
 				steps: pageSteps
 			});
 
-			if (confirms.length + num_promising >= 4) {
+			if (confirms.length + num_promising >= 5) {
 				console.log("Found enough confirming " + event_name + ", continuing!");
 				pageSteps.push("Found enough confirming " + event_name + ", continuing!");
 				broadSteps.push("Found enough confirming " + event_name + ", continuing!");
@@ -427,20 +428,35 @@ async function investigate(db, googleSearchApiKey, searchThrottler, searchCacheC
 const execFileAsync = util.promisify(execFile);
 
 const openAiApiKey = process.argv[2]
-if (openAiApiKey == "") {
+if (!openAiApiKey) {
 	console.log("Please enter the OpenAI key for the first argument.")
 	console.log("Example usage:")
-	console.log("    node index.js openAIKeyHere123 googleSearchKeyHere456 true \"North Carolina\" \"What are the 3 weirdest yearly championships that happen in North Carolina?\"")
+	console.log("    node index.js openAIKeyHere123 googleSearchKeyHere456 scratch");
 	process.exit(1)
 }
 
 const googleSearchApiKey = process.argv[3]
-if (googleSearchApiKey == "") {
+if (!googleSearchApiKey) {
 	console.log("Please enter the Google Search API key for the second argument.")
 	console.log("Example usage:")
-	console.log("    node index.js openAIKeyHere123 googleSearchKeyHere456 true \"North Carolina\" \"What are the 3 weirdest yearly championships that happen in North Carolina?\"")
+	console.log("    node index.js openAIKeyHere123 googleSearchKeyHere456 scratch");
 	process.exit(1)
 }
+
+const scratchDir = process.argv[4]
+if (!scratchDir) {
+	console.log("Please enter the scratch dir for the third argument.")
+	console.log("Example usage:")
+	console.log("    node index.js openAIKeyHere123 googleSearchKeyHere456 scratch");
+	process.exit(1)
+}
+if (!syncFs.existsSync(scratchDir)) {
+	console.log("Making scratch dir:", scratchDir);
+  syncFs.mkdirSync(scratchDir);
+}
+
+
+
 
 const configuration =
 		new Configuration({
@@ -495,6 +511,7 @@ try {
 
 		const investigation =
 			await investigate(
+				scratchDir,
 				db,
 				googleSearchApiKey,
 				searchThrottler,
