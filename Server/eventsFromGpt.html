@@ -1,5 +1,9 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Responsive HTML Template</title>
 <script>
 async function submitClicked(id) {
 	const div = document.getElementById("idea" + id);
@@ -42,10 +46,14 @@ async function ignoreClicked(id) {
 			data-city="<%= idea.city %>"
 			data-state="<%= idea.state %>"
 			data-description="<%= idea.description %>">
-		<div>
-			<button onclick="submitClicked(<%= i %>)">Submit</button>
-			<button onclick="ignoreClicked(<%= i %>)">Ignore</button>
-			<%= idea.normalizedName %> in <%= idea.city %>, <%= idea.state %>:
+		<div style="display: flex">
+			<div style="flex-grow: 1">
+				<b><%= idea.normalizedName %></b> in <%= idea.city %>, <%= idea.state %>:
+			</div>
+			<div>
+				<button onclick="submitClicked(<%= i %>)">Submit</button>
+				<button onclick="ignoreClicked(<%= i %>)">Ignore</button>
+			</div>
 		</div>
 		<div><%= idea.description %></div>
 		<div><%= idea.notes %></div>
