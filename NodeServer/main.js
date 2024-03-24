@@ -50,93 +50,106 @@ const nodeServer = http.createServer(async function(req, res) {
 
   console.log("Request:", parsedUrl, queryParams);
 
-  switch (parsedUrl.pathname) {
-    case "/eventsFromGpt.html": {
-      if (!queryParams.query) {
-        throw "Missing query!";
-      }
-      const query = queryParams.query;
-      const response = await server.eventsFromGpt(query);
-      console.log("Response:", response);
-      res.write(response);
-    } break;
+  try {
+	  switch (parsedUrl.pathname) {
+	    case "/eventsFromGpt.html": {
+	      if (!queryParams.query) {
+	        throw "Missing query!";
+	      }
+	      const query = queryParams.query;
+	      const response = await server.eventsFromGpt(query);
+	      console.log("Response:", response);
+	      res.write(response);
+	    } break;
 
-    case "/unconsidered.html": {
-      const response = await server.unconsidered();
-      console.log("Response:", response);
-      res.write(response);
-    } break;
+	    case "/unconsidered.html": {
+	      const response = await server.unconsidered();
+	      console.log("Response:", response);
+	      res.write(response);
+	    } break;
 
-    case "/confirmed.html": {
-      const response = await server.confirmed();
-      console.log("Response:", response);
-      res.write(response);
-    } break;
+	    case "/confirmed.html": {
+	      const response = await server.confirmed();
+	      console.log("Response:", response);
+	      res.write(response);
+	    } break;
 
-    case "/askGpt.html": {
-      res.write(await server.askGpt());
-    } break;
+	    case "/askGpt.html": {
+	      res.write(await server.askGpt());
+	    } break;
 
-    case "/submission": {
-      const {submission_id: submissionId} = queryParams;
-      if (submissionId == null) throw "Missing submission_id!";
-      const response = await server.submission(submissionId);
-      console.log("Response:", response);
-      res.write(response);
-    } break;
+	    case "/submission": {
+	      const {submission_id: submissionId} = queryParams;
+	      if (submissionId == null) throw "Missing submission_id!";
+	      const response = await server.submission(submissionId);
+	      console.log("Response:", response);
+	      res.write(response);
+	    } break;
 
-    case "/submit": {
-      const {name, city, state, description, url} = queryParams;
-      if (name == null) throw "Missing name!";
-      if (state == null) throw "Missing state!";
-      if (city == null) throw "Missing city!";
-      // url is optional
-      if (description == null) throw "Missing description!";
+	    case "/submit": {
+	      const {name, city, state, description, url} = queryParams;
+	      if (name == null) throw "Missing name!";
+	      if (state == null) throw "Missing state!";
+	      if (city == null) throw "Missing city!";
+	      // url is optional
+	      if (description == null) throw "Missing description!";
 
-      const success = await server.submit(name, city, state, description, url);
-      if (success) {
-        res.writeHead(200);
-      } else {
-        res.writeHead(409);
-        res.write("Event already exists.")
-      }
-    } break;
+	      const success = await server.submit(name, city, state, description, url);
+	      if (success) {
+	        res.writeHead(200);
+	      } else {
+	        res.writeHead(409);
+	        res.write("Event already exists.")
+	      }
+	    } break;
 
-    case "/publish": {
-      const {event_id: eventId} = queryParams;
-      if (eventId == null) throw "Missing event_id!";
+	    case "/publish": {
+	      const {event_id: eventId} = queryParams;
+	      if (eventId == null) throw "Missing event_id!";
 
-      await server.publish(eventId);
-    } break;
+	      await server.publish(eventId);
+	    } break;
 
-    case "/rejectEvent": {
-      const {event_id: eventId} = queryParams;
-      if (eventId == null) throw "Missing event_id!";
+	    case "/rejectEvent": {
+	      const {event_id: eventId} = queryParams;
+	      if (eventId == null) throw "Missing event_id!";
 
-      await server.rejectEvent(eventId);
-    } break;
+	      await server.rejectEvent(eventId);
+	    } break;
 
-    case "/approve": {
-      const {submission_id: submissionId} = queryParams;
-      if (submissionId == null) throw "Missing submission_id!";
+	    case "/approve": {
+	      const {submission_id: submissionId} = queryParams;
+	      if (submissionId == null) throw "Missing submission_id!";
 
-      await server.approve(submissionId);
-    } break;
+	      await server.approve(submissionId);
+	    } break;
 
-    case "/reject": {
-      const {submission_id: submissionId} = queryParams;
-      if (submissionId == null) throw "Missing submission_id!";
-      await server.reject(submissionId);
-    } break;
+	    case "/reject": {
+	      const {submission_id: submissionId} = queryParams;
+	      if (submissionId == null) throw "Missing submission_id!";
+	      await server.reject(submissionId);
+	    } break;
 
-    default: {
-      res.write("404");
-    } break;
-  }
+	    default: {
+	      res.write("404");
+	    } break;
+	  }
 
-  // End the response 
-  console.log("Done!");
-  res.end()
+	  // End the response 
+	  console.log("Done!");
+	  res.end()
+	} catch (error) {
+		try {
+			res.writeHead(500);
+			if (typeof error == 'string') {
+				res.write(error);
+			} else {
+				res.write(JSON.stringify(error));
+			}
+		} catch (error2) {
+			console.log("Error while sending error response:", error2);
+		}
+	}
 })
 
 // Set up our server so it will listen on the port
