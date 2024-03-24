@@ -5,7 +5,7 @@ import querystring from "querystring";
 import http from 'http';
 import { gptListEvents}  from '../Common/gptListEvents.js';
 import { normalizeName } from '../Common/utils.js'
-import { LocalDb } from '../LocalDb/localdb.js'
+import { LocalDb } from '../LocalDB/localdb.js'
 import { addSubmission } from '../Common/addSubmission.js'
 // import { approveSubmission, rejectSubmission }  from '../approveSubmission.js';
 // import { getUnconsideredSubmissions }  from '../getUnconsideredSubmissions.js';
