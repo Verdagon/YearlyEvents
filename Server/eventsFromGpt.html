@@ -50,7 +50,7 @@ async function ignoreClicked(id) {
 			<div style="flex-grow: 1">
 				<b><%= idea.normalizedName %></b> in <%= idea.city %>, <%= idea.state %>:
 			</div>
-			<div>
+			<div style="flex-shrink: 0">
 				<button onclick="submitClicked(<%= i %>)">Submit</button>
 				<button onclick="ignoreClicked(<%= i %>)">Ignore</button>
 			</div>
