@@ -34,7 +34,7 @@ if (!scratchDir) {
 }
 if (!syncFs.existsSync(scratchDir)) {
 	console.log("Making scratch dir:", scratchDir);
-  await fs.mkdirSync(scratchDir);
+  await syncFs.mkdirSync(scratchDir);
 }
 
 
