@@ -146,6 +146,7 @@ const nodeServer = http.createServer(async function(req, res) {
 			} else {
 				res.write(JSON.stringify(error));
 			}
+	  	res.end()
 		} catch (error2) {
 			console.log("Error while sending error response:", error2);
 		}

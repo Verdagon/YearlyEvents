@@ -106,7 +106,10 @@ export class YearlyEventsServer {
   }
 
 	async askGpt() {
-		return this.getResource("askGpt.html");
+		console.log("getting thing");
+		const x = this.getResource("askGpt.html");
+		console.log("got thing");
+		return x;
 	}
 
 	async submission(submissionId) {
