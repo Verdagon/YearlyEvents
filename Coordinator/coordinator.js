@@ -6,7 +6,7 @@ import https from "https";
 import util from 'node:util';
 import { execFile } from 'node:child_process'
 import { delay } from "../Common/parallel.js";
-import { LocalDb } from '../LocalDb/localdb.js'
+import { LocalDb } from '../LocalDB/localdb.js'
 // import { getUnanalyzedSubmissions } from '../getUnanalyzedSubmissions.js'
 import { analyzePage } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
