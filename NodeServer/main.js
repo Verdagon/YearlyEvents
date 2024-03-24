@@ -13,7 +13,7 @@ import { Semaphore, parallelEachI } from "../Common/parallel.js"
 import { normalizeState } from "../Common/utils.js"
 import { YearlyEventsServer } from '../Server/YearlyEventsServer.js';
 
-const port = 8080
+const port = 8337
 
 const dbPath = process.argv[2];
 if (!dbPath) {
