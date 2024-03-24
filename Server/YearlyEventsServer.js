@@ -1,28 +1,18 @@
-import syncFs from "fs";
-import fs from "fs/promises";
-import url from "url";
-import querystring from "querystring";
 import { Configuration, OpenAIApi } from "openai";
-import { gptListEvents}  from '../gptListEvents.js';
-import { normalizeName } from '../utils.js'
-import { addSubmission } from '../addSubmission.js'
-// import { approveSubmission, rejectSubmission }  from '../approveSubmission.js';
-// import { getUnconsideredSubmissions }  from '../getUnconsideredSubmissions.js';
-import { Semaphore, parallelEachI } from "../parallel.js"
 import { Eta } from "eta";
-import { normalizeState } from "../utils.js"
-
-const eta = new Eta();
+import { gptListEvents}  from '../Common/gptListEvents.js';
+import { normalizeName } from '../Common/utils.js'
+import { addSubmission } from '../Common/addSubmission.js'
+import { Semaphore, parallelEachI } from "../Common/parallel.js"
+import { normalizeState } from "../Common/utils.js"
 
 export class YearlyEventsServer {
-	constructor(resourcesDir, scratchDir, db, openAiApiKey) {
-		this.resourcesDir = resourcesDir;
+	constructor(scratchDir, db, openAiApiKey, getResource) {
+		this.eta = new Eta();
+
+		this.getResource = getResource;
 		
 		this.scratchDir = scratchDir;
-		if (!syncFs.existsSync(this.scratchDir)) {
-			console.log("Making scratch dir:", this.scratchDir);
-		  syncFs.mkdirSync(this.scratchDir);
-		}
 
 		this.db = db;
 
@@ -65,8 +55,8 @@ export class YearlyEventsServer {
 			return a.name.localeCompare(b.name);
 		});
 
-    const pageHtml = await fs.readFile(this.resourcesDir + "/eventsFromGpt.html", { encoding: 'utf8' });
-    const response = eta.renderString(pageHtml, { ideas, query });
+    const pageHtml = await this.getResource("eventsFromGpt.html");
+    const response = this.eta.renderString(pageHtml, { ideas, query });
     return response;
   }
 
@@ -101,8 +91,8 @@ export class YearlyEventsServer {
 			return a.name.localeCompare(b.name);
 		});
 
-    const pageHtml = await fs.readFile(this.resourcesDir + "/unconsidered.html", { encoding: 'utf8' });
-    return eta.renderString(pageHtml, { submissions: submissions });
+    const pageHtml = this.getResource("unconsidered.html");
+    return this.eta.renderString(pageHtml, { submissions: submissions });
   }
 
   async confirmed() {
@@ -110,13 +100,13 @@ export class YearlyEventsServer {
     await parallelEachI(events, async (eventI, event) => {
       event.confirmations = await this.db.getEventConfirmations(event.id);
     });
-    const pageHtml = await fs.readFile(this.resourcesDir + "/confirmed.html", { encoding: 'utf8' });
-    const response = eta.renderString(pageHtml, { events: events });
+    const pageHtml = this.getResource("confirmed.html");
+    const response = this.eta.renderString(pageHtml, { events: events });
     return response;
   }
 
 	async askGpt() {
-		return await fs.readFile(this.resourcesDir + "/askGpt.html", { encoding: 'utf8' });
+		return this.getResource("askGpt.html");
 	}
 
 	async submission(submissionId) {
@@ -132,8 +122,8 @@ export class YearlyEventsServer {
 
     console.log("submission:", submission);
 
-    const pageHtml = await fs.readFile(this.resourcesDir + "/submission.html", { encoding: 'utf8' });
-		const response = eta.renderString(pageHtml, { submission, event });
+    const pageHtml = this.getResource("submission.html");
+		const response = this.eta.renderString(pageHtml, { submission, event });
     console.log("Response:", response);
     return response;
   }

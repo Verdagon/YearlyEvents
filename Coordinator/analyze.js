@@ -1,8 +1,8 @@
 import { Configuration, OpenAIApi } from "openai";
 // import { dbCachedZ, getFromDb } from '../db.js'
-import { delay } from "../parallel.js";
-import { normalizeName } from "../utils.js";
-import { askTruncated } from "../gptUtils.js";
+import { delay } from "../Common/parallel.js";
+import { normalizeName } from "../Common/utils.js";
+import { askTruncated } from "../Common/gptUtils.js";
 import fs from "fs/promises";
 
 // These key numbers are stored in the database.

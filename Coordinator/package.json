@@ -11,7 +11,8 @@
   "dependencies": {
     "knex": "^2.5.1",
     "openai": "^3.3.0",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "urlencode": "^2.0.0"
   },
   "type": "module"
 }

@@ -5,16 +5,15 @@ import http from "http";
 import https from "https";
 import util from 'node:util';
 import { execFile } from 'node:child_process'
-import { delay } from "../parallel.js";
+import { delay } from "../Common/parallel.js";
 import { LocalDb } from '../LocalDb/localdb.js'
 // import { getUnanalyzedSubmissions } from '../getUnanalyzedSubmissions.js'
 import { analyzePage } from './analyze.js'
-import { addSubmission } from '../addSubmission.js'
+import { addSubmission } from '../Common/addSubmission.js'
 import fs from "fs/promises";
-import rawfs from "fs";
 import { Configuration, OpenAIApi } from "openai";
-import { Semaphore, parallelEachI, makeMsThrottler } from "../parallel.js";
-import { normalizeName } from "../utils.js";
+import { Semaphore, parallelEachI, makeMsThrottler } from "../Common/parallel.js";
+import { normalizeName } from "../Common/utils.js";
 import urlencode from 'urlencode';
 
 function onlyUnique(value, index, array) {

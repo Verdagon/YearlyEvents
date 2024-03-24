@@ -1,16 +1,17 @@
+import syncFs from "fs";
 import fs from "fs/promises";
 import url from "url";
 import querystring from "querystring";
 import http from 'http';
-import { gptListEvents}  from '../gptListEvents.js';
-import { normalizeName } from '../utils.js'
+import { gptListEvents}  from '../Common/gptListEvents.js';
+import { normalizeName } from '../Common/utils.js'
 import { LocalDb } from '../LocalDb/localdb.js'
-import { addSubmission } from '../addSubmission.js'
+import { addSubmission } from '../Common/addSubmission.js'
 // import { approveSubmission, rejectSubmission }  from '../approveSubmission.js';
 // import { getUnconsideredSubmissions }  from '../getUnconsideredSubmissions.js';
-import { Semaphore, parallelEachI } from "../parallel.js"
-import { normalizeState } from "../utils.js"
-import { YearlyEventsServer } from '../Server/Server.js';
+import { Semaphore, parallelEachI } from "../Common/parallel.js"
+import { normalizeState } from "../Common/utils.js"
+import { YearlyEventsServer } from '../Server/YearlyEventsServer.js';
 
 const port = 8080
 
@@ -31,10 +32,17 @@ const scratchDir = process.argv[4];
 if (!scratchDir) {
   throw "Expected scratch path for third argument, but was missing.";
 }
+if (!syncFs.existsSync(scratchDir)) {
+	console.log("Making scratch dir:", scratchDir);
+  await fs.mkdirSync(scratchDir);
+}
+
 
 const db = new LocalDb(null, dbPath);
 
-const server = new YearlyEventsServer("../Server", scratchDir, db, openAiApiKey);
+const server = new YearlyEventsServer(scratchDir, db, openAiApiKey, async (file) => {
+	return await fs.readFile("../Server/" + file, { encoding: 'utf8' });
+});
 
 const nodeServer = http.createServer(async function(req, res) {
   const parsedUrl = url.parse(req.url);
