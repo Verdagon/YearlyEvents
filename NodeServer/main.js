@@ -37,11 +37,19 @@ if (!syncFs.existsSync(scratchDir)) {
   await syncFs.mkdirSync(scratchDir);
 }
 
+const resourcesDir = process.argv[4];
+if (!resourcesDir) {
+  throw "Expected resources path for fourth argument, but was missing.";
+}
+if (!syncFs.existsSync(resourcesDir)) {
+	throw "Expected resources path for fourth argument, but that path doesnt exist.";
+}
+
 
 const db = new LocalDb(null, dbPath);
 
 const server = new YearlyEventsServer(scratchDir, db, openAiApiKey, async (file) => {
-	return await fs.readFile("../Server/" + file, { encoding: 'utf8' });
+	return await fs.readFile(resourcesDir + "/" + file, { encoding: 'utf8' });
 });
 
 const nodeServer = http.createServer(async function(req, res) {
