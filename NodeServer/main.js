@@ -37,7 +37,7 @@ if (!syncFs.existsSync(scratchDir)) {
   await syncFs.mkdirSync(scratchDir);
 }
 
-const resourcesDir = process.argv[4];
+const resourcesDir = process.argv[5];
 if (!resourcesDir) {
   throw "Expected resources path for fourth argument, but was missing.";
 }
