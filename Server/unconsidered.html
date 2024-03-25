@@ -1,43 +1,4 @@
 <html>
-<head>
-<script>
-async function approveClicked(index) {
-	const div = document.getElementById("idea" + index);
-	const name = div.dataset.name;
-	const submissionId = div.dataset.submissionId;
-	div.innerHTML = "<div>Approving: " + name + "</div>...";
-	try {
-		const response =
-				await fetch("/approve?submission_id=" + encodeURIComponent(submissionId));
-		await response.text();
-		div.innerHTML = "<div>Approved: " + name + "</div>" + submissionId;
-	} catch (e) {
-		console.log(e);
-		div.innerHTML = "<div>Error: " + name + "</div>" + e;
-	}
-}
-async function rejectClicked(index) {
-	const div = document.getElementById("idea" + index);
-	const name = div.dataset.name;
-	const submissionId = div.dataset.submissionId;
-	div.innerHTML = "<div>Rejecting: " + name + "</div>...";
-	try {
-		const response =
-				await fetch("/reject?submission_id=" + encodeURIComponent(submissionId));
-		await response.text();
-		div.innerHTML = "<div>Rejected: " + name + "</div>" + submissionId;
-	} catch (e) {
-		console.log(e);
-		div.innerHTML = "<div>Error: " + name + "</div>" + e;
-	}
-}
-</script>
-<style>
-.idea {
-	margin-bottom: 8px;
-}
-</style>
-</head>
 <body>
 Glory to the neosporin.<br /><br />
 
