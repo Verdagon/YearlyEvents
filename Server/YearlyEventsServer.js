@@ -85,8 +85,8 @@ export class YearlyEventsServer {
 			submission.normalizedName = normalizedName;
 			submission.notes = "";
 			console.log("looking for similars to ", submission);
-	  	const maybeSimilarSubmission = await this.db.getSimilarNonRejectedEvent(normalizedName);
-	  	console.log("submission:", submission, "maybe similar:", maybeSimilarSubmission);
+	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
+	  	console.log("submission:", submission, "maybe similar:", maybeSimilarEvent);
 	  	if (maybeSimilarEvent) {
 	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
 	  				maybeSimilarEvent;
