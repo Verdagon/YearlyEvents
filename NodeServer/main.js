@@ -147,6 +147,7 @@ const nodeServer = http.createServer(async function(req, res) {
 	  console.log("Done!");
 	  res.end()
 	} catch (error) {
+		console.log("Error:", error);
 		try {
 			res.writeHead(500);
 			if (typeof error == 'string') {
