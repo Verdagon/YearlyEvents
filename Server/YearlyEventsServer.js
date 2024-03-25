@@ -98,6 +98,7 @@ export class YearlyEventsServer {
 
     const pageHtml = this.getResource("unconsidered.html");
     console.log("submissions:", submissions);
+    console.log(typeof pageHtml);
     return this.eta.renderString(pageHtml, { submissions: [] });
   }
 
