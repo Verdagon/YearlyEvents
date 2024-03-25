@@ -41,20 +41,5 @@ async function rejectClicked(index) {
 <body>
 Glory to the neosporin.<br /><br />
 
-<% it.submissions.forEach(function(submission, i){ %>
-	<div
-			class="idea"
-			id="idea<%= i %>"
-			data-name="<%= submission.name %>"
-			data-submission-id="<%= submission.submission_id %>">
-		<div>
-			<button onclick="approveClicked(<%= i %>)">Approve</button>
-			<button onclick="rejectClicked(<%= i %>)">Reject</button>
-			<%= submission.name %> in <%= submission.city %>, <%= submission.state %>:
-		</div>
-		<div><%= submission.description %></div>
-		<div><%= submission.notes %></div>
-	</div>
-<% }) %>
 </body>
 </html>
