@@ -470,7 +470,7 @@ const db = new LocalDb(null, "./db.sqlite");
 try {
 	const gptThrottler = new Semaphore(null, 120);
 	const searchThrottler = new Semaphore(10, null);
-	const chromeThrottler = new Semaphore(10, null);
+	const chromeThrottler = new Semaphore(5, null);
 	const chromeCacheCounter = { count: 0 };
 	const searchCacheCounter = { count: 0 };
 	const gptCacheCounter = { count: 0 };

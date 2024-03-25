@@ -17,6 +17,8 @@ fn browse_wikipedia() -> Result<(), Box<dyn Error>> {
 
     let tab = browser.new_tab()?;
 
+    tab.set_default_timeout(std::time::Duration::from_secs(60));
+
     // Navigate to wikipedia
     tab.navigate_to(&url)?;
 
