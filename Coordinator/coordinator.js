@@ -251,7 +251,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 			const cachedPageTextRow =
 					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
 			if (!cachedPageTextRow) {
-				await db.cachePageText({url, text: null, error});
+				await trx.cachePageText({url, text: null, error});
 			}
 		});
 		return {text: null, error};
@@ -269,7 +269,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 			const cachedPageTextRow =
 					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
 			if (!cachedPageTextRow) {
-				await db.cachePageText({url, text: null, error});
+				await trx.cachePageText({url, text: null, error});
 			}
 		});
 		return {text: null, error};
@@ -283,7 +283,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 			const cachedPageTextRow =
 					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
 			if (!cachedPageTextRow) {
-				await db.cachePageText({url, text: null, error});
+				await trx.cachePageText({url, text: null, error});
 			}
 		});
 		return {text: null, error};

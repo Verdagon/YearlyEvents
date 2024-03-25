@@ -59,15 +59,15 @@ function getMonthOrNull(month_response) {
 
 async function getCachedAnswer(db, cacheCounter, url, question) {
 	const maybeRow =
-	    await db.getFromDb(
-					"AnalyzeCache",
-					cacheCounter,
-					{
-						"url": url,
-						question,
-						model: "gpt-3.5-turbo",
-						summarize_prompt_version: SUMMARIZE_PROMPT_VERSION
-					});
+    await db.getFromDb(
+				"AnalyzeCache",
+				cacheCounter,
+				{
+					"url": url,
+					question,
+					model: "gpt-3.5-turbo",
+					summarize_prompt_version: SUMMARIZE_PROMPT_VERSION
+				});
 	if (!maybeRow) {
 		return null;
 	}
