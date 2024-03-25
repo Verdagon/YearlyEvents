@@ -104,57 +104,58 @@ async function addOtherEventSubmission(db, otherEvent) {
 }
 
 async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
-	return await db.transaction(async (trx) => {
-		const cachedPageTextRow =
-				await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-		if (cachedPageTextRow) {
-			chromeCacheCounter.count++;
-			return cachedPageTextRow;
-		}
+	// This used to be wrapped in a transaction but I think it was causing the connection
+	// pool to get exhausted.
 
-		console.log("Asking for browse to " + url);
-		steps.push("Browsing to " + url);
-		const pdf_path = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
-		const fetcher_result =
-				url.endsWith(".pdf") ?
-						await fetchPDF(url, pdf_path) :
-						await retry(3, async () => {
-							return await chromeThrottler.prioritized(throttlerPriority, async () => {
-								console.log("Released for Chrome!", throttlerPriority)
-								console.log("Attempting browse to " + url);
-								return await runCommandForNullableStdout(
-										"./PageFetcher/target/debug/PageFetcher", [url, pdf_path]);
-							});
+	const cachedPageTextRow =
+			await db.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+	if (cachedPageTextRow) {
+		chromeCacheCounter.count++;
+		return cachedPageTextRow;
+	}
+
+	console.log("Asking for browse to " + url);
+	steps.push("Browsing to " + url);
+	const pdf_path = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
+	const fetcher_result =
+			url.endsWith(".pdf") ?
+					await fetchPDF(url, pdf_path) :
+					await retry(3, async () => {
+						return await chromeThrottler.prioritized(throttlerPriority, async () => {
+							console.log("Released for Chrome!", throttlerPriority)
+							console.log("Attempting browse to " + url);
+							return await runCommandForNullableStdout(
+									"./PageFetcher/target/debug/PageFetcher", [url, pdf_path]);
 						});
-		if (!fetcher_result) {
-			const error = "Bad fetch/browse for event " + eventName + " result " + url;
-			console.log(error)
-			await trx.cachePageText({url, text: null, error});
-			return {text: null, error};
-		}
+					});
+	if (!fetcher_result) {
+		const error = "Bad fetch/browse for event " + eventName + " result " + url;
+		console.log(error)
+		await db.cachePageText({url, text: null, error});
+		return {text: null, error};
+	}
 
-		const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
-		const pdftotext_result =
-			  await runCommandForStatus(
-			  		"/opt/homebrew/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
-		if (pdftotext_result != 0) {
-			const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
-			console.log(error);
-			await trx.cachePageText({url, text: null, error});
-			return {text: null, error};
-		}
-		steps.push("Created text in " + txt_path)
-		const text = (await fs.readFile(txt_path, { encoding: 'utf8' })).trim();
-		if (!text) {
-			const error = "No result text found for " + eventName + " at url " + url;
-			console.log(error);
-			await trx.cachePageText({url, text: null, error});
-			return {text: null, error};
-		}
+	const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
+	const pdftotext_result =
+		  await runCommandForStatus(
+		  		"/opt/homebrew/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
+	if (pdftotext_result != 0) {
+		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
+		console.log(error);
+		await db.cachePageText({url, text: null, error});
+		return {text: null, error};
+	}
+	steps.push("Created text in " + txt_path)
+	const text = (await fs.readFile(txt_path, { encoding: 'utf8' })).trim();
+	if (!text) {
+		const error = "No result text found for " + eventName + " at url " + url;
+		console.log(error);
+		await db.cachePageText({url, text: null, error});
+		return {text: null, error};
+	}
 
-		await trx.cachePageText({url, text, error: null});
-		return {text, error: null};
-	});
+	await db.cachePageText({url, text, error: null});
+	return {text, error: null};
 }
 
 async function googleSearch(googleSearchApiKey, query) {
