@@ -221,7 +221,15 @@ fn handle_error_maybe_requeue_a(
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
 		// This should be caught by ConnectionClosed
-		assert!(!format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed"));
+		if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") {
+			// Check the source of the error
+      if let Some(source) = err.source() {
+        println!("Underlying cause: {}", source);
+      } else {
+        println!("No underlying cause found.");
+      }
+      panic!("wtf {:?}", err);
+		}
     eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
 	}
