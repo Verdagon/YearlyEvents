@@ -236,9 +236,9 @@ export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPr
 		const answer =
 			questionToMaybeCachedAnswer[question] || questionToGptAnswer[question];
 		if (answer == null) {
-			console.error("Error: no answer anywhere for question" + question + " in GPT answer:\n" + analysisResponse);
-			steps.push("Error: no answer anywhere for question" + question + " in GPT answer:\n" + analysisResponse);
-			throw "Error: no answer anywhere for question" + question + " in GPT answer:\n" + analysisResponse;
+			console.error("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
+			steps.push("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
+			throw "Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse;
 		}
 		questionToAnswer[question] = answer;
 		steps.push("Answered \"" + answer + "\" to: " + question + (questionToMaybeCachedAnswer[question] ? " (cached)" : ""))
