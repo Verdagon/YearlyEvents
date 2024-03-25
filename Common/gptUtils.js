@@ -23,7 +23,7 @@ export async function askTruncated(gptThrottler, throttlerPriority, openai, quer
 	  	console.log(error);
 	    if (numAttempts < 3) {
 	    	console.log("Was an error, trying again...");
-	    	return await askTruncated(gptThrottler, openai, query, numAttempts + 1);
+	    	return await askTruncated(gptThrottler, throttlerPriority, openai, query, numAttempts + 1);
 	    } else {
 	    	console.log("Too many attempts, stopping.");
 		    if (typeof error.json === "function") {
