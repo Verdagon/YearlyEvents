@@ -106,6 +106,7 @@ export function normalizeName(name, city, state) {
 				"'s",
 				"’",
 				"'",
+				"*",
 				"international",
 				"national",
 				"annual",
