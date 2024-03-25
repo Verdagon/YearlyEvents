@@ -215,8 +215,9 @@ fn handle_error_maybe_requeue_a(
 		req: Request,
 		operation: &str,
 		err: Box<dyn Error>) {
-	if err.downcast_ref::<util::Timeout>().is_some() ||
-		  err.downcast_ref::<ConnectionClosed>().is_some() {
+
+	if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
+		  err.downcast_ref::<Box<ConnectionClosed>>().is_some() {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
 		// This should be caught by ConnectionClosed
