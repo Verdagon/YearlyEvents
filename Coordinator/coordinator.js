@@ -182,10 +182,10 @@ class LineServerProcess {
 			if (status == 'success') {
 				resolver(rest);
 			} else {
-				rejecter(status, rest);
+				rejecter({status, rest});
 			}
 		} catch (e) {
-			rejecter("", e);
+			rejecter({status: "", rest: e});
 		}
 	}
 	onError(err) {
@@ -245,7 +245,11 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 	try {
 		await chromeFetcher.send(url + " " + pdfOutputPath);
 	} catch (err) {
-		const error = "Bad fetch/browse for event " + eventName + " result " + url + ": " + err;
+		const error =
+				"Bad fetch/browse for event " + eventName + " result " + url + ": " + 
+				(err.status ?
+						err.status + ": " + err.rest :
+						err);
 		console.log(error)
 		await db.transaction(async (trx) => {
 			const cachedPageTextRow =
