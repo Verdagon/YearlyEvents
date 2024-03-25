@@ -87,7 +87,30 @@ export class YearlyEventsServer {
 			console.log("looking for similars to ", submission);
 	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
 	  	console.log("submission:", submission, "maybe similar:", maybeSimilarEvent);
-	  	
+	  	if (maybeSimilarEvent) {
+	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
+	  				maybeSimilarEvent;
+			  if (submission.city == similarEventCity &&
+			  		normalizeState(submission.state) == normalizeState(similarEventState)) {
+			  	submission.notes = "(Already known " + maybeSimilarEvent.status + " event)";
+			  } else {
+		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
+		  	}
+		  } else {
+	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
+		  	if (maybeSimilarSubmission) {
+		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+		  				maybeSimilarSubmission;
+				  if (submission.city == similarSubmissionCity &&
+				  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
+				  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
+				  } else {
+			  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+			  	}
+			  } else {
+			  	// Do nothing
+			  }
+		  }
 		});
 		submissions.sort((a, b) => {
 			if (a.notes.length != b.notes.length) {
@@ -96,10 +119,8 @@ export class YearlyEventsServer {
 			return a.name.localeCompare(b.name);
 		});
 
-    const pageHtml = this.getResource("unconsidered.html");
-    console.log("submissions:", submissions);
-    console.log(pageHtml);
-    return this.eta.renderString(pageHtml, { submissions: [] });
+    const pageHtml = await this.getResource("unconsidered.html");
+    return this.eta.renderString(pageHtml, { submissions: submissions });
   }
 
   async confirmed() {
@@ -107,14 +128,14 @@ export class YearlyEventsServer {
     await parallelEachI(events, async (eventI, event) => {
       event.confirmations = await this.db.getEventConfirmations(event.id);
     });
-    const pageHtml = this.getResource("confirmed.html");
+    const pageHtml = await this.getResource("confirmed.html");
     const response = this.eta.renderString(pageHtml, { events: events });
     return response;
   }
 
 	async askGpt() {
 		console.log("getting thing");
-		const x = this.getResource("askGpt.html");
+		const x = await this.getResource("askGpt.html");
 		console.log("got thing");
 		return x;
 	}
@@ -132,7 +153,7 @@ export class YearlyEventsServer {
 
     console.log("submission:", submission);
 
-    const pageHtml = this.getResource("submission.html");
+    const pageHtml = await this.getResource("submission.html");
 		const response = this.eta.renderString(pageHtml, { submission, event });
     console.log("Response:", response);
     return response;
