@@ -45,7 +45,7 @@ export class YearlyEventsServer {
 			  		normalizeState(idea.state) == normalizeState(similarEventState)) {
 			  	idea.notes = "(Already known " + maybeSimilarEvent.status + " event)";
 			  } else {
-		  		idea.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarIdeaState + ")";
+		  		idea.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
 		  	}
 		  } else {
 	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
@@ -56,7 +56,7 @@ export class YearlyEventsServer {
 				  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
 				  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
 				  } else {
-			  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarIdeaState + ")";
+			  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
 			  	}
 			  } else {
 			  	// Do nothing
@@ -94,7 +94,7 @@ export class YearlyEventsServer {
 			  		normalizeState(submission.state) == normalizeState(similarEventState)) {
 			  	submission.notes = "(Already known " + maybeSimilarEvent.status + " event)";
 			  } else {
-		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarIdeaState + ")";
+		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
 		  	}
 		  } else {
 	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
@@ -105,7 +105,7 @@ export class YearlyEventsServer {
 				  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
 				  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
 				  } else {
-			  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarIdeaState + ")";
+			  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
 			  	}
 			  } else {
 			  	// Do nothing
