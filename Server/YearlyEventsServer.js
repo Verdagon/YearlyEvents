@@ -150,25 +150,26 @@ export class YearlyEventsServer {
 
 	async submission(submissionId) {
     const submission = await this.db.getSubmission(submissionId);
-    submission.investigation.analyses =
-    		submission.investigation.confirms
-    				.concat(submission.investigation.rejects);
+
+		let analyses = [];
+    if (submission.investigation) {
+	    analyses =
+	    		submission.investigation.confirms.concat(submission.investigation.rejects);
+	  }
+
     const event = await this.db.getSubmissionEvent(submissionId);
-    console.log("event:", event);
     if (event) {
       event.confirmations = await this.db.getEventConfirmations(event.id);
     }
 
-    console.log("submission:", submission);
-
     const pageHtml = await this.getResource("submission.html");
-		const response = this.eta.renderString(pageHtml, { submission, event });
+		const response = this.eta.renderString(pageHtml, { submission, event, analyses });
     console.log("Response:", response);
     return response;
   }
 
-  async submit(name, city, state, description, url, origin_query) {
-    return await addSubmission(this.db, {name, city, state, description, url, origin_query}, true);
+  async submit(status, name, city, state, description, url, origin_query) {
+    return await addSubmission(this.db, {status, name, city, state, description, url, origin_query});
   }
 
   async publish(eventId) {

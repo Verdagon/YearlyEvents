@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Responsive HTML Template</title>
 <script>
-async function submitClicked(id) {
+async function submitClicked(id, status) {
 	const div = document.getElementById("idea" + id);
 	const name = div.dataset.name;
 	const city = div.dataset.city;
@@ -17,19 +17,17 @@ async function submitClicked(id) {
 				await fetch(
 						"/submit" +
 						"?name=" + encodeURIComponent(name) +
+						"&status=" + encodeURIComponent(status) +
 						"&city=" + encodeURIComponent(city) +
 						"&state=" + encodeURIComponent(state) +
 						"&description=" + encodeURIComponent(description) +
 						"&origin_query=" + encodeURIComponent("<%= it.query %>"));
 		const submissionId = await response.text();
-		div.innerHTML = "<div>Submitted: " + name + "</div>" + submissionId;
+		div.innerHTML = "<div>" + status + ": <a href=\"/submission?submission_id=" + submissionId + "\">" + name + "</a></div>";
 	} catch (e) {
 		console.log(e);
 		div.innerHTML = "<div>Error: " + name + "</div>" + e;
 	}
-}
-async function ignoreClicked(id) {
-	document.getElementById("idea" + id).remove();
 }
 </script>
 <style>
@@ -67,8 +65,8 @@ document.getElementById("conversation").value = JSON.stringify(<%~ it.conversati
 				<b><%= idea.normalizedName %></b> in <%= idea.city %>, <%= idea.state %>:
 			</div>
 			<div style="flex-shrink: 0">
-				<button onclick="submitClicked(<%= i %>)">Submit</button>
-				<button onclick="ignoreClicked(<%= i %>)">Ignore</button>
+				<button onclick="submitClicked(<%= i %>, 'approved')">Submit</button>
+				<button onclick="submitClicked(<%= i %>, 'rejected')">Reject</button>
 			</div>
 		</div>
 		<div><%= idea.description %></div>

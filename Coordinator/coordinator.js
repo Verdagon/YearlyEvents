@@ -226,7 +226,7 @@ async function runCommandForNullableStdout(program, args) {
 async function addOtherEventSubmission(db, otherEvent) {
 	const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
 	console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
-	return await addSubmission(db, {name, city, state, description: summary, url}, false);
+	return await addSubmission(db, {status: 'created', name, city, state, description: summary, url});
 }
 
 async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {

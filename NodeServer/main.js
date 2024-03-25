@@ -126,7 +126,8 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/submit": {
-	      const {name, city, state, description, url, origin_query} = queryParams;
+	      const {status, name, city, state, description, url, origin_query} = queryParams;
+	      if (status == null) throw "Missing status!";
 	      if (name == null) throw "Missing name!";
 	      if (state == null) throw "Missing state!";
 	      if (city == null) throw "Missing city!";
@@ -134,9 +135,10 @@ const nodeServer = http.createServer(async function(req, res) {
 	      if (description == null) throw "Missing description!";
 	      // origin_query is optional
 
-	      const success = await server.submit(name, city, state, description, url, origin_query);
-	      if (success) {
+	      const submissionId = await server.submit(status, name, city, state, description, url, origin_query);
+	      if (submissionId) {
 	        res.writeHead(200);
+	        res.write(submissionId)
 	      } else {
 	        res.writeHead(409);
 	        res.write("Event already exists.")

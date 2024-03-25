@@ -22,11 +22,11 @@
 
 <div>Submission:</div>
 <div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %></div>
-<div>month: <%= it.submission.investigation.month %></div>
-<div>num_errors: <%= it.submission.investigation.num_errors %></div>
-<div>num_promising: <%= it.submission.investigation.num_promising %></div>
+<div>month: <%= it.submission.investigation && it.submission.investigation.month %></div>
+<div>num_errors: <%= it.submission.investigation && it.submission.investigation.num_errors %></div>
+<div>num_promising: <%= it.submission.investigation && it.submission.investigation.num_promising %></div>
 
-<% it.submission.investigation.analyses.forEach(function(analysis){ %>
+<% it.analyses.forEach(function(analysis){ %>
 	<div class="analysis">
 		<div>Confirmed: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
 		<div>analysis.month: <%= analysis.month %></div>

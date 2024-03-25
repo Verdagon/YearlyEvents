@@ -6,8 +6,8 @@ import { normalizeName, normalizeState } from "./utils.js";
 // 	return db.getSimilarSubmission(normalizedName);
 // }
 
-export async function addSubmission(db, givenSubmission, approved) {
-	const {name, city, state, description, url, origin_query} = givenSubmission;
+export async function addSubmission(db, givenSubmission) {
+	const {status, name, city, state, description, url, origin_query} = givenSubmission;
   const normalizedName = normalizeName(name, city, state);
 
 	return await db.transaction(async (trx) => {
@@ -23,7 +23,7 @@ export async function addSubmission(db, givenSubmission, approved) {
 			city,
 			description,
 			submission_id: submission_id,
-			status: approved ? 'approved' : 'created',
+			status,
 			url,
 			origin_query
 		};
