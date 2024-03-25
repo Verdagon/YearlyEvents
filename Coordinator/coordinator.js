@@ -85,7 +85,7 @@ async function runCommandForNullableStdout(program, args) {
 async function retry(n, func, numAttempts) {
 	numAttempts = numAttempts || 0;
 	try {
-		return await func();
+		return await func(numAttempts);
 	} catch (e) {
 		if (numAttempts < 3) {
 			console.log("Retrying after failed first attempt:", e);
@@ -120,10 +120,10 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 	const fetcher_result =
 			url.endsWith(".pdf") ?
 					await fetchPDF(url, pdf_path) :
-					await retry(3, async () => {
+					await retry(3, async (tryNum) => {
+						console.log("Attempting browse try", tryNum, "to", url);
 						return await chromeThrottler.prioritized(throttlerPriority, async () => {
 							console.log("Released for Chrome!", throttlerPriority)
-							console.log("Attempting browse to " + url);
 							return await runCommandForNullableStdout(
 									"./PageFetcher/target/debug/PageFetcher", [url, pdf_path]);
 						});
