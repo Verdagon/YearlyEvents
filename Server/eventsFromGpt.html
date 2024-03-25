@@ -14,7 +14,13 @@ async function submitClicked(id) {
 	div.innerHTML = "<div>Submitting: " + name + "</div>...";
 	try {
 		const response =
-				await fetch("/submit?name=" + encodeURIComponent(name) + "&city=" + encodeURIComponent(city) + "&state=" + encodeURIComponent(state) + "&description=" + encodeURIComponent(description));
+				await fetch(
+						"/submit" +
+						"?name=" + encodeURIComponent(name) +
+						"&city=" + encodeURIComponent(city) +
+						"&state=" + encodeURIComponent(state) +
+						"&description=" + encodeURIComponent(description) +
+						"&origin_query=" + encodeURIComponent("<%= it.query %>"));
 		const submissionId = await response.text();
 		div.innerHTML = "<div>Submitted: " + name + "</div>" + submissionId;
 	} catch (e) {
@@ -33,10 +39,20 @@ async function ignoreClicked(id) {
 </style>
 </head>
 <body>
-<form method="GET" action="/eventsFromGpt.html">
+<form method="POST" action="/eventsFromGpt.html">
 <div><input style="width: 100%" name="query" type="text" value="<%= it.query %>"/></div>
 <div><input type="submit"/></div>
 </form>
+
+<form method="POST" action="/eventsFromGpt.html">
+<input type="hidden" name="query" type="text" value="<%= it.query %>"/>
+<input type="hidden" id="conversation" name="conversation" value=""/>
+<div><input type="submit" value="More"/></div>
+</form>
+
+<script type="text/javascript">
+document.getElementById("conversation").value = JSON.stringify(<%~ it.conversation %>);
+</script>
 
 <% it.ideas.forEach(function(idea, i){ %>
 	<div

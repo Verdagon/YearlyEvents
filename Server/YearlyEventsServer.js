@@ -1,6 +1,6 @@
 import { Configuration, OpenAIApi } from "openai";
 import { Eta } from "eta";
-import { gptListEvents}  from '../Common/gptListEvents.js';
+import { gptListEvents, makeNewConversation, continuedConversation }  from '../Common/gptListEvents.js';
 import { normalizeName } from '../Common/utils.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { Semaphore, parallelEachI } from "../Common/parallel.js"
@@ -26,8 +26,13 @@ export class YearlyEventsServer {
 		this.gptThrottler = new Semaphore(null, 120);
 	}
 
-	async eventsFromGpt(query) {
-    const ideas = await gptListEvents(this.openai, this.gptThrottler, query);
+	async eventsFromGpt(pastConversation, query) {
+		console.log("received past conversation:", pastConversation);
+		const conversation =
+				pastConversation == null ?
+						makeNewConversation(query) :
+						continuedConversation(pastConversation);
+    const ideas = await gptListEvents(this.openai, this.gptThrottler, conversation);
     console.log("ideas:", ideas);
 		await parallelEachI(ideas, async (ideaIndex, idea) => {
 			const {name, city, state} = idea;
@@ -71,8 +76,11 @@ export class YearlyEventsServer {
 			return a.name.localeCompare(b.name);
 		});
 
+		const conversationJsonStr = JSON.stringify(conversation);
+		console.log("giving eta this str:", conversationJsonStr);
+
     const pageHtml = await this.getResource("eventsFromGpt.html");
-    const response = this.eta.renderString(pageHtml, { ideas, query });
+    const response = this.eta.renderString(pageHtml, { ideas, query, conversation: conversationJsonStr });
     return response;
   }
 
@@ -159,8 +167,8 @@ export class YearlyEventsServer {
     return response;
   }
 
-  async submit(name, city, state, description, url) {
-    return await addSubmission(this.db, {name, city, state, description, url}, true);
+  async submit(name, city, state, description, url, origin_query) {
+    return await addSubmission(this.db, {name, city, state, description, url, origin_query}, true);
   }
 
   async publish(eventId) {

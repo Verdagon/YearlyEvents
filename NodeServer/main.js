@@ -3,7 +3,6 @@ import fs from "fs/promises";
 import url from "url";
 import querystring from "querystring";
 import http from 'http';
-import { gptListEvents}  from '../Common/gptListEvents.js';
 import { normalizeName } from '../Common/utils.js'
 import { LocalDb } from '../LocalDB/localdb.js'
 import { addSubmission } from '../Common/addSubmission.js'
@@ -12,6 +11,21 @@ import { addSubmission } from '../Common/addSubmission.js'
 import { Semaphore, parallelEachI } from "../Common/parallel.js"
 import { normalizeState } from "../Common/utils.js"
 import { YearlyEventsServer } from '../Server/YearlyEventsServer.js';
+
+function readPostData(request) {
+	return new Promise((resolver, rejecter) => {
+	  let body = '';
+		request.on('data', (chunk) => {
+		  body += chunk.toString();
+		});
+		request.on('end', () => {
+		  resolver(body);
+		});
+		request.on('error', (error) => {
+		  rejecter(error);
+		});
+	})
+}
 
 const port = 8337
 
@@ -61,11 +75,28 @@ const nodeServer = http.createServer(async function(req, res) {
   try {
 	  switch (parsedUrl.pathname) {
 	    case "/eventsFromGpt.html": {
-	      if (!queryParams.query) {
+	      const urlencodedBody = await readPostData(req);
+	      if (!urlencodedBody) {
+	      	throw "Invalid, no POST body!";
+	      }
+      	const body = querystring.parse(urlencodedBody);
+	      if (!body) {
+	      	throw "Invalid encoded body:" + urlencodedBody;
+	      }
+	      const query = body.query;
+	      if (!query) {
 	        throw "Missing query!";
 	      }
-	      const query = queryParams.query;
-	      const response = await server.eventsFromGpt(query);
+	      let conversation = null;
+	      if (body.conversation) {
+	      	conversation = JSON.parse(body.conversation);
+	      	if (!conversation) {
+	      		throw "Invalid conversation:" + parsed.conversation;
+	      	}
+	      }
+	      console.log("Query:", query);
+	      console.log("Conversation:", conversation);
+	      const response = await server.eventsFromGpt(conversation, query);
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;
@@ -95,14 +126,15 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/submit": {
-	      const {name, city, state, description, url} = queryParams;
+	      const {name, city, state, description, url, origin_query} = queryParams;
 	      if (name == null) throw "Missing name!";
 	      if (state == null) throw "Missing state!";
 	      if (city == null) throw "Missing city!";
 	      // url is optional
 	      if (description == null) throw "Missing description!";
+	      // origin_query is optional
 
-	      const success = await server.submit(name, city, state, description, url);
+	      const success = await server.submit(name, city, state, description, url, origin_query);
 	      if (success) {
 	        res.writeHead(200);
 	      } else {

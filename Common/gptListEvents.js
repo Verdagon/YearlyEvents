@@ -1,22 +1,27 @@
 import { normalizeName } from "./utils.js";
-import { askTruncated } from "./gptUtils.js";
 
-export async function gptListEvents(openai, throttler, question) {
+export function makeNewConversation(question) {
 	const query =
 			question + ". Do not number the responses, and please format " +
 			"the response in semicolon-separated CSV format where the four columns are the name, " +
 			"the city, the state, and a max two-sentence description including anything unique or unusual. Please say nothing else.";
+	return [{role: "user", content: query}];
+}
 
+export function continuedConversation(pastConversation) {
+	return pastConversation.concat([{role: "user", content: "More, please."}]);
+}
+
+export async function gptListEvents(openai, throttler, conversation) {
+	console.log("Sending whole conversation:", conversation);
 	const response =
-			await openai.createChatCompletion({
-				  model: "gpt-3.5-turbo",
-				  messages: [{role: "user", content: query}],
-			});
+			await openai.createChatCompletion(
+					{model: "gpt-3.5-turbo", messages: conversation});
 	const response_string = response.data.choices[0].message.content;
 	const eventStrings = response_string.split("\n")
 
 	const results = [];
-	for (let i = 1; i < eventStrings.length; i++) {
+	for (let i = 0; i < eventStrings.length; i++) {
 		const eventString = eventStrings[i].trim()
 		if (eventString == "") {
 			continue
@@ -40,6 +45,8 @@ export async function gptListEvents(openai, throttler, question) {
 
 		results.push({name, city, state, description});
 	}
+
+	conversation.push({role: "assistant", content: response_string});
 
 	return results;
 }
