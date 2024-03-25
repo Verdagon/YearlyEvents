@@ -11,7 +11,7 @@ async function submitClicked(id, status) {
 	const city = div.dataset.city;
 	const state = div.dataset.state;
 	const description = div.dataset.description;
-	div.innerHTML = "<div>Submitting: " + name + "</div>...";
+	div.innerHTML = "<div>Submitting: " + name + "...</div>";
 	try {
 		const response =
 				await fetch(
