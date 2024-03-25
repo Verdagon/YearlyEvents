@@ -39,7 +39,8 @@ fn main() {
 
   	let mut running_reqs_and_tabs = Vec::new();
 
-  	for req in requests.drain(..).collect::<Vec<Request>>() {
+    let num_requests = min(max_tab_count, requests.len());
+  	for req in requests.drain(0..num_requests).collect::<Vec<Request>>() {
       eprintln!("Processing request {} for url {} to file {}", req.uuid, req.url, req.output_path);
 
 		  match start_tab(&mut browser, req.url.to_string()) {
@@ -53,8 +54,7 @@ fn main() {
 		  }
     }
 
-    let num_requests = min(max_tab_count, running_reqs_and_tabs.len());
-    for (mut req, tab) in running_reqs_and_tabs.drain(0..num_requests).collect::<Vec<(Request, Arc<Tab>)>>() {
+    for (mut req, tab) in running_reqs_and_tabs.drain(..).collect::<Vec<(Request, Arc<Tab>)>>() {
     	match tab.wait_until_navigated() {
     		Ok(_) => {}
     		Err(err) => {
