@@ -51,6 +51,7 @@ fn main() {
 		  	Err(err) => {
 		  		handle_error_maybe_requeue_a(
 		  				&mut requests, &mut batch_had_timeouts, req, "starting tab", err);
+		  		continue;
 		  	}
 		  }
     }
@@ -218,6 +219,8 @@ fn handle_error_maybe_requeue_a(
 		  err.downcast_ref::<ConnectionClosed>().is_some() {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
+		// This should be caught by ConnectionClosed
+		assert!(!format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed"));
     eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
 	}
@@ -233,6 +236,8 @@ fn handle_error_maybe_requeue_b(
 		  err.downcast_ref::<ConnectionClosed>().is_some() {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
+		// This should be caught by ConnectionClosed
+		assert!(!format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed"));
     eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
 	}
