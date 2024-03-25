@@ -26,7 +26,7 @@ function distinct(a) {
 // Function to fetch PDF from URL and save it to a file
 function fetchPDF(url, filePath) {
     return new Promise((resolve, reject) => {
-        const file = rawfs.createWriteStream(filePath);
+        const file = syncFs.createWriteStream(filePath);
 
         if (url.startsWith("https://")) {
 	        https.get(url, response => {
