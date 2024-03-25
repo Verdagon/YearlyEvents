@@ -26,14 +26,13 @@ export class YearlyEventsServer {
 		this.gptThrottler = new Semaphore(null, 120);
 	}
 
-	async eventsFromGpt(pastConversation, query) {
+	async eventsFromGpt(db, pastConversation, seedState, query) {
 		console.log("received past conversation:", pastConversation);
 		const conversation =
 				pastConversation == null ?
-						makeNewConversation(query) :
+						await makeNewConversation(db, query, seedState) :
 						continuedConversation(pastConversation);
     const ideas = await gptListEvents(this.openai, this.gptThrottler, conversation);
-    console.log("ideas:", ideas);
 		await parallelEachI(ideas, async (ideaIndex, idea) => {
 			const {name, city, state} = idea;
 			const normalizedName = normalizeName(name, city, state);
@@ -77,10 +76,9 @@ export class YearlyEventsServer {
 		});
 
 		const conversationJsonStr = JSON.stringify(conversation);
-		console.log("giving eta this str:", conversationJsonStr);
 
     const pageHtml = await this.getResource("eventsFromGpt.html");
-    const response = this.eta.renderString(pageHtml, { ideas, query, conversation: conversationJsonStr });
+    const response = this.eta.renderString(pageHtml, { ideas, query, conversation: conversationJsonStr, seedState });
     return response;
   }
 

@@ -63,7 +63,7 @@ export class LocalDb {
 	async getSimilarSubmission(normalizedName) {
 		const results =
 				await (this.target).select().from("Submissions")
-	    			.where({normalized_name: normalizedName});
+	    			.where({name: normalizedName});
 	  return results[0] || null;
 	}
 
@@ -74,7 +74,7 @@ export class LocalDb {
 						.select("s2.*")
 						.where("s1.submission_id", id)
 				    .join("Submissions as s2", function() {
-				        this.on("s1.normalized_name", "=", "s2.normalized_name")
+				        this.on("s1.name", "=", "s2.name")
 				            .andOn("s1.submission_id", "!=", "s2.submission_id");
 				    });
 	  return results[0] || null;
@@ -97,7 +97,7 @@ export class LocalDb {
 	async getExistingSubmission(normalizedName, city, state) {
 		const results =
 				await (this.target).select().from("Submissions")
-	    			.where({normalized_name: normalizedName, city, state});
+	    			.where({name: normalizedName, city, state});
 	  return results[0] || null;
 	}
 
@@ -171,6 +171,12 @@ export class LocalDb {
     			return row;
     		});
 		return rows[0] || null;
+  }
+
+  async findApprovedSubmissionsAt(at, limit) {
+  	return await (this.target).select().from("Submissions")
+  			.where({status: 'approved', state: at})
+  			.limit(limit);
   }
 
   async getSubmissionEvent(submissionId) {

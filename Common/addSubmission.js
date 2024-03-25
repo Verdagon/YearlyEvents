@@ -17,12 +17,11 @@ export async function addSubmission(db, givenSubmission) {
     }
 		const submission_id = crypto.randomUUID();
 		const row = {
-			name,
-			normalized_name: normalizedName,
+			name: normalizedName,
 			state: state && normalizeState(state),
 			city,
 			description,
-			submission_id: submission_id,
+			submission_id,
 			status,
 			url,
 			origin_query

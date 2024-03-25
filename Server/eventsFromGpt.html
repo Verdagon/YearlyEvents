@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Responsive HTML Template</title>
+<title>AI Ideas</title>
 <script>
 async function submitClicked(id, status) {
 	const div = document.getElementById("idea" + id);
@@ -11,7 +11,7 @@ async function submitClicked(id, status) {
 	const city = div.dataset.city;
 	const state = div.dataset.state;
 	const description = div.dataset.description;
-	div.innerHTML = "<div>Submitting: " + name + "...</div>";
+	div.innerHTML = "<div>Sending: " + name + "...</div>";
 	try {
 		const response =
 				await fetch(
@@ -38,12 +38,24 @@ async function submitClicked(id, status) {
 </head>
 <body>
 <form method="POST" action="/eventsFromGpt.html">
-<div><input style="width: 100%" name="query" type="text" value="<%= it.query %>"/></div>
-<div><input type="submit"/></div>
+	<div style="display: flex; align-items: center;">
+		<div style="flex-shrink: 0">Query: </div>
+		<div style="flex-grow: 1; display: flex;">
+			<input style="flex-grow: 1; margin-left: 0.5em" name="query" type="text" value="<%= it.query %>"/>
+		</div>
+	</div>
+	<div style="display: flex;  align-items: center;">
+		<div style="flex-shrink: 0">Seed location: </div>
+		<div style="flex-grow: 1; display: flex;">
+			<input style="width: 100%; margin-left: 0.5em" name="seed_state" type="text" value="<%= it.seedState %>"/>
+		</div>
+	</div>
+	<div><input type="submit"/></div>
 </form>
 
 <form method="POST" action="/eventsFromGpt.html">
 <input type="hidden" name="query" type="text" value="<%= it.query %>"/>
+<input type="hidden" name="seed_state" type="text" value="<%= it.seedState %>"/>
 <input type="hidden" id="conversation" name="conversation" value=""/>
 <div><input type="submit" value="More"/></div>
 </form>

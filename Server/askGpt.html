@@ -1,8 +1,24 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Ideas</title>
 <body>
 <form method="POST" action="/eventsFromGpt.html">
-<div><input width="100%" name="query" type="text"/></div>
-<div><input type="submit"/></div>
+	<div style="display: flex; align-items: center;">
+		<div style="flex-shrink: 0">Query: </div>
+		<div style="flex-grow: 1; display: flex;">
+			<input style="flex-grow: 1; margin-left: 0.5em" name="query" type="text"/>
+		</div>
+	</div>
+	<div style="display: flex;  align-items: center;">
+		<div style="flex-shrink: 0">Seed location: </div>
+		<div style="flex-grow: 1; display: flex;">
+			<input style="width: 100%; margin-left: 0.5em" name="seed_state" type="text"/>
+		</div>
+	</div>
+	<div><input type="submit"/></div>
 </form>
 </body>
 </html>
