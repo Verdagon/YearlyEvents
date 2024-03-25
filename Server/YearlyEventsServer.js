@@ -83,21 +83,33 @@ export class YearlyEventsServer {
 			const {name, city, state} = submission;
 			const normalizedName = normalizeName(name, city, state);
 			submission.normalizedName = normalizedName;
+			submission.notes = "";
 			console.log("looking for similars to ", submission);
-	  	const maybeSimilarSubmission = await this.db.getSimilarEvent(normalizedName);
+	  	const maybeSimilarSubmission = await this.db.getSimilarNonRejectedEvent(normalizedName);
 	  	console.log("submission:", submission, "maybe similar:", maybeSimilarSubmission);
-	  	if (maybeSimilarSubmission) {
-	  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-	  				maybeSimilarSubmission;
-			  if (submission.city == similarSubmissionCity &&
-			  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
-			  	submission.notes = "(Already known)";
+	  	if (maybeSimilarEvent) {
+	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
+	  				maybeSimilarEvent;
+			  if (idea.city == similarEventCity &&
+			  		normalizeState(idea.state) == normalizeState(similarEventState)) {
+			  	idea.notes = "(Already known " + maybeSimilarEvent.status + " event)";
 			  } else {
-		  		submission.notes = "(Similar known: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+		  		idea.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarIdeaState + ")";
 		  	}
 		  } else {
-		  	submission.notes = "";
-		  	// Do nothing
+	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
+		  	if (maybeSimilarSubmission) {
+		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+		  				maybeSimilarSubmission;
+				  if (idea.city == similarSubmissionCity &&
+				  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
+				  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
+				  } else {
+			  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarIdeaState + ")";
+			  	}
+			  } else {
+			  	// Do nothing
+			  }
 		  }
 		});
 		submissions.sort((a, b) => {
