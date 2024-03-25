@@ -108,8 +108,10 @@ fn main() {
 				max_tab_count = 1;
 			}
 		} else {
-			max_tab_count += 1;
-			eprintln!("Batch was successful, increasing throttle to {}", max_tab_count);
+			if num_requests == max_tab_count {
+				max_tab_count += 1;
+				eprintln!("Batch was successful, increasing throttle to {}", max_tab_count);
+			}
 		}
 
     sleep(10000);
