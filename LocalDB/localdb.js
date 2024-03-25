@@ -51,33 +51,34 @@ export class LocalDb {
 	  return result;
 	}
 
-	async getSimilarEvent(normalizedName) {
+	async getSimilarNonRejectedEvent(normalizedName) {
 		const results =
 				await (this.target).select().from("ConfirmedEvents")
 				// ConfirmedEvents name is always normalized
-	    			.where({name: normalizedName});
+	    			.where({name: normalizedName})
+	    			.whereNot({status: 'rejected'});
 	  return results[0] || null;
 	}
 
-	// async getSimilarSubmission(normalizedName) {
-	// 	const results =
-	// 			await (this.target).select().from("Submissions")
-	//     			.where({normalized_name: normalizedName});
-	//   return results[0] || null;
-	// }
+	async getSimilarSubmission(normalizedName) {
+		const results =
+				await (this.target).select().from("Submissions")
+	    			.where({normalized_name: normalizedName});
+	  return results[0] || null;
+	}
 
-	// async getSimilarSubmissionById(id) {
-	// 	const results =
-	// 			await (this.target)
-	// 					.from("Submissions as s1")
-	// 					.select("s2.*")
-	// 					.where("s1.submission_id", id)
-	// 			    .join("Submissions as s2", function() {
-	// 			        this.on("s1.normalized_name", "=", "s2.normalized_name")
-	// 			            .andOn("s1.submission_id", "!=", "s2.submission_id");
-	// 			    });
-	//   return results[0] || null;
-	// }
+	async getSimilarSubmissionById(id) {
+		const results =
+				await (this.target)
+						.from("Submissions as s1")
+						.select("s2.*")
+						.where("s1.submission_id", id)
+				    .join("Submissions as s2", function() {
+				        this.on("s1.normalized_name", "=", "s2.normalized_name")
+				            .andOn("s1.submission_id", "!=", "s2.submission_id");
+				    });
+	  return results[0] || null;
+	}
 
 	async getSimilarPublishedEventById(id) {
 		const results =

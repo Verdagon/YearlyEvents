@@ -33,20 +33,36 @@ export class YearlyEventsServer {
 			const {name, city, state} = idea;
 			const normalizedName = normalizeName(name, city, state);
 			idea.normalizedName = normalizedName;
-	  	const maybeSimilarSubmission = await this.db.getSimilarEvent(normalizedName);
-	  	if (maybeSimilarSubmission) {
-	  		const {name: similarIdeaName, city: similarIdeaCity, state: similarIdeaState} =
-	  				maybeSimilarSubmission;
-			  if (idea.city == similarIdeaCity &&
-			  		normalizeState(idea.state) == normalizeState(similarIdeaState)) {
-			  	idea.notes = "(Already known)";
+
+			idea.notes = "";
+
+	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
+
+	  	if (maybeSimilarEvent) {
+	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
+	  				maybeSimilarEvent;
+			  if (idea.city == similarEventCity &&
+			  		normalizeState(idea.state) == normalizeState(similarEventState)) {
+			  	idea.notes = "(Already known " + maybeSimilarEvent.status + " event)";
 			  } else {
-		  		idea.notes = "(Similar known: " + similarIdeaName + " in " + similarIdeaCity + ", " + similarIdeaState + ")";
+		  		idea.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarIdeaState + ")";
 		  	}
 		  } else {
-		  	idea.notes = "";
-		  	// Do nothing
+	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
+		  	if (maybeSimilarSubmission) {
+		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+		  				maybeSimilarSubmission;
+				  if (idea.city == similarSubmissionCity &&
+				  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
+				  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
+				  } else {
+			  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarIdeaState + ")";
+			  	}
+			  } else {
+			  	// Do nothing
+			  }
 		  }
+
 		});
 		ideas.sort((a, b) => {
 			if (a.notes.length != b.notes.length) {
