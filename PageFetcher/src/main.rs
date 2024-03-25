@@ -110,7 +110,7 @@ fn main() {
 		} else {
 			if num_requests == max_tab_count {
 				max_tab_count += 1;
-				eprintln!("Batch was successful, increasing throttle to {}", max_tab_count);
+				eprintln!("Maxed batch was successful, increasing throttle to {}", max_tab_count);
 			}
 		}
 
