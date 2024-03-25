@@ -101,13 +101,13 @@ fn main() {
 
 		if batch_had_timeouts {
 			max_tab_count -= 1;
-			eprintln("Batch had timeouts, reducing throttle to {}", max_tab_count);
+			eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
 			if max_tab_count < 1 {
 				max_tab_count = 1;
 			}
 		} else {
 			max_tab_count += 1;
-			eprintln("Batch was successful, increasing throttle to {}", max_tab_count);
+			eprintln!("Batch was successful, increasing throttle to {}", max_tab_count);
 		}
 
     sleep(10000);
