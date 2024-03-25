@@ -11,6 +11,7 @@ use std::cmp::min;
 use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 use headless_chrome::Tab;
+use headless_chrome::browser::ConnectionClosed;
 use std::{thread, time};
 
 use anyhow::Result;
@@ -58,8 +59,9 @@ fn main() {
     	match tab.wait_until_navigated() {
     		Ok(_) => {}
     		Err(err) => {
-    			if let Some(_) = err.downcast_ref::<util::Timeout>() {
-	          eprintln!("Timeout on try num {} for request {} url {}", req.try_num, req.uuid, req.url);
+    			if err.downcast_ref::<util::Timeout>().is_some() ||
+    				  err.downcast_ref::<ConnectionClosed>().is_some() {
+	          eprintln!("Timeout/disconnect on try num {} for request {} url {}", req.try_num, req.uuid, req.url);
     				batch_had_timeouts = true;
 	          if req.try_num >= 3 {
 	          	eprintln!("Giving up on request {} {}", req.uuid, req.url);
