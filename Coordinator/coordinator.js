@@ -4,7 +4,7 @@ import syncFs from "fs";
 import http from "http";
 import https from "https";
 import util from 'node:util';
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { delay } from "../Common/parallel.js";
 import { LocalDb } from '../LocalDB/localdb.js'
 // import { getUnanalyzedSubmissions } from '../getUnanalyzedSubmissions.js'
@@ -15,6 +15,7 @@ import { Configuration, OpenAIApi } from "openai";
 import { Semaphore, parallelEachI, makeMsThrottler } from "../Common/parallel.js";
 import { normalizeName } from "../Common/utils.js";
 import urlencode from 'urlencode';
+import terminate from 'terminate';
 
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
@@ -66,6 +67,146 @@ async function runCommandForStatus(program, args) {
 	}
 }
 
+function makeLineServerProcess(executable, flags, readyLine) {
+	const child = spawn(executable, flags);
+	child.stdin.setEncoding('utf-8');
+	child.stdout.setEncoding('utf-8');
+	child.stderr.pipe(process.stdout);
+
+	let instance = null;
+
+	return new Promise((readyResolve, readyReject) => {
+		let bufferFromChildStdout = "";
+		child.stdout.on('data', data => {
+			bufferFromChildStdout += data;
+			while (true) {
+				const newlineIndex = bufferFromChildStdout.indexOf('\n');
+				if (newlineIndex >= 0) {
+					const line = bufferFromChildStdout.slice(0, newlineIndex);
+					bufferFromChildStdout = bufferFromChildStdout.slice(newlineIndex + 1);
+					if (instance == null) {
+						if (line == readyLine) {
+							instance = new LineServerProcess(child);
+							readyResolve(instance);
+						} else {
+							console.error("Received unexpected line from child process, ignoring:", line);
+						}
+					} else {
+						instance.onLine(line);
+					}
+				} else {
+					break;
+				}
+			}
+		});
+
+		child.on('error', error => {
+			if (instance) {
+				instance.onError();
+				console.error("Received error from fetcher:", error);
+			} else {
+				readyReject(error);
+			}
+		});
+
+		child.on('close', code => {
+			if (instance) {
+				instance.onClose(code);
+			} else {
+				// We might have already rejected from the error handler, but that's fine.
+				readyReject(code);
+			}
+		});
+	});
+}
+
+function splitOnce(str, delim) {
+	const delimIndex = str.indexOf(' ');
+	if (delimIndex < 0) {
+		return null;
+	}
+	const requestId = str.slice(0, delimIndex);
+	const rest = str.slice(delimIndex + 1);
+	return [requestId, rest];
+}
+
+function newPromise() {
+	let resolver;
+	let rejecter;
+	const promise = new Promise((res, rej) => {
+		resolver = res;
+		rejecter = rej;
+	});
+	return [promise, resolver, rejecter];
+}
+
+class LineServerProcess {
+	constructor(child, readyLine, onLine) {
+		this.child = child;
+		this.requestHandlers = {};
+	}
+	async destroy() {
+		this.child.stdin.end();
+		return new Promise((resolver, rejecter) => {
+			terminate(this.child.pid, err => {
+				if (err) {
+					rejecter(err);
+				} else {
+					resolver();
+				}
+			});
+		});
+	}
+	// These are meant to be overridden
+	onLine(line) {
+		const maybeRequestIdAndRest = splitOnce(line, ' ');
+		if (!maybeRequestIdAndRest) {
+			console.error("Weird line from fetcher:", line);
+			return;
+		}
+		const [requestId, afterRequestId] = maybeRequestIdAndRest;
+		const handlerPair = this.requestHandlers[requestId];
+		if (!handlerPair) {
+			console.error("Line from fetcher without handler:", line);
+			return;
+		}
+		delete this.requestHandlers[requestId];
+		const [resolver, rejecter] = handlerPair;
+		try {
+			const maybeStatusAndRest = splitOnce(afterRequestId, ' ');
+			if (!maybeStatusAndRest) {
+				console.error("Weird line from fetcher: " + responseLine);
+				return;
+			}
+			const [status, rest] = maybeStatusAndRest;
+			if (status == 'success') {
+				resolver(rest);
+			} else {
+				rejecter(status, rest);
+			}
+		} catch (e) {
+			rejecter("", e);
+		}
+	}
+	onError(err) {
+		console.error("Error from LineServerProcess:", err);
+	}
+	onClose(code) {
+		// console.error("LineServerProcess closed:", code);
+	}
+	send(request) {
+		const requestId = crypto.randomUUID();
+
+		let line = requestId + " " + request;
+		line = line.endsWith('\n') ? line : line + "\n";
+		this.child.stdin.write(line);
+
+		const [promise, resolver, rejecter] = newPromise();
+		this.requestHandlers[requestId] = [resolver, rejecter];
+		return promise;
+	}
+}
+
 async function runCommandForNullableStdout(program, args) {
 	try {
 		const result = await execFileAsync(program, args);
@@ -82,28 +223,13 @@ async function runCommandForNullableStdout(program, args) {
 	}
 }
 
-async function retry(n, func, numAttempts) {
-	numAttempts = numAttempts || 0;
-	try {
-		return await func(numAttempts);
-	} catch (e) {
-		if (numAttempts < 3) {
-			console.log("Retrying after failed first attempt:", e);
-			return await retry(n, func, numAttempts + 1);
-		} else {
-			console.log("Failed after three retries, aborting.");
-			throw e;
-		}
-	}
-}
-
 async function addOtherEventSubmission(db, otherEvent) {
 	const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
 	console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 	return await addSubmission(db, {name, city, state, description: summary, url}, false);
 }
 
-async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
 	// This used to be wrapped in a transaction but I think it was causing the connection
 	// pool to get exhausted.
 
@@ -114,22 +240,12 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 		return cachedPageTextRow;
 	}
 
-	console.log("Asking for browse to " + url);
-	steps.push("Browsing to " + url);
-	const pdf_path = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
-	const fetcher_result =
-			url.endsWith(".pdf") ?
-					await fetchPDF(url, pdf_path) :
-					await retry(3, async (tryNum) => {
-						console.log("Attempting browse try", tryNum, "to", url);
-						return await chromeThrottler.prioritized(throttlerPriority, async () => {
-							console.log("Released for Chrome!", throttlerPriority)
-							return await runCommandForNullableStdout(
-									"./PageFetcher/target/debug/PageFetcher", [url, pdf_path]);
-						});
-					});
-	if (!fetcher_result) {
-		const error = "Bad fetch/browse for event " + eventName + " result " + url;
+	const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
+	console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
+	try {
+		await chromeFetcher.send(url + " " + pdfOutputPath);
+	} catch (err) {
+		const error = "Bad fetch/browse for event " + eventName + " result " + url + ": " + err;
 		console.log(error)
 		await db.cachePageText({url, text: null, error});
 		return {text: null, error};
@@ -138,10 +254,10 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 	const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
 	const pdftotextExitCode =
 		  await runCommandForStatus(
-		  		"/usr/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
+		  		"python3", ["./PdfToText/main.py", pdfOutputPath, txt_path])
 	console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
 	if (pdftotextExitCode !== 0) {
-		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
+		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdfOutputPath;
 		console.log(error);
 		await db.cachePageText({url, text: null, error});
 		return {text: null, error};
@@ -198,7 +314,6 @@ async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCa
 			await db.getFromDb("GoogleCache", searchCacheCounter, {"query": googleQuery}, ["response"]);
 	if (maybeSearcherResult) {
 		const {response} = maybeSearcherResult;
-		console.log({response});
 		return {response};
 	}
 	const response =
@@ -207,11 +322,10 @@ async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCa
 				return await googleSearch(googleSearchApiKey, googleQuery);
 			});
 	await db.cacheGoogleResult({query: googleQuery, response: response});
-	console.log({response: response});
 	return {response: response};
 }
 
-async function investigate(scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeThrottler, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
+async function investigate(scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeFetcher, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
 	const broadSteps = [];
 	const googleQuery = event_name + " " + event_city + " " + event_state;
 	console.log("Googling: " + googleQuery);
@@ -279,7 +393,7 @@ async function investigate(scratchDir, db, googleSearchApiKey, searchThrottler, 
 
 		const {text: pageText, error: pageTextError} =
 				await getPageText(
-						scratchDir, db, chromeThrottler, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
+						scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
 		if (!pageText) {
 			console.log("No page text, skipping.");
 			pageSteps.push("No page text, skipping.");
@@ -478,7 +592,9 @@ const db = new LocalDb(null, "./db.sqlite");
 try {
 	const gptThrottler = new Semaphore(null, 120);
 	const searchThrottler = new Semaphore(10, null);
-	const chromeThrottler = new Semaphore(1, null);
+	const chromeFetcher =
+			await makeLineServerProcess(
+					'./PageFetcher/target/debug/page_fetcher', [], 'Ready');
 	const chromeCacheCounter = { count: 0 };
 	const searchCacheCounter = { count: 0 };
 	const gptCacheCounter = { count: 0 };
@@ -524,7 +640,7 @@ try {
 				googleSearchApiKey,
 				searchThrottler,
 				searchCacheCounter,
-				chromeThrottler,
+				chromeFetcher,
 				chromeCacheCounter,
 				gptThrottler,
 				throttlerPriority,
@@ -593,10 +709,11 @@ try {
 	console.log(searchCacheCounter.count + " search cache hits.");
 	console.log(chromeCacheCounter.count + " fetch cache hits.");
 	console.log(gptCacheCounter.count + " gpt cache hits.");
+
+	await chromeFetcher.destroy();
+	db.destroy();
+	console.log("Done!")
 } catch (error) {
 	console.error('Unhandled promise rejection:', error);
 	process.exit(1);
 }
-
-db.destroy();
-console.log("Done!")
