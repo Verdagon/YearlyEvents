@@ -85,10 +85,9 @@ fn main() {
 		}
 
 		if batch_had_timeouts {
-			max_tab_count -= 1;
-			eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
-			if max_tab_count < 1 {
-				max_tab_count = 1;
+			if max_tab_count > 1 {
+				eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
+				max_tab_count -= 1;
 			}
 		} else {
 			if num_requests == max_tab_count {
@@ -215,6 +214,7 @@ fn handle_error_maybe_requeue_a(
 		req: Request,
 		operation: &str,
 		err: Box<dyn Error>) {
+  eprintln!("Error while {} for request {}: {:?}", operation, req.uuid, err);
 
 	// These don't work for some reason...
 	// if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
@@ -226,7 +226,6 @@ fn handle_error_maybe_requeue_a(
 		if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") {
       panic!("wtf {:?}", err);
 		}
-    eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
 	}
 }
@@ -237,6 +236,8 @@ fn handle_error_maybe_requeue_b(
 		req: Request,
 		operation: &str,
 		err: &anyhow::Error) {
+  eprintln!("Error while {} for request {}: {:?}", operation, req.uuid, err);
+
 	if err.downcast_ref::<util::Timeout>().is_some() ||
 		  err.downcast_ref::<ConnectionClosed>().is_some() {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
@@ -251,7 +252,6 @@ fn handle_error_maybe_requeue_b(
       }
       panic!("wtf {:?}", err);
 		}
-    eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
 	}
 }
