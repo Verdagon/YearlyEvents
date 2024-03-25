@@ -138,7 +138,7 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 	const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
 	const pdftotextExitCode =
 		  await runCommandForStatus(
-		  		"/opt/homebrew/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
+		  		"/usr/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
 	console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
 	if (pdftotextExitCode !== 0) {
 		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
