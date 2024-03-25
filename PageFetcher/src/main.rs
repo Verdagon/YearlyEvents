@@ -49,51 +49,33 @@ fn main() {
 		  		running_reqs_and_tabs.push((req, tab));
 		  	}
 		  	Err(err) => {
-          eprintln!("Error with request {}: {:?}", req.uuid, err);
-		  		println!("{} error Error starting tab, see logs.", req.uuid)
+		  		handle_error_maybe_requeue_a(
+		  				&mut requests, &mut batch_had_timeouts, req, "starting tab", err);
 		  	}
 		  }
     }
 
-    for (mut req, tab) in running_reqs_and_tabs.drain(..).collect::<Vec<(Request, Arc<Tab>)>>() {
+    for (req, tab) in running_reqs_and_tabs.drain(..).collect::<Vec<(Request, Arc<Tab>)>>() {
     	match tab.wait_until_navigated() {
     		Ok(_) => {}
     		Err(err) => {
-    			if err.downcast_ref::<util::Timeout>().is_some() ||
-    				  err.downcast_ref::<ConnectionClosed>().is_some() {
-	          eprintln!("Timeout/disconnect on try num {} for request {} url {}", req.try_num, req.uuid, req.url);
-    				batch_had_timeouts = true;
-	          if req.try_num >= 3 {
-	          	eprintln!("Giving up on request {} {}", req.uuid, req.url);
-				  		println!("{} error Too many timeouts, retries exhausted.", req.uuid);
-	          } else {
-	          	req.try_num += 1;
-	          	eprintln!("Queueing try num {} for request {} url {}", req.try_num, req.uuid, req.url);
-	          	requests.push(req);
-	          }
-    			} else {
-	          eprintln!("Unknown error with request {}: {:?}", req.uuid, err);
-			  		println!("{} error Unknown error waiting on tab, see logs.", req.uuid);
-			  	}
+    			handle_error_maybe_requeue_b(
+    					&mut requests, &mut batch_had_timeouts, req, "waiting on tab", &err);
 		  		continue;
     		}
     	}
-
 		  let data =
 		  		match tab.print_to_pdf(None) {
 		    		Ok(d) => d,
 		    		Err(err) => {
-		          eprintln!("Error with request {}: {:?}", req.uuid, err);
-				  		println!("{} error Error printing tab to pdf, see logs.", req.uuid);
+		    			handle_error_maybe_requeue_b(&mut requests, &mut batch_had_timeouts, req, "pdfing tab", &err);
 				  		continue;
 		    		}
 		  		};
-
 		  match fs::write(&req.output_path, data) {
     		Ok(()) => (),
     		Err(err) => {
-          eprintln!("Error with request {}: {:?}", req.uuid, err);
-		  		println!("{} error Error writing pdf to file, see logs.", req.uuid);
+    			handle_error_maybe_requeue_a(&mut requests, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
 		  		continue;
     		}
 		  }
@@ -205,4 +187,53 @@ fn start_tab(browser: &mut Browser, url: String) -> Result<Arc<Tab>, Box<dyn Err
   tab.navigate_to(&url)?;
 
   return Ok(tab);
+}
+
+fn handle_error_maybe_requeue_inner(
+		requests: &mut Vec<Request>,
+		batch_had_timeouts: &mut bool,
+		mut req: Request,
+		operation: &str) {
+  eprintln!(
+  		"Timeout/disconnect while {} on try num {} for request {} url {}",
+  		operation, req.try_num, req.uuid, req.url);
+	*batch_had_timeouts = true;
+  if req.try_num >= 3 {
+  	eprintln!("Giving up on request {} {}", req.uuid, req.url);
+		println!("{} error Too many timeouts, retries exhausted.", req.uuid);
+  } else {
+  	req.try_num += 1;
+  	eprintln!("Queueing try num {} for request {} url {}", req.try_num, req.uuid, req.url);
+  	requests.push(req);
+  }
+}
+
+fn handle_error_maybe_requeue_a(
+		requests: &mut Vec<Request>,
+		batch_had_timeouts: &mut bool,
+		req: Request,
+		operation: &str,
+		err: Box<dyn Error>) {
+	if err.downcast_ref::<util::Timeout>().is_some() ||
+		  err.downcast_ref::<ConnectionClosed>().is_some() {
+  	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
+	} else {
+    eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
+		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
+	}
+}
+
+fn handle_error_maybe_requeue_b(
+		requests: &mut Vec<Request>,
+		batch_had_timeouts: &mut bool,
+		req: Request,
+		operation: &str,
+		err: &anyhow::Error) {
+	if err.downcast_ref::<util::Timeout>().is_some() ||
+		  err.downcast_ref::<ConnectionClosed>().is_some() {
+  	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
+	} else {
+    eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
+		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
+	}
 }
