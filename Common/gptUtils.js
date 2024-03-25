@@ -1,6 +1,9 @@
 
 export async function askTruncated(gptThrottler, throttlerPriority, openai, query, numAttempts) {
 	numAttempts = (numAttempts || 0);
+	if (typeof query != 'string') {
+		throw "Query must be string! Was: " + typeof query;
+	}
 
 	// https://platform.openai.com/account/rate-limits
 	return await gptThrottler.prioritized(throttlerPriority, async () => {
