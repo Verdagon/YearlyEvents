@@ -87,30 +87,7 @@ export class YearlyEventsServer {
 			console.log("looking for similars to ", submission);
 	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
 	  	console.log("submission:", submission, "maybe similar:", maybeSimilarEvent);
-	  	if (maybeSimilarEvent) {
-	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
-	  				maybeSimilarEvent;
-			  if (submission.city == similarEventCity &&
-			  		normalizeState(submission.state) == normalizeState(similarEventState)) {
-			  	submission.notes = "(Already known " + maybeSimilarEvent.status + " event)";
-			  } else {
-		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
-		  	}
-		  } else {
-	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
-		  	if (maybeSimilarSubmission) {
-		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-		  				maybeSimilarSubmission;
-				  if (submission.city == similarSubmissionCity &&
-				  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
-				  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-				  } else {
-			  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
-			  	}
-			  } else {
-			  	// Do nothing
-			  }
-		  }
+	  	
 		});
 		submissions.sort((a, b) => {
 			if (a.notes.length != b.notes.length) {
