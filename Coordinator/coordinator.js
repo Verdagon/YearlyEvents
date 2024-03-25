@@ -136,10 +136,10 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 	}
 
 	const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
-	const pdftotext_result =
+	const pdftotextExitCode =
 		  await runCommandForStatus(
 		  		"/opt/homebrew/bin/python3", ["./PdfToText/main.py", pdf_path, txt_path])
-	if (pdftotext_result != 0) {
+	if (pdftotextExitCode) {
 		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdf_path;
 		console.log(error);
 		await db.cachePageText({url, text: null, error});
@@ -154,7 +154,14 @@ async function getPageText(scratchDir, db, chromeThrottler, chromeCacheCounter, 
 		return {text: null, error};
 	}
 
-	await db.cachePageText({url, text, error: null});
+
+	await db.transaction(async (trx) => {
+		const cachedPageTextRow =
+				await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+		if (!cachedPageTextRow) {
+			await trx.cachePageText({url, text, error: null});
+		}
+	});
 	return {text, error: null};
 }
 
