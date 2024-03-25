@@ -216,18 +216,14 @@ fn handle_error_maybe_requeue_a(
 		operation: &str,
 		err: Box<dyn Error>) {
 
-	if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
-		  err.downcast_ref::<Box<ConnectionClosed>>().is_some() {
+	// These don't work for some reason...
+	// if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
+	// 	  err.downcast_ref::<Box<ConnectionClosed>>().is_some() {
+	if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") ||
+			format!("{:?}", err).contains("The event waited for never came") {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
-		// This should be caught by ConnectionClosed
 		if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") {
-			// Check the source of the error
-      if let Some(source) = err.source() {
-        println!("Underlying cause: {}", source);
-      } else {
-        println!("No underlying cause found.");
-      }
       panic!("wtf {:?}", err);
 		}
     eprintln!("Unknown error while {} for request {}: {:?}", operation, req.uuid, err);
@@ -249,9 +245,9 @@ fn handle_error_maybe_requeue_b(
 		if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") {
 			// Check the source of the error
       if let Some(source) = err.source() {
-        println!("Underlying cause: {}", source);
+        eprintln!("Underlying cause: {}", source);
       } else {
-        println!("No underlying cause found.");
+        eprintln!("No underlying cause found.");
       }
       panic!("wtf {:?}", err);
 		}
