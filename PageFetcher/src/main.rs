@@ -241,15 +241,17 @@ fn handle_error_maybe_requeue_inner(
 		mut req: Request,
 		operation: &str) {
   eprintln!(
-  		"Timeout/disconnect while {} on try num {} for request {} url {}",
-  		operation, req.remaining_tries, req.uuid, req.url);
+  		"Timeout/disconnect while {} for request {} (tries left {}) url {}",
+  		operation, req.uuid, req.remaining_tries, req.url);
 	*batch_had_timeouts = true;
   if req.remaining_tries == 0 {
   	eprintln!("Giving up on request {} {}", req.uuid, req.url);
 		println!("{} error Too many timeouts, retries exhausted.", req.uuid);
   } else {
   	req.remaining_tries -= 1;
-  	eprintln!("Queueing try num {} for request {} url {}", req.remaining_tries, req.uuid, req.url);
+  	eprintln!(
+  			"Queueing for request {} (tries left {}) url {}",
+  			req.uuid, req.remaining_tries, req.url);
   	requests.push(req);
   }
 }
