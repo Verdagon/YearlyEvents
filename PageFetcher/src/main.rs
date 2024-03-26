@@ -31,7 +31,7 @@ fn new_browser() -> Result<Browser, anyhow::Error> {
 }
 
 fn main() {
-  let mut browser = new_browser().expect("Error creating browser");
+  let mut browser = Browser::default().expect("Error creating browser");
 
   println!("Ready");
 
