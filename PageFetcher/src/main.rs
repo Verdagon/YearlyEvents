@@ -43,7 +43,7 @@ fn main() {
   eprintln!("Created chrome instance, waiting for requests.");
 
   let mut stdin_channel = spawn_stdin_channel();
-  let mut requests: Vec<Request> = Vec::new();
+  let mut requests_queue: Vec<Request> = Vec::new();
 
   // Initial number of concurrent tabs.
   // Whenever a batch has timeout'd tabs we'll decrease this,
@@ -54,7 +54,7 @@ fn main() {
   let mut should_restart_chrome = false;
 
   loop {
-  	collect_waiting_requests(&mut stdin_channel, &mut requests);
+  	collect_waiting_requests(&mut stdin_channel, &mut requests_queue);
 
     let batch_start_time = Instant::now();
     let time_between_batches = batch_start_time.duration_since(last_successful_batch_time);
@@ -65,12 +65,26 @@ fn main() {
   		eprintln!("Recreated chrome instance.");
     }
 
+
+    let num_requests = min(max_tab_count, requests_queue.len());
+    let mut batch_requests: Vec<Request> = Vec::new();
+    // If there's a desperate request, one that has only one try left, then make that the
+    // only one in the batch.
+    if let Some(index) = requests_queue.iter().take(num_requests).position(|x| x.remaining_tries == 1) {
+	    batch_requests.push(requests_queue.remove(index));
+    } else {
+    	// There's no desperate requests in the next num_requests, add em to the batch.
+			batch_requests.extend(requests_queue.drain(0..num_requests).collect::<Vec<Request>>())
+    }
+
+    // let unfiltered_requests = requests_queue.drain(0..num_requests).collect::<Vec<Request>>();
+    // let desperate_requests: Vec<Request> =
+    // 		unfiltered_requests.drain_filter(|&mut e| e.remaining_tries == 2).collect();
+    // let normal_requests: Vec<Request> = unfiltered_requests;
+
     let mut batch_had_timeouts = false;
-
   	let mut running_reqs_and_tabs = Vec::new();
-
-    let num_requests = min(max_tab_count, requests.len());
-  	for req in requests.drain(0..num_requests).collect::<Vec<Request>>() {
+  	for req in batch_requests {
       eprintln!("Processing request {} for url {} to file {}", req.uuid, req.url, req.output_path);
 
 		  match start_tab(&mut browser, req.url.to_string()) {
@@ -79,7 +93,7 @@ fn main() {
 		  	}
 		  	Err(err) => {
 		  		handle_error_maybe_requeue_a(
-		  				&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "starting tab", err);
+		  				&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "starting tab", err);
 		  		continue;
 		  	}
 		  }
@@ -90,7 +104,7 @@ fn main() {
     		Ok(_) => {}
     		Err(err) => {
     			handle_error_maybe_requeue_b(
-    					&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "waiting on tab", &err);
+    					&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "waiting on tab", &err);
 		  		continue;
     		}
     	}
@@ -98,14 +112,14 @@ fn main() {
 		  		match tab.print_to_pdf(None) {
 		    		Ok(d) => d,
 		    		Err(err) => {
-		    			handle_error_maybe_requeue_b(&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "pdfing tab", &err);
+		    			handle_error_maybe_requeue_b(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "pdfing tab", &err);
 				  		continue;
 		    		}
 		  		};
 		  match fs::write(&req.output_path, data) {
     		Ok(()) => (),
     		Err(err) => {
-    			handle_error_maybe_requeue_a(&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
+    			handle_error_maybe_requeue_a(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
 		  		continue;
     		}
 		  }
@@ -170,7 +184,7 @@ struct Request {
 	uuid: String,
 	url: String,
 	output_path: String,
-	try_num: i32
+	remaining_tries: i32
 }
 
 fn collect_waiting_requests(stdin_channel: &mut Receiver<String>, requests: &mut Vec<Request>) {
@@ -190,7 +204,7 @@ fn collect_waiting_requests(stdin_channel: &mut Receiver<String>, requests: &mut
 		        	uuid: uuid.to_string(),
 		        	url: url.to_string(),
 		        	output_path: output_path.to_string(),
-		        	try_num: 0
+		        	remaining_tries: 3
 		        });
 		      } else {
 		        eprintln!("Request string does not contain enough spaces: {}", line);
@@ -227,14 +241,14 @@ fn handle_error_maybe_requeue_inner(
 		operation: &str) {
   eprintln!(
   		"Timeout/disconnect while {} on try num {} for request {} url {}",
-  		operation, req.try_num, req.uuid, req.url);
+  		operation, req.remaining_tries, req.uuid, req.url);
 	*batch_had_timeouts = true;
-  if req.try_num >= 3 {
+  if req.remaining_tries == 0 {
   	eprintln!("Giving up on request {} {}", req.uuid, req.url);
 		println!("{} error Too many timeouts, retries exhausted.", req.uuid);
   } else {
-  	req.try_num += 1;
-  	eprintln!("Queueing try num {} for request {} url {}", req.try_num, req.uuid, req.url);
+  	req.remaining_tries -= 1;
+  	eprintln!("Queueing try num {} for request {} url {}", req.remaining_tries, req.uuid, req.url);
   	requests.push(req);
   }
 }
