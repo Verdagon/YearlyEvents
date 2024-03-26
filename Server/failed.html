@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Failed</title>
+<style>
+.idea {
+	margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+<% it.submissions.forEach(function(submission, i){ %>
+	<div class="idea">
+		<div>
+			<a href="/submission?submission_id=<%= submission.submission_id %>"><%= submission.name %></a> in <%= submission.city %>, <%= submission.state %>:
+		</div>
+		<div><%= submission.description %></div>
+		<div><%= submission.notes %></div>
+	</div>
+<% }) %>
+</body>
+</html>

@@ -124,3 +124,49 @@ export function normalizeName(name, city, state) {
 	}
 	return unprependiall(name, prefixesToRemove, 9);
 }
+
+class VException {
+	constructor(args...) {
+		this.message = args;
+	}
+}
+
+function stringify(args...) {
+	return args.map(arg => typeof arg == 'object' ? JSON.stringify(arg) : arg + "").join(" ");
+}
+
+export function logs(destinations) {
+	const funcs = [];
+	let toStdout = true;
+	for (const destination of destinations) {
+		if (Array.isArray(destination)) {
+			funcs.push((args...) => {
+				if (args.length == 1) {
+					destination.push(args[0]);
+				} else {
+					destination.push(args);
+				}
+			});
+		} else if (typeof destination == 'boolean') {
+			toStdout = destination;
+		} else {
+			throw "Weird log() destination: " + JSON.stringify(destination);
+		}
+	}
+	funcs.unshift((args...) => {
+		if (args.length == 0 && typeof args[0] == 'object' && args[0][""] !== undefined) {
+			// Because we want to e.g.
+			//   logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
+			// to include some extra metadata to the steps logs.
+			useStdout ? console.log(args[0][""]) : console.error(args[0][""]);
+		} else {
+			useStdout ? console.log(...args) : console.error(...args);
+		}
+	});
+	return function(args...) {
+		for (const func of funcs) {
+			func(...args);
+		}
+		return new VException(args);
+	}
+}

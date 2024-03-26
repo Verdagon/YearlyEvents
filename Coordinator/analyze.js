@@ -1,7 +1,7 @@
 import { Configuration, OpenAIApi } from "openai";
 // import { dbCachedZ, getFromDb } from '../db.js'
 import { delay } from "../Common/parallel.js";
-import { normalizeName } from "../Common/utils.js";
+import { logs, normalizeName } from "../Common/utils.js";
 import { askTruncated } from "../Common/gptUtils.js";
 import fs from "fs/promises";
 
@@ -103,8 +103,7 @@ async function getCachedDescription(db, gptCacheCounter, url) {
 // - information about the event, or null if not an event.
 export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPriority, steps, openai, url, page_text, event_name, event_city, event_state) {
 
-	console.log("Asking GPT to describe...");
-	steps.push({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
+	logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 
 	let description =
 			await getCachedDescription(db, gptCacheCounter, url);
@@ -116,21 +115,18 @@ export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPr
 
 	// console.log("GPT:");
 	// console.log(description);
-	steps.push({ "": "GPT response:", "details": description });
+	logs(steps)({ "": "GPT response:", "details": description });
 
 	if (description.trim().toLowerCase().startsWith("nothing")) {
-		console.log("Not an event, skipping.");
-		steps.push("Not an event, skipping.");
+		logs(steps)("Not an event, skipping.");
 		return [0, null];
 	}
 	if (description.trim().toLowerCase().startsWith("multiple")) {
-		console.log("Multiple events, skipping.");
-		steps.push("Multiple events, skipping.");
+		logs(steps)("Multiple events, skipping.");
 		return [5, null];
 	}
 	if (description.trim().length < 20) {
-		console.log("Too short, probably bad, skipping.");
-		steps.push("Too short, probably bad, skipping.");
+		logs(steps)("Too short, probably bad, skipping.");
 		return [0, null];
 	}
 
@@ -182,11 +178,9 @@ export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPr
 	let analysisResponse = "(didn't ask)";
 	if (nextGptQuestionNumber == 1) {
 		// Then don't ask, itll just get confused.
-		console.log("No questions, skipping...");
-		steps.push("No questions, skipping...");
+		logs(steps)("No questions, skipping...");
 	} else {
-		console.log("Asking GPT to analyze...");
-		steps.push("Asking GPT to analyze...");
+		logs(steps)("Asking GPT to analyze...");
 		analysisResponse =
 			await askTruncated(gptThrottler, throttlerPriority, openai, analyzeQuestion + "\n------\n" + description);
 		// console.log("GPT:")
@@ -199,29 +193,25 @@ export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPr
 			if (nextGptQuestionNumber == 2) { // Only one question.
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
-					console.log("Got invalid line:", line);
-					steps.push("Got invalid line: " + line);
+					logs(steps)("Got invalid line: " + line);
 					continue;
 				}
 				const answer = answerParts[2];
 				gptResolvers[0](answer);
 			} else {
 				if (!answerParts || !answerParts[1] || !answerParts[2]) {
-					console.log("Got invalid line:", line);
-					steps.push("Got invalid line: " + line);
+					logs(steps)("Got invalid line:", line);
 					continue;
 				}
 				const numberStr = answerParts[1].replace(/\D/g, '');
 				const number = numberStr - 0;
 				if (number != numberStr) {
-					console.log("Got line with invalid number: ", numberStr, " line: ", line);
-					steps.push("Got line with invalid number: " + numberStr + " line: " + line);
+					logs(steps)("Got line with invalid number: ", numberStr, " line: ", line);
 					continue;
 				}
 				const question = gptQuestionNumberToQuestion[number];
 				if (question == null) {
-					console.log("Got line with unknown number:", number, "line:", line, "num Qs:", gptResolvers.length);
-					steps.push("Got line with unknown number: " + number + " line: " + line + " num Qs: " + gptResolvers.length);
+					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", gptResolvers.length);
 					continue;
 				}
 				const answer = answerParts[2];
@@ -236,12 +226,10 @@ export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPr
 		const answer =
 			questionToMaybeCachedAnswer[question] || questionToGptAnswer[question];
 		if (answer == null) {
-			console.error("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
-			steps.push("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
-			throw "Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse;
+			throw logs(false, steps)("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
 		}
 		questionToAnswer[question] = answer;
-		steps.push("Answered \"" + answer + "\" to: " + question + (questionToMaybeCachedAnswer[question] ? " (cached)" : ""))
+		steps.push(["Answered \"", answer, "\" to: ", question, (questionToMaybeCachedAnswer[question] ? " (cached)" : "")]);
 	}
 
 	const matches = {
