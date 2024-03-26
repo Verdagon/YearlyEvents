@@ -45,16 +45,16 @@ fn main() {
   // and whenever a batch is all successes we'll increase it.
   let mut max_tab_count = 5;
 
-  let mut last_batch_time = Instant::now();
+  let mut last_successful_batch_time = Instant::now();
 
   loop {
   	collect_waiting_requests(&mut stdin_channel, &mut requests);
 
     let batch_start_time = Instant::now();
-    let time_between_batches = batch_start_time.duration_since(last_batch_time);
+    let time_between_batches = batch_start_time.duration_since(last_successful_batch_time);
     if time_between_batches >= Duration::from_secs(BROWSER_TIMEOUT_SECS) {
     	// The socket to chrome only stays alive for thirty seconds, so recreate it
-  		eprintln!("It's been a while, so recreating chrome instance...");
+  		eprintln!("It's been a while since last successful batch, so recreating chrome instance...");
     	browser = new_browser().expect("Error recreating browser");
   		eprintln!("Recreated chrome instance.");
     }
@@ -107,21 +107,20 @@ fn main() {
 		  println!("{} success {} {}", req.uuid, req.url, req.output_path);
 		}
 
+  	let batch_end_time = Instant::now();
+
 		if batch_had_timeouts {
 			if max_tab_count > 1 {
 				eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
 				max_tab_count -= 1;
 			}
 		} else {
+			last_successful_batch_time = batch_end_time;
 			if num_requests == max_tab_count {
 				max_tab_count += 1;
 				eprintln!("Maxed batch was successful, increasing throttle to {}", max_tab_count);
 			}
 		}
-
-  	let batch_end_time = Instant::now();
-
-		last_batch_time = batch_end_time;
 
     let batch_elapsed = batch_end_time.duration_since(batch_start_time);
     let remaining_time = Duration::from_secs(10) - batch_elapsed;
