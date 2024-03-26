@@ -56,6 +56,20 @@ fn main() {
   loop {
   	collect_waiting_requests(&mut stdin_channel, &mut requests_queue);
 
+    let ideal_num_requests = min(max_tab_count, requests_queue.len());
+    let mut batch_requests: Vec<Request> = Vec::new();
+    // If there's a desperate request, one that has only one try left, then make that the
+    // only one in the batch.
+    if let Some(index) = requests_queue.iter().take(ideal_num_requests).position(|x| x.remaining_tries == 1) {
+    	eprintln!("Found desperate request, making dedicated batch.");
+	    batch_requests.push(requests_queue.remove(index));
+	    should_restart_chrome = true;
+    } else {
+    	// There's no desperate requests in the next ideal_num_requests, add em to the batch.
+			batch_requests.extend(requests_queue.drain(0..ideal_num_requests).collect::<Vec<Request>>())
+    }
+    let num_requests = batch_requests.len();
+
     let batch_start_time = Instant::now();
     let time_between_batches = batch_start_time.duration_since(last_successful_batch_time);
     if should_restart_chrome || time_between_batches >= Duration::from_secs(BROWSER_TIMEOUT_SECS) {
@@ -63,19 +77,6 @@ fn main() {
   		eprintln!("Recreating chrome instance...");
     	browser = new_browser().expect("Error recreating browser");
   		eprintln!("Recreated chrome instance.");
-    }
-
-
-    let num_requests = min(max_tab_count, requests_queue.len());
-    let mut batch_requests: Vec<Request> = Vec::new();
-    // If there's a desperate request, one that has only one try left, then make that the
-    // only one in the batch.
-    if let Some(index) = requests_queue.iter().take(num_requests).position(|x| x.remaining_tries == 1) {
-    	eprintln!("Found desperate request, making dedicated batch.");
-	    batch_requests.push(requests_queue.remove(index));
-    } else {
-    	// There's no desperate requests in the next num_requests, add em to the batch.
-			batch_requests.extend(requests_queue.drain(0..num_requests).collect::<Vec<Request>>())
     }
 
     // let unfiltered_requests = requests_queue.drain(0..num_requests).collect::<Vec<Request>>();
