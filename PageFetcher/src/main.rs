@@ -71,6 +71,7 @@ fn main() {
     // If there's a desperate request, one that has only one try left, then make that the
     // only one in the batch.
     if let Some(index) = requests_queue.iter().take(num_requests).position(|x| x.remaining_tries == 1) {
+    	eprintln!("Found desperate request, making dedicated batch.");
 	    batch_requests.push(requests_queue.remove(index));
     } else {
     	// There's no desperate requests in the next num_requests, add em to the batch.
