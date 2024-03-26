@@ -103,7 +103,7 @@ export class YearlyEventsServer {
 		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
 		  	}
 		  } else {
-	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
+	  		const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id);
 		  	if (maybeSimilarSubmission) {
 		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
 		  				maybeSimilarSubmission;
