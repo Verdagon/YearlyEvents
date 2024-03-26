@@ -154,7 +154,7 @@ export function logs(...destinations) {
 		}
 	}
 	funcs.unshift((...args) => {
-		if (args.length == 0 && typeof args[0] == 'object' && args[0][""] !== undefined) {
+		if (args.length == 1 && typeof args[0] == 'object' && args[0][""] !== undefined) {
 			// Because we want to e.g.
 			//   logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 			// to include some extra metadata to the steps logs.
