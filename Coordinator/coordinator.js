@@ -243,7 +243,11 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 	const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
 	console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
 	try {
-		await chromeFetcher.send(url + " " + pdfOutputPath);
+		if (url.includes(".pdf")) {
+			await fetchPDF(url, pdf_path);
+		} else {
+			await chromeFetcher.send(url + " " + pdfOutputPath);
+		}
 	} catch (err) {
 		const error =
 				"Bad fetch/browse for event " + eventName + " result " + url + ": " + 
