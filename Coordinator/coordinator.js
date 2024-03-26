@@ -313,11 +313,11 @@ async function googleSearch(googleSearchApiKey, query) {
 				"https://www.googleapis.com/customsearch/v1?key=" + googleSearchApiKey +
 				"&cx=8710d4180bdfd4ba9&q=" + urlencode(query);
 		const response = await fetch(url);
-		console.log("response from google:", response);
 		if (!response.ok) {
       throw "!response.ok from google: " + JSON.stringify(response);
     }
     const body = await response.json();
+		console.log("response body from google:", response);
 		if (body.items == null) {
 			throw "Bad response error, no items: " + JSON.stringify(body);
 		}
