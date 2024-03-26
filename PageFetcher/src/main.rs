@@ -12,14 +12,26 @@ use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 use headless_chrome::Tab;
 use headless_chrome::browser::ConnectionClosed;
-use std::{thread, time};
+use std::thread;
+use headless_chrome::LaunchOptions;
+use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Result;
 
 use headless_chrome::Browser;
 
+const BROWSER_TIMEOUT_SECS: u64 = 30;
+
+fn new_browser() -> Result<Browser, anyhow::Error> {
+	let mut browser_options = LaunchOptions::default();
+	browser_options.enable_logging = true;
+	browser_options.idle_browser_timeout = Duration::from_secs(BROWSER_TIMEOUT_SECS);
+  return Browser::new(browser_options);
+}
+
 fn main() {
-  let mut browser = Browser::default().expect("Error creating browser");
+  let mut browser = new_browser().expect("Error creating browser");
 
   println!("Ready");
 
@@ -33,8 +45,19 @@ fn main() {
   // and whenever a batch is all successes we'll increase it.
   let mut max_tab_count = 5;
 
+  let mut last_batch_time = Instant::now();
+
   loop {
   	collect_waiting_requests(&mut stdin_channel, &mut requests);
+
+    let batch_start_time = Instant::now();
+    let time_between_batches = batch_start_time.duration_since(last_batch_time);
+    if time_between_batches >= Duration::from_secs(BROWSER_TIMEOUT_SECS) {
+    	// The socket to chrome only stays alive for thirty seconds, so recreate it
+  		eprintln!("It's been a while, so recreating chrome instance...");
+    	browser = new_browser().expect("Error recreating browser");
+  		eprintln!("Recreated chrome instance.");
+    }
 
     let mut batch_had_timeouts = false;
 
@@ -96,7 +119,13 @@ fn main() {
 			}
 		}
 
-    sleep(10000);
+  	let batch_end_time = Instant::now();
+
+		last_batch_time = batch_end_time;
+
+    let batch_elapsed = batch_end_time.duration_since(batch_start_time);
+    let remaining_time = Duration::from_secs(10) - batch_elapsed;
+    thread::sleep(remaining_time);
   }
 }
 
@@ -128,11 +157,6 @@ fn spawn_stdin_channel() -> Receiver<String> {
         // io::stdin().read_line(&mut buffer).unwrap();
     });
     rx
-}
-
-fn sleep(millis: u64) {
-    let duration = time::Duration::from_millis(millis);
-    thread::sleep(duration);
 }
 
 struct Request {

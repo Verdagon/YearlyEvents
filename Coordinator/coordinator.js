@@ -251,13 +251,14 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 						err.status + ": " + err.rest :
 						err);
 		console.log(error)
-		await db.transaction(async (trx) => {
-			const cachedPageTextRow =
-					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-			if (!cachedPageTextRow) {
-				await trx.cachePageText({url, text: null, error});
-			}
-		});
+		// Don't save errors
+		// await db.transaction(async (trx) => {
+		// 	const cachedPageTextRow =
+		// 			await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+		// 	if (!cachedPageTextRow) {
+		// 		await trx.cachePageText({url, text: null, error});
+		// 	}
+		// });
 		return {text: null, error};
 	}
 
@@ -269,13 +270,14 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 	if (pdftotextExitCode !== 0) {
 		const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdfOutputPath;
 		console.log(error);
-		await db.transaction(async (trx) => {
-			const cachedPageTextRow =
-					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-			if (!cachedPageTextRow) {
-				await trx.cachePageText({url, text: null, error});
-			}
-		});
+		// Don't save errors
+		// await db.transaction(async (trx) => {
+		// 	const cachedPageTextRow =
+		// 			await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+		// 	if (!cachedPageTextRow) {
+		// 		await trx.cachePageText({url, text: null, error});
+		// 	}
+		// });
 		return {text: null, error};
 	}
 	steps.push("Created text in " + txt_path)
@@ -283,13 +285,14 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 	if (!text) {
 		const error = "No result text found for " + eventName + " at url " + url;
 		console.log(error);
-		await db.transaction(async (trx) => {
-			const cachedPageTextRow =
-					await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-			if (!cachedPageTextRow) {
-				await trx.cachePageText({url, text: null, error});
-			}
-		});
+		// Don't save errors
+		// await db.transaction(async (trx) => {
+		// 	const cachedPageTextRow =
+		// 			await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+		// 	if (!cachedPageTextRow) {
+		// 		await trx.cachePageText({url, text: null, error});
+		// 	}
+		// });
 		return {text: null, error};
 	}
 
