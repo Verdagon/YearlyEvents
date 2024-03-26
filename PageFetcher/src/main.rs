@@ -15,6 +15,8 @@ use headless_chrome::browser::ConnectionClosed;
 use std::thread;
 use headless_chrome::LaunchOptions;
 use std::time::Duration;
+use anyhow::anyhow;
+use headless_chrome::browser::default_executable;
 use std::time::Instant;
 
 use anyhow::Result;
@@ -24,10 +26,13 @@ use headless_chrome::Browser;
 const BROWSER_TIMEOUT_SECS: u64 = 30;
 
 fn new_browser() -> Result<Browser, anyhow::Error> {
-	let mut browser_options = LaunchOptions::default();
-	browser_options.enable_logging = true;
-	browser_options.idle_browser_timeout = Duration::from_secs(BROWSER_TIMEOUT_SECS);
-  return Browser::new(browser_options);
+  return Browser::new(
+	  	LaunchOptions::default_builder()
+					// .enable_logging(true)
+					// .idle_browser_timeout(Duration::from_secs(BROWSER_TIMEOUT_SECS))
+	  	    .path(Some(default_executable().map_err(|e| anyhow!(e))?))
+	  	    .build()
+	  	    .expect("Error building browser options"));
 }
 
 fn main() {
