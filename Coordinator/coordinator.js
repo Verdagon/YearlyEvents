@@ -313,6 +313,7 @@ async function googleSearch(googleSearchApiKey, query) {
 				"https://www.googleapis.com/customsearch/v1?key=" + googleSearchApiKey +
 				"&cx=8710d4180bdfd4ba9&q=" + urlencode(query);
 		const response = await fetch(url);
+		console.log("response from google:", response);
 		if (!response.ok) {
       throw "!response.ok from google: " + JSON.stringify(response);
     }
