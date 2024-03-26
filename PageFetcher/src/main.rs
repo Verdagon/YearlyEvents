@@ -28,8 +28,8 @@ const BROWSER_TIMEOUT_SECS: u64 = 30;
 fn new_browser() -> Result<Browser, anyhow::Error> {
   return Browser::new(
 	  	LaunchOptions::default_builder()
-					// .enable_logging(true)
-					// .idle_browser_timeout(Duration::from_secs(BROWSER_TIMEOUT_SECS))
+					.enable_logging(true)
+					.idle_browser_timeout(Duration::from_secs(BROWSER_TIMEOUT_SECS))
 	  	    .path(Some(default_executable().map_err(|e| anyhow!(e))?))
 	  	    .build()
 	  	    .expect("Error building browser options"));
