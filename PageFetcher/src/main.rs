@@ -51,15 +51,16 @@ fn main() {
   let mut max_tab_count = 5;
 
   let mut last_successful_batch_time = Instant::now();
+  let mut should_restart_chrome = false;
 
   loop {
   	collect_waiting_requests(&mut stdin_channel, &mut requests);
 
     let batch_start_time = Instant::now();
     let time_between_batches = batch_start_time.duration_since(last_successful_batch_time);
-    if time_between_batches >= Duration::from_secs(BROWSER_TIMEOUT_SECS) {
+    if should_restart_chrome || time_between_batches >= Duration::from_secs(BROWSER_TIMEOUT_SECS) {
     	// The socket to chrome only stays alive for thirty seconds, so recreate it
-  		eprintln!("It's been a while since last successful batch, so recreating chrome instance...");
+  		eprintln!("Recreating chrome instance...");
     	browser = new_browser().expect("Error recreating browser");
   		eprintln!("Recreated chrome instance.");
     }
@@ -78,7 +79,7 @@ fn main() {
 		  	}
 		  	Err(err) => {
 		  		handle_error_maybe_requeue_a(
-		  				&mut requests, &mut batch_had_timeouts, req, "starting tab", err);
+		  				&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "starting tab", err);
 		  		continue;
 		  	}
 		  }
@@ -89,7 +90,7 @@ fn main() {
     		Ok(_) => {}
     		Err(err) => {
     			handle_error_maybe_requeue_b(
-    					&mut requests, &mut batch_had_timeouts, req, "waiting on tab", &err);
+    					&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "waiting on tab", &err);
 		  		continue;
     		}
     	}
@@ -97,14 +98,14 @@ fn main() {
 		  		match tab.print_to_pdf(None) {
 		    		Ok(d) => d,
 		    		Err(err) => {
-		    			handle_error_maybe_requeue_b(&mut requests, &mut batch_had_timeouts, req, "pdfing tab", &err);
+		    			handle_error_maybe_requeue_b(&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "pdfing tab", &err);
 				  		continue;
 		    		}
 		  		};
 		  match fs::write(&req.output_path, data) {
     		Ok(()) => (),
     		Err(err) => {
-    			handle_error_maybe_requeue_a(&mut requests, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
+    			handle_error_maybe_requeue_a(&mut requests, &mut should_restart_chrome, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
 		  		continue;
     		}
 		  }
@@ -240,6 +241,7 @@ fn handle_error_maybe_requeue_inner(
 
 fn handle_error_maybe_requeue_a(
 		requests: &mut Vec<Request>,
+		should_restart_chrome: &mut bool,
 		batch_had_timeouts: &mut bool,
 		req: Request,
 		operation: &str,
@@ -249,11 +251,13 @@ fn handle_error_maybe_requeue_a(
 	// These don't work for some reason...
 	// if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
 	// 	  err.downcast_ref::<Box<ConnectionClosed>>().is_some() {
-	if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") ||
-			format!("{:?}", err).contains("The event waited for never came") {
+	if format!("{:?}", err).contains("underlying connection is closed") {
+		*should_restart_chrome = true;
+  	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
+	} else if format!("{:?}", err).contains("event waited for never came") {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
-		if format!("{:?}", err).contains("Unable to make method calls because underlying connection is closed") {
+		if format!("{:?}", err).contains("underlying connection is closed") {
       panic!("wtf {:?}", err);
 		}
 		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
@@ -262,14 +266,17 @@ fn handle_error_maybe_requeue_a(
 
 fn handle_error_maybe_requeue_b(
 		requests: &mut Vec<Request>,
+		should_restart_chrome: &mut bool,
 		batch_had_timeouts: &mut bool,
 		req: Request,
 		operation: &str,
 		err: &anyhow::Error) {
   eprintln!("Error while {} for request {}: {:?}", operation, req.uuid, err);
 
-	if err.downcast_ref::<util::Timeout>().is_some() ||
-		  err.downcast_ref::<ConnectionClosed>().is_some() {
+  if err.downcast_ref::<ConnectionClosed>().is_some() {
+  	*should_restart_chrome = true;
+  	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
+	} else if err.downcast_ref::<util::Timeout>().is_some() {
   	handle_error_maybe_requeue_inner(requests, batch_had_timeouts, req, operation);
 	} else {
 		// This should be caught by ConnectionClosed
