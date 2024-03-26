@@ -128,8 +128,10 @@ fn main() {
 		}
 
     let batch_elapsed = batch_end_time.duration_since(batch_start_time);
-    let remaining_time = Duration::from_secs(10) - batch_elapsed;
-    thread::sleep(remaining_time);
+    if batch_elapsed < Duration::from_secs(10) {
+	    let remaining_time = Duration::from_secs(10) - batch_elapsed;
+	    thread::sleep(remaining_time);
+	  }
   }
 }
 
