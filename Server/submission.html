@@ -1,5 +1,9 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Submission</title>
 <style type="text/css">
 	.analysis {
 		margin: 1em 0;
@@ -28,7 +32,7 @@
 
 <% it.analyses.forEach(function(analysis){ %>
 	<div class="analysis">
-		<div>Confirmed: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
+		<div><%= analysis.conclusion %>: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
 		<div>analysis.month: <%= analysis.month %></div>
 		
 		<div>yearly: <%= analysis && analysis.analysis && analysis.analysis.yearly %></div>

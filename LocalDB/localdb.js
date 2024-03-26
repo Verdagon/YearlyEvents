@@ -151,12 +151,16 @@ export class LocalDb {
 		await (this.target).into("EventConfirmations").insert(row);
 	}
 
-	async getCreatedSubmissions(trx) {
+	async getCreatedSubmissions() {
 		return await (this.target).select().from("Submissions").where({status: "created"});
 	}
 
-	async getAnalyzedEents(trx) {
+	async getAnalyzedEvents() {
     return await (this.target).select().from("ConfirmedEvents").where({status: "analyzed"});
+  }
+
+  async getFailedSubmissions() {
+    return await (this.target).select().from("Submissions").where({status: "failed"});
   }
 
   async getEventConfirmations(eventId) {

@@ -130,12 +130,22 @@ export class YearlyEventsServer {
   }
 
   async confirmed() {
-    const events = await this.db.getAnalyzedEents();
+    const events = await this.db.getAnalyzedEvents();
     await parallelEachI(events, async (eventI, event) => {
       event.confirmations = await this.db.getEventConfirmations(event.id);
     });
     const pageHtml = await this.getResource("confirmed.html");
     const response = this.eta.renderString(pageHtml, { events: events });
+    return response;
+  }
+
+  async failed() {
+    const submissions = await this.db.getFailedSubmissions();
+    submissions.forEach((submission) => {
+    	submission.notes = "";
+    })
+    const pageHtml = await this.getResource("failed.html");
+    const response = this.eta.renderString(pageHtml, { submissions: submissions });
     return response;
   }
 
@@ -152,7 +162,16 @@ export class YearlyEventsServer {
 		let analyses = [];
     if (submission.investigation) {
 	    analyses =
-	    		submission.investigation.confirms.concat(submission.investigation.rejects);
+	    		submission.investigation.confirms.map(confirm => {
+	    			const result = JSON.parse(JSON.stringify(confirm));
+	    			result.conclusion = "confirmed";
+	    			return result;
+	    		})
+	    		.concat(submission.investigation.rejects.map(reject => {
+	    			const result = JSON.parse(JSON.stringify(reject));
+	    			result.conclusion = "rejected";
+	    			return result;
+	    		}));
 	  }
 
     const event = await this.db.getSubmissionEvent(submissionId);

@@ -61,8 +61,9 @@ fn main() {
     // If there's a desperate request, one that has only one try left, then make that the
     // only one in the batch.
     if let Some(index) = requests_queue.iter().take(ideal_num_requests).position(|x| x.remaining_tries == 1) {
-    	eprintln!("Found desperate request, making dedicated batch.");
-	    batch_requests.push(requests_queue.remove(index));
+    	let desperate_request = requests_queue.remove(index);
+    	eprintln!("Making dedicated batch for desperate request id {} for url {}", desperate_request.uuid, desperate_request.url);
+	    batch_requests.push();
 	    should_restart_chrome = true;
     } else {
     	// There's no desperate requests in the next ideal_num_requests, add em to the batch.
@@ -87,7 +88,7 @@ fn main() {
     let mut batch_had_timeouts = false;
   	let mut running_reqs_and_tabs = Vec::new();
   	for req in batch_requests {
-      eprintln!("Processing request {} for url {} to file {}", req.uuid, req.url, req.output_path);
+      eprintln!("Starting tab for request {} for url {} to file {}", req.uuid, req.url, req.output_path);
 
 		  match start_tab(&mut browser, req.url.to_string()) {
 		  	Ok(tab) => {

@@ -115,6 +115,12 @@ const nodeServer = http.createServer(async function(req, res) {
 	      res.write(response);
 	    } break;
 
+	    case "/failed.html": {
+	      const response = await server.failed();
+	      console.log("Response:", response);
+	      res.write(response);
+	    } break;
+
 	    case "/askGpt.html": {
 	      res.write(await server.askGpt());
 	    } break;
