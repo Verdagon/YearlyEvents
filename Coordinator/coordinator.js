@@ -317,11 +317,11 @@ async function googleSearch(googleSearchApiKey, query) {
       throw response;
     }
     const body = await response.json();
-		if (!body.items) {
-			throw "Bad response error: " + body;
+		if (body.items == null) {
+			throw "Bad response error, no items: " + JSON.stringify(body);
 		}
-		if (!body.items.length) {
-			throw "Bad response error: " + body;
+		if (body.items.length == null) {
+			throw "Bad response error, items empty: " + JSON.stringify(body);
 		}
 		return body.items.slice(0, 7).map(x => x.link);
 	} catch (error) {
