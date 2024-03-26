@@ -314,7 +314,7 @@ async function googleSearch(googleSearchApiKey, query) {
 				"&cx=8710d4180bdfd4ba9&q=" + urlencode(query);
 		const response = await fetch(url);
 		if (!response.ok) {
-      throw response;
+      throw "!response.ok from google: " + JSON.stringify(response);
     }
     const body = await response.json();
 		if (body.items == null) {
