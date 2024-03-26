@@ -137,7 +137,7 @@ function stringify(...args) {
 
 export function logs(...destinations) {
 	const funcs = [];
-	let toStdout = true;
+	let useStdout = true;
 	for (const destination of destinations) {
 		if (Array.isArray(destination)) {
 			funcs.push((...args) => {
@@ -148,7 +148,7 @@ export function logs(...destinations) {
 				}
 			});
 		} else if (typeof destination == 'boolean') {
-			toStdout = destination;
+			useStdout = destination;
 		} else {
 			throw "Weird log() destination: " + JSON.stringify(destination);
 		}
