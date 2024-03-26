@@ -126,12 +126,12 @@ export function normalizeName(name, city, state) {
 }
 
 class VException {
-	constructor(args...) {
+	constructor(...args) {
 		this.message = args;
 	}
 }
 
-function stringify(args...) {
+function stringify(...args) {
 	return args.map(arg => typeof arg == 'object' ? JSON.stringify(arg) : arg + "").join(" ");
 }
 
@@ -140,7 +140,7 @@ export function logs(destinations) {
 	let toStdout = true;
 	for (const destination of destinations) {
 		if (Array.isArray(destination)) {
-			funcs.push((args...) => {
+			funcs.push((...args) => {
 				if (args.length == 1) {
 					destination.push(args[0]);
 				} else {
@@ -153,7 +153,7 @@ export function logs(destinations) {
 			throw "Weird log() destination: " + JSON.stringify(destination);
 		}
 	}
-	funcs.unshift((args...) => {
+	funcs.unshift((...args) => {
 		if (args.length == 0 && typeof args[0] == 'object' && args[0][""] !== undefined) {
 			// Because we want to e.g.
 			//   logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
@@ -163,7 +163,7 @@ export function logs(destinations) {
 			useStdout ? console.log(...args) : console.error(...args);
 		}
 	});
-	return function(args...) {
+	return function(...args) {
 		for (const func of funcs) {
 			func(...args);
 		}
