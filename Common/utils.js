@@ -135,7 +135,7 @@ function stringify(...args) {
 	return args.map(arg => typeof arg == 'object' ? JSON.stringify(arg) : arg + "").join(" ");
 }
 
-export function logs(destinations) {
+export function logs(...destinations) {
 	const funcs = [];
 	let toStdout = true;
 	for (const destination of destinations) {
