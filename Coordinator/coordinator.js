@@ -317,7 +317,10 @@ async function googleSearch(googleSearchApiKey, query) {
       throw "!response.ok from google: " + JSON.stringify(response);
     }
     const body = await response.json();
-		console.log("response body from google:", response);
+    if (body.spelling && body.spelling.correctedQuery) {
+    	console.log("Searching google suggested corrected query:", query);
+    	return await googleSearch(googleSearchApiKey, body.spelling.correctedQuery);
+    }
 		if (body.items == null) {
 			throw "Bad response error, no items: " + JSON.stringify(body);
 		}
