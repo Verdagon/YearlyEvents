@@ -423,6 +423,7 @@ async function investigate(scratchDir, db, googleSearchApiKey, searchThrottler, 
 			console.log("No page text, skipping.");
 			pageSteps.push("No page text, skipping.");
 			broadSteps.push("No page text, skipping.");
+			throw "No page text, stopping";
 			num_errors++;
 
 			rejects.push({
