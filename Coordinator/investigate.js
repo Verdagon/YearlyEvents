@@ -271,13 +271,13 @@ export async function investigate(
             url);
         const pageAnalysisRow =
             await db.getPageAnalysis(submissionId, url, model);
-        if (pageAnalysesRow.status == 'created') {
+        if (pageAnalysisRow.status == 'created') {
           // If it's still created status, then we're waiting on something external.
           // Update the steps at least and then return.
           await db.finishInvestigation(
               submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
           return;
-        } else if (pageAnalysesRow.status == 'confirmed') {
+        } else if (pageAnalysisRow.status == 'confirmed') {
           console.log("Counting confirmation from url:", url);
           num_confirms++;
           const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysesRow;
