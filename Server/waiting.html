@@ -119,9 +119,13 @@ Confirmed submissions:
     </div>
     <div><%= event.notes %></div>
     <% event.confirmations.forEach(function(confirmation, confirmationI){ %>
-      <div>
-        <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
-        <button onclick="publishEventClicked(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
+      <div style="display: flex; align-items: center;">
+        <div style="flex-grow: 1">
+          <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
+        </div>
+        <div style="flex-shrink: 0">
+          <button onclick="publishEventClicked(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
+        </div>
       </div>
       <div>
         <%= confirmation.event_short_summary %>
