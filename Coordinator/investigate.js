@@ -4,7 +4,7 @@ import { analyzePage } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { parallelEachI } from "../Common/parallel.js";
 
-// const execFileAsync = util.promisify(execFile);
+const execFileAsync = util.promisify(execFile);
 
 export async function investigate(
     openai,
