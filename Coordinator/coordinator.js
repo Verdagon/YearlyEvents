@@ -16,8 +16,6 @@ import { Configuration, OpenAIApi } from "openai";
 import { Semaphore, parallelEachI, makeMsThrottler } from "../Common/parallel.js";
 import urlencode from 'urlencode';
 
-const execFileAsync = util.promisify(execFile);
-
 const openAiApiKey = process.argv[2]
 if (!openAiApiKey) {
 	console.log("Please enter the OpenAI key for the first argument.")
@@ -46,6 +44,7 @@ if (!syncFs.existsSync(scratchDir)) {
   syncFs.mkdirSync(scratchDir);
 }
 
+const filterSubmissionId = process.argv[5] || null;
 
 
 
@@ -71,7 +70,11 @@ try {
 
 
 	const otherEvents = [];
-	const approvedSubmissions = (await db.getApprovedSubmissions()).slice(0, 20);
+	let approvedSubmissions = (await db.getApprovedSubmissions());
+  if (filterSubmissionId) {
+    approvedSubmissions = approvedSubmissions.filter(x => x.submission_id == filterSubmissionId);
+  }
+
 
 	console.log("Considering approved submissions:");
 	for (const submission of approvedSubmissions) {

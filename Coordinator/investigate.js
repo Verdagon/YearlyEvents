@@ -4,14 +4,7 @@ import { analyzePage } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { parallelEachI } from "../Common/parallel.js";
 
-
-// function onlyUnique(value, index, array) {
-//   return array.indexOf(value) === index;
-// }
-// function distinct(a) {
-// function makeLineServerProcess(executable, flags, readyLine) {
-// function splitOnce(str, delim) {
-// function newPromise() {LineServerProcess
+// const execFileAsync = util.promisify(execFile);
 
 export async function investigate(openai, scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeFetcher, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl, submissionId) {
   const broadSteps = [];
