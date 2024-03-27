@@ -50,7 +50,7 @@
         <summary>Show broad steps</summary>
         <div>
           <ul>
-            <% investigation.steps.forEach(function(step) { %>
+            <% investigation.steps && investigation.steps.forEach(function(step) { %>
               <li>
                 <% if (typeof step == 'object') { %>
                   <%= step[""] %>
