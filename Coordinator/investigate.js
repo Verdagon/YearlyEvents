@@ -46,8 +46,12 @@ export async function analyze(
       const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
       if (maybePageAnalysisRow) {
         const analysisStatus = maybePageAnalysisRow.status;
-        pageSteps = maybePageAnalysisRow.steps;
+        pageSteps = maybePageAnalysisRow.steps || [];
 
+        if (!analysisStatus) {
+          logs(pageSteps, broadSteps)("Bad analysis status, assuming created.");
+          analysisStatus = 'created';
+        }
         if (analysisStatus == 'created') {
           console.log("Resuming existing page analysis row for url:", url);
           // Continue
@@ -335,6 +339,7 @@ async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCa
   const response =
       await searchThrottler.prioritized(throttlerPriority, async () => {
         console.log("Released for Google!", throttlerPriority)
+        console.log("Expensive: Google:", googleQuery);
         return await googleSearch(googleSearchApiKey, googleQuery);
       });
   await db.cacheGoogleResult({query: googleQuery, response: response});
@@ -362,6 +367,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
     if (url.includes(".pdf")) {
       await fetchPDF(url, pdfOutputPath);
     } else {
+      console.log("Expensive: chromeFetcher:", url);
       await chromeFetcher.send(url + " " + pdfOutputPath);
     }
     console.log("bork 4")

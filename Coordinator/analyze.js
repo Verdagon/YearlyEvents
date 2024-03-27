@@ -97,6 +97,10 @@ export async function analyzePage(
     event_city,
     event_state) {
 
+  if (steps == null) {
+    throw "Steps null wtf";
+  }
+
 	let description =
 			await getCachedDescription(db, gptCacheCounter, url);
 	if (description) {
