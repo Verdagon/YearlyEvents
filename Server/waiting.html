@@ -173,7 +173,7 @@ Failed NEED-level submissions:
       data-submission-id="<%= submission.submission_id %>">
     <div>
       <%= submission.status %>: <%= submission.name %> in <%= submission.city %>, <%= submission.state %>:
-      <button onclick="burySubmissionClicked('<%= submission.submission_id %>'')">Bury</button>
+      <button onclick="burySubmissionClicked('<%= submission.submission_id %>')">Bury</button>
       <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Re-approve</button>
       <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
     </div>
