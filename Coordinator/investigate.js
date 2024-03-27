@@ -280,7 +280,7 @@ export async function investigate(
         } else if (pageAnalysisRow.status == 'confirmed') {
           console.log("Counting confirmation from url:", url);
           num_confirms++;
-          const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysesRow;
+          const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow;
           if (month) {
             months.push(month);
           }
