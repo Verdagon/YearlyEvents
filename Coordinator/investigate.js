@@ -48,14 +48,11 @@ export async function analyze(
       if (maybePageAnalysisRow) {
         analysisStatus = maybePageAnalysisRow.status;
         pageSteps = maybePageAnalysisRow.steps || [];
-
-        if (!analysisStatus) {
-          logs(pageSteps, broadSteps)("Bad analysis status, assuming created.");
-          analysisStatus = 'created';
-        }
-      } else {
-        logs(pageSteps)("Starting analysis for page:", url);
+      }
+      if (!analysisStatus) {
+        logs(pageSteps, broadSteps)("Starting analysis for page:", url);
         await trx.startPageAnalysis(submissionId, url, model);
+        analysisStatus = 'created';
       }
     });
 
