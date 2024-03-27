@@ -45,12 +45,12 @@
 	<details>
 		<summary><%= investigation.model %>:</summary>
 		<div>
-      
+
       <details>
         <summary>Show broad steps</summary>
         <div>
           <ul>
-            <% it.submission.investigation.steps.forEach(function(step) { %>
+            <% investigation.steps.forEach(function(step) { %>
               <li>
                 <% if (typeof step == 'object') { %>
                   <%= step[""] %>
