@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Waiting</title>
 <script>
-async function publishEventClicked(index, bestUrl) {
+async function publishConfirmedSubmission(index, bestUrl) {
   const div = document.getElementById("idea" + index);
   const name = div.dataset.name;
   const eventId = div.dataset.eventId;
@@ -20,7 +20,7 @@ async function publishEventClicked(index, bestUrl) {
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
   }
 }
-async function rejectEventClicked(index) {
+async function rejectConfirmedSubmission(index) {
   const div = document.getElementById("idea" + index);
   const name = div.dataset.name;
   const eventId = div.dataset.eventId;
@@ -52,7 +52,7 @@ async function approveSubmissionClicked(index, need) {
   }
 }
 async function rejectSubmissionClicked(index) {
-  const div = document.getElementById("idea" + index);
+  const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const submissionId = div.dataset.submissionId;
   div.innerHTML = "<div>Rejecting: " + name + "</div>...";
@@ -67,7 +67,7 @@ async function rejectSubmissionClicked(index) {
   }
 }
 async function burySubmissionClicked(index) {
-  const div = document.getElementById("idea" + index);
+  const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const submissionId = div.dataset.submissionId;
   div.innerHTML = "<div>Burying: " + name + "</div>...";
@@ -94,9 +94,7 @@ body {
 <body>
 <div>
   <a href="/askGpt.html">Ask</a> |
-  <a href="/unconsidered.html">Unconsidered</a> |
-  <a href="/confirmed.html">Confirmed</a> |
-  <a href="/failed.html">Failed</a>
+  <a href="/waiting.html">Waiting</a>
 </div>
 
 <h3>
@@ -106,7 +104,7 @@ Confirmed submissions:
 <% it.confirmedSubmissions.forEach(function(event, eventI){ %>
   <div
       class="idea"
-      id="idea<%= eventI %>"
+      id="confirmed<%= eventI %>"
       data-name="<%= event.name %>"
       data-event-id="<%= event.id %>">
     <div style="display: flex; align-items: center;">
@@ -117,7 +115,7 @@ Confirmed submissions:
         <a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="rejectEventClicked(<%= eventI %>)">Reject</button>
+        <button onclick="rejectConfirmedSubmission(<%= eventI %>)">Reject</button>
       </div>
     </div>
     <div><%= event.notes %></div>
@@ -127,7 +125,7 @@ Confirmed submissions:
           <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishEventClicked(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
         </div>
       </div>
       <div>
@@ -144,7 +142,7 @@ Unconsidered submissions:
 <% it.unconsideredSubmissions.forEach(function(submission, i){ %>
   <div
       class="idea"
-      id="idea<%= i %>"
+      id="submission<%= submission.submission_id %>"
       data-name="<%= submission.name %>"
       data-submission-id="<%= submission.submission_id %>">
 
@@ -153,9 +151,9 @@ Unconsidered submissions:
         <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="approveSubmissionClicked(<%= i %>, 1)">NEED</button>
-        <button onclick="approveSubmissionClicked(<%= i %>, 0)">Approve</button>
-        <button onclick="rejectSubmissionClicked(<%= i %>)">Reject</button>
+        <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 1)">NEED</button>
+        <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 0)">Approve</button>
+        <button onclick="rejectSubmissionClicked(<%= submission.submission_id %>)">Reject</button>
       </div>
     </div>
     <div><%= submission.description %></div>
@@ -170,13 +168,13 @@ Failed NEED-level submissions:
 <% it.failedNeedSubmissions.forEach(function(submission, i){ %>
   <div
       class="idea"
-      id="idea<%= i %>"
+      id="submission<%= submission.submission_id %>"
       data-name="<%= submission.name %>"
       data-submission-id="<%= submission.submission_id %>">
     <div>
       <%= submission.status %>: <%= submission.name %> in <%= submission.city %>, <%= submission.state %>:
-      <button onclick="burySubmissionClicked(<%= i %>)">Bury</button>
-      <button onclick="approveSubmissionClicked(<%= i %>, 1)">Re-approve</button>
+      <button onclick="burySubmissionClicked(<%= submission.submission_id %>)">Bury</button>
+      <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 1)">Re-approve</button>
       <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
     </div>
     <div><%= submission.description %></div>
