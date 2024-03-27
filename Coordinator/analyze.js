@@ -100,7 +100,7 @@ export async function analyzePage(
 	let description =
 			await getCachedDescription(db, gptCacheCounter, url);
 	if (description) {
-    console.log("Using cached summary:", description);
+    console.log("Using cached summary.");
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 		description =
