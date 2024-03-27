@@ -160,7 +160,7 @@ export class LocalDb {
           submission_id: submissionId,
           status: status,
           model: model,
-          steps: steps,
+          steps: JSON.stringify(steps),
           investigation: JSON.stringify(investigation)
         });
     await parallelEachI(pageAnalyses, async (_, pageAnalysis) => {
@@ -170,8 +170,7 @@ export class LocalDb {
             submission_id: submissionId,
             url: url,
             status: status,
-            steps: steps,
-            analysis: analysis,
+            steps: JSON.stringify(steps),
             analysis: JSON.stringify(analysis)
           });
     });
