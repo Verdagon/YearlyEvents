@@ -475,7 +475,7 @@ async function addOtherEventSubmission(db, otherEvent) {
     state: state && normalizeState(state),
     city,
     description: summary,
-    'created',
+    status: 'created',
     url,
     origin_query: null,
     need: 0
