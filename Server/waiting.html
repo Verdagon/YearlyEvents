@@ -151,9 +151,9 @@ Unconsidered submissions:
         <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 1)">NEED</button>
-        <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 0)">Approve</button>
-        <button onclick="rejectSubmissionClicked(<%= submission.submission_id %>)">Reject</button>
+        <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">NEED</button>
+        <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 0)">Approve</button>
+        <button onclick="rejectSubmissionClicked('<%= submission.submission_id %>')">Reject</button>
       </div>
     </div>
     <div><%= submission.description %></div>
@@ -173,8 +173,8 @@ Failed NEED-level submissions:
       data-submission-id="<%= submission.submission_id %>">
     <div>
       <%= submission.status %>: <%= submission.name %> in <%= submission.city %>, <%= submission.state %>:
-      <button onclick="burySubmissionClicked(<%= submission.submission_id %>)">Bury</button>
-      <button onclick="approveSubmissionClicked(<%= submission.submission_id %>, 1)">Re-approve</button>
+      <button onclick="burySubmissionClicked('<%= submission.submission_id %>'')">Bury</button>
+      <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Re-approve</button>
       <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
     </div>
     <div><%= submission.description %></div>
