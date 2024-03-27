@@ -101,10 +101,10 @@ body {
 Confirmed submissions:
 </h3>
 
-<% it.confirmedSubmissions.forEach(function(event, eventI){ %>
+<% it.confirmedSubmissions.forEach(function(event){ %>
   <div
       class="idea"
-      id="confirmed<%= eventI %>"
+      id="confirmed<%= event.submission_id %>"
       data-name="<%= event.name %>"
       data-event-id="<%= event.id %>">
     <div style="display: flex; align-items: center;">
@@ -115,7 +115,7 @@ Confirmed submissions:
         <a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="rejectConfirmedSubmission(<%= eventI %>)">Reject</button>
+        <button onclick="rejectConfirmedSubmission('<%= event.submission_id %>')">Reject</button>
       </div>
     </div>
     <div><%= event.notes %></div>
@@ -125,7 +125,7 @@ Confirmed submissions:
           <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishConfirmedSubmission(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission('<%= event.submission_id %>', '<%~ confirmation.url %>')">Publish</button>
         </div>
       </div>
       <div>
