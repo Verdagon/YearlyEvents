@@ -187,6 +187,7 @@ export class YearlyEventsServer {
         analysis.pageTextError = pageTextRow && pageTextRow.error;
         return pageTextRow;
       });
+      investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
     	submission.investigations.push(investigation);
     }
 
