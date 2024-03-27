@@ -197,7 +197,7 @@ export class LocalDb {
   }
 
   async getFailedNeedSubmissions() {
-    return await (this.target).select().from("Submissions").whereNot('need', 0).where({status: "failed"}).orWhere({status:'errors'});
+    return await (this.target).select().from("Submissions").whereNot('need', 0).whereNot('status', "confirmed").whereNot('status', "created");
   }
 
   async getEventConfirmations(eventId) {
