@@ -103,8 +103,7 @@ try {
 		// Higher ones get prioritized more, and we want the earliest submissions prioritized more.
 		const throttlerPriority = -submissionIndex;
 
-		const steps = [];
-		logs(steps)("Starting doublecheck for event " + eventName + " in " + eventCity + ", " + eventState);
+		console.log("Starting doublecheck for event " + eventName + " in " + eventCity + ", " + eventState);
 
 		const investigation =
 			await investigate(
@@ -125,11 +124,10 @@ try {
 				eventCity,
 				eventState,
 				maybeUrl,
-				steps,
         submissionId)
 
 		if (!investigation) {
-			logs(steps)("Doublecheck failed for", eventName, "in", eventCity, eventState);
+			console.log("Doublecheck failed for", eventName, "in", eventCity, eventState);
 			investigation = {pageAnalyses: [], broad_steps: [], found_month: "", num_errors: 1, num_promising: 0};
 		}
 
@@ -139,7 +137,7 @@ try {
       const numConfirms = pageAnalyses.filter(x => x.status == 'confirmed').length;
       const status =
           (numConfirms ? "confirmed" : (num_errors > 0 ? "errors" : "hallucinated"));
-      logs(steps)("Concluded", status, "for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+      logs(broadSteps)("Concluded", status, "for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
       for (const analysis of pageAnalyses) {
         if (analysis.status == 'confirmed') {
           console.log("    " + analysis.url);

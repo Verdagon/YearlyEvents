@@ -6,7 +6,25 @@ import { parallelEachI } from "../Common/parallel.js";
 
 // const execFileAsync = util.promisify(execFile);
 
-export async function investigate(openai, scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeFetcher, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl, submissionId) {
+export async function investigate(
+    openai,
+    scratchDir,
+    db,
+    googleSearchApiKey,
+    searchThrottler,
+    searchCacheCounter,
+    chromeFetcher,
+    chromeCacheCounter,
+    gptThrottler,
+    throttlerPriority,
+    gptCacheCounter,
+    otherEvents,
+    event_i,
+    event_name,
+    event_city,
+    event_state,
+    maybeUrl,
+    submissionId) {
   const broadSteps = [];
   const googleQuery = event_name + " " + event_city + " " + event_state;
   logs(broadSteps)("Googling:", googleQuery);
@@ -68,7 +86,7 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
         await getPageText(
             scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
     if (!pageText) {
-      logs(pageSteps, broadSteps)("No page text, skipping.");
+      logs(pageSteps, broadSteps)("No page text, skipping. Error:", pageTextError);
       num_errors++;
 
       pageAnalyses.push({
