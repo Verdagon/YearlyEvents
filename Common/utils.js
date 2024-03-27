@@ -83,7 +83,10 @@ export function normalizeState(stateName) {
 	const lowered = stateName.toLowerCase();
 	for (const row of STATE_SYNONYMS) {
   	if (row.includes(lowered)) {
-  		return row[0].split(" ").map(x => x.toUpperCase()).join(" ");
+  		return row[0]
+        .split(" ")
+        .map(x => x.slice(0, 1).toUpperCase() + x.slice(1))
+        .join(" ");
   	}
   }
   return stateName;
