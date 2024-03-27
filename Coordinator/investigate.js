@@ -218,7 +218,10 @@ export async function investigate(
         .map(row => row.url);
     // Add new rows for new URLs
     for (const responseUrl of responseUrls) {
-      logs(broadSteps)("Encountered new search result url:", responseUrl);
+      if (urls.includes(responseUrl)) {
+        console.log("Skipping already included URL:", responseUrl);
+        continue;
+      }
       if (responseUrl == "") {
         logs(broadSteps)("Skipping blank url");
         continue
@@ -233,7 +236,6 @@ export async function investigate(
       }
       urls.push(responseUrl);
     }
-    urls = distinct(urls);
 
     let months = [];
     let num_errors = 0;
