@@ -272,6 +272,7 @@ export async function investigate(
         const pageAnalysisRow =
             await db.getPageAnalysis(submissionId, url, model);
         if (pageAnalysisRow.status == 'created') {
+          console.log("Analysis row is status created, pausing investigation.");
           // If it's still created status, then we're waiting on something external.
           // Update the steps at least and then return.
           await db.finishInvestigation(
