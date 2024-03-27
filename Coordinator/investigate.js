@@ -353,7 +353,7 @@ async function addOtherEventSubmission(db, otherEvent) {
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
   await db.transaction(async (trx) => {
-    const existing = const trx.getExistingSubmission(name, city, state);
+    const existing = await trx.getExistingSubmission(name, city, state);
     if (!existing) {
       await addSubmission(trx, {status: 'created', name, city, state, description: summary, url});
     }
