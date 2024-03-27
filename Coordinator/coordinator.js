@@ -58,10 +58,11 @@ const openai = new OpenAIApi(configuration);
 
 const db = new LocalDb(null, "./db.sqlite");
 
+let chromeFetcher = null;
 try {
 	const gptThrottler = new Semaphore(null, 120);
 	const searchThrottler = new Semaphore(10, null);
-	const chromeFetcher =
+	chromeFetcher =
 			await makeLineServerProcess(
 					'./PageFetcher/target/debug/page_fetcher', [], 'Ready');
 	const chromeCacheCounter = { count: 0 };
@@ -181,10 +182,24 @@ try {
 	console.log(chromeCacheCounter.count + " fetch cache hits.");
 	console.log(gptCacheCounter.count + " gpt cache hits.");
 
-	await chromeFetcher.destroy();
-	db.destroy();
-	console.log("Done!")
 } catch (error) {
-	console.error('Unhandled promise rejection:', error);
-	process.exit(1);
+	console.error('Unhandled error:', error);
+} finally {
+  if (chromeFetcher) {
+    await chromeFetcher.destroy();
+    chromeFetcher = null;
+  }
+  db.destroy();
 }
+
+// Handle SIGINT signal
+process.on('SIGINT', async () => {
+  if (chromeFetcher) {
+    console.log("Caught SIGINT, killing fetcher process...");
+    await chromeFetcher.destroy();
+    chromeFetcher = null;
+    console.log("Killed fetcher process.");
+  }
+});
+
+console.log("Done!");

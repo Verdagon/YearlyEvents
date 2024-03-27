@@ -5,40 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Confirmed</title>
 <script>
-async function publishClicked(index) {
-	const div = document.getElementById("idea" + index);
-	const name = div.dataset.name;
-	const eventId = div.dataset.eventId;
-	div.innerHTML = "<div>Publishing: " + name + "</div>...";
-	try {
-		const response =
-				await fetch("/publish?event_id=" + encodeURIComponent(eventId));
-		await response.text();
-		div.innerHTML = "<div>Published: " + name + "</div>" + eventId;
-	} catch (e) {
-		console.log(e);
-		div.innerHTML = "<div>Error: " + name + "</div>" + e;
-	}
+async function publishEventClicked(index, bestUrl) {
+  const div = document.getElementById("idea" + index);
+  const name = div.dataset.name;
+  const eventId = div.dataset.eventId;
+  div.innerHTML = "<div>Publishing: " + name + "</div>...";
+  try {
+    const response =
+        await fetch("/publish?event_id=" + encodeURIComponent(eventId) + "&best_url=" + bestUrl);
+    await response.text();
+    div.innerHTML = "<div>Published: " + name + "</div>" + eventId;
+  } catch (e) {
+    console.log(e);
+    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+  }
 }
-async function rejectClicked(index) {
-	const div = document.getElementById("idea" + index);
-	const name = div.dataset.name;
-	const eventId = div.dataset.eventId;
-	div.innerHTML = "<div>Rejecting: " + name + "</div>...";
-	try {
-		const response =
-				await fetch("/rejectEvent?event_id=" + encodeURIComponent(eventId));
-		await response.text();
-		div.innerHTML = "<div>Rejected: " + name + "</div>" + eventId;
-	} catch (e) {
-		console.log(e);
-		div.innerHTML = "<div>Error: " + name + "</div>" + e;
-	}
+async function rejectEventClicked(index) {
+  const div = document.getElementById("idea" + index);
+  const name = div.dataset.name;
+  const eventId = div.dataset.eventId;
+  div.innerHTML = "<div>Rejecting: " + name + "</div>...";
+  try {
+    const response =
+        await fetch("/rejectEvent?event_id=" + encodeURIComponent(eventId));
+    await response.text();
+    div.innerHTML = "<div>Rejected: " + name + "</div>" + eventId;
+  } catch (e) {
+    console.log(e);
+    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+  }
 }
 </script>
 <style>
 .idea {
-	margin-bottom: 8px;
+  margin: 0.7em 0;
 }
 </style>
 </head>
@@ -51,26 +51,33 @@ async function rejectClicked(index) {
 </div>
 
 <% it.events.forEach(function(event, eventI){ %>
-	<div
-			class="idea"
-			id="idea<%= eventI %>"
-			data-name="<%= event.name %>"
-			data-event-id="<%= event.id %>">
-		<div>
-			<button onclick="publishClicked(<%= eventI %>)">Publish</button>
-			<button onclick="rejectClicked(<%= eventI %>)">Reject</button>
-			<a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
-		</div>
-		<div>
-			<%= event.name %> in <%= event.city %>, <%= event.state %>:
-		</div>
-		<% event.confirmations.forEach(function(confirmation, confirmationI){ %>
-			<div>
-				<a href="<%= confirmation.url %>" target="_blank"><%= confirmation.url %></a>:
-				<%= confirmation.event_short_summary %>
-			</div>
-		<% }) %>
-	</div>
+  <div
+      class="idea"
+      id="idea<%= eventI %>"
+      data-name="<%= event.name %>"
+      data-event-id="<%= event.id %>">
+    <div style="display: flex; align-items: center;">
+      <div style="flex-grow: 1">
+        <b><%= event.name %></b> in <%= event.city %>, <%= event.state %>:
+      </div>
+      <div style="flex-shrink: 0; margin-right: 0.5em">
+        <a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
+      </div>
+      <div style="flex-shrink: 0">
+        <button onclick="rejectEventClicked(<%= eventI %>)">Reject</button>
+      </div>
+    </div>
+    <div><%= event.notes %></div>
+    <% event.confirmations.forEach(function(confirmation, confirmationI){ %>
+      <div>
+        <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
+        <button onclick="publishEventClicked(<%= eventI %>, '<%~ confirmation.url %>')">Publish</button>
+      </div>
+      <div>
+        <%= confirmation.event_short_summary %>
+      </div>
+    <% }) %>
+  </div>
 <% }) %>
 </body>
 </html>

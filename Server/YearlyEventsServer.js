@@ -124,29 +124,47 @@ export class YearlyEventsServer {
 			}
 			return a.name.localeCompare(b.name);
 		});
-
-    const pageHtml = await this.getResource("unconsidered.html");
-    return this.eta.renderString(pageHtml, { submissions: submissions });
+    return submissions;
   }
 
   async confirmed() {
     const events = await this.db.getAnalyzedEvents();
     await parallelEachI(events, async (eventI, event) => {
+      event.notes = "";
+
+      const maybeSimilarEvent = await this.db.getSimilarPublishedEventById(event.id);
+      if (maybeSimilarEvent) {
+        const {name: similarEventName, city: similarEventCity, state: similarEventState} =
+            maybeSimilarEvent;
+        if (event.city == similarEventCity &&
+            normalizeState(event.state) == normalizeState(similarEventState)) {
+          event.notes = "(Already known " + maybeSimilarEvent.status + " event)";
+        } else {
+          event.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
+        }
+      } else {
+        // Do nothing
+      }
+
       event.confirmations = await this.db.getEventConfirmations(event.id);
     });
-    const pageHtml = await this.getResource("confirmed.html");
-    const response = this.eta.renderString(pageHtml, { events: events });
-    return response;
+    return events;
   }
 
-  async failed() {
+  async allFailed() {
     const submissions = await this.db.getFailedSubmissions();
     submissions.forEach((submission) => {
     	submission.notes = "";
     })
-    const pageHtml = await this.getResource("failed.html");
-    const response = this.eta.renderString(pageHtml, { submissions: submissions });
-    return response;
+    return submissions;
+  }
+
+  async failedNeedSubmissions() {
+    const submissions = await this.db.getFailedNeedSubmissions();
+    submissions.forEach((submission) => {
+      submission.notes = "";
+    })
+    return submissions;
   }
 
 	async askGpt() {
@@ -183,23 +201,27 @@ export class YearlyEventsServer {
     return response;
   }
 
-  async submit(status, name, city, state, description, url, origin_query) {
-    return await addSubmission(this.db, {status, name, city, state, description, url, origin_query});
+  async submit(status, name, city, state, description, url, origin_query, need) {
+    return await addSubmission(this.db, {status, name, city, state, description, url, origin_query, need});
   }
 
-  async publish(eventId) {
-    await this.db.publishEvent(eventId);
+  async publish(eventId, bestUrl) {
+    await this.db.publishEvent(eventId, bestUrl);
   }
 
   async rejectEvent(eventId) {
     await this.db.rejectEvent(eventId);
   }
 
-  async approve(submissionId) {
-    await this.db.approveSubmission(submissionId);
+  async approve(submissionId, need) {
+    await this.db.approveSubmission(submissionId, need);
   }
 
   async reject(submissionId) {
     await this.db.rejectSubmission(submissionId);
+  }
+
+  async bury(submissionId) {
+    await this.db.burySubmission(submissionId);
   }
 }

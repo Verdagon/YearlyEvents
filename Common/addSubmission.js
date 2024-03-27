@@ -7,7 +7,7 @@ import { normalizeName, normalizeState } from "./utils.js";
 // }
 
 export async function addSubmission(db, givenSubmission) {
-	const {status, name, city, state, description, url, origin_query} = givenSubmission;
+	const {status, name, city, state, description, url, origin_query, need} = givenSubmission;
   const normalizedName = normalizeName(name, city, state);
 
 	return await db.transaction(async (trx) => {
@@ -24,7 +24,8 @@ export async function addSubmission(db, givenSubmission) {
 			submission_id,
 			status,
 			url,
-			origin_query
+			origin_query,
+      need
 		};
 		await trx.insertSubmission(row);
 		return submission_id;

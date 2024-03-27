@@ -1,4 +1,5 @@
 import syncFs from "fs";
+import { Eta } from "eta";
 import fs from "fs/promises";
 import url from "url";
 import querystring from "querystring";
@@ -59,12 +60,17 @@ if (!syncFs.existsSync(resourcesDir)) {
 	throw "Expected resources path for fourth argument, but that path doesnt exist.";
 }
 
+const eta = new Eta();
+
 
 const db = new LocalDb(null, dbPath);
 
-const server = new YearlyEventsServer(scratchDir, db, openAiApiKey, async (file) => {
-	return await fs.readFile(resourcesDir + "/" + file, { encoding: 'utf8' });
-});
+const getResource =
+    async (file) => {
+      return await fs.readFile(resourcesDir + "/" + file, { encoding: 'utf8' });
+    };
+
+const server = new YearlyEventsServer(scratchDir, db, openAiApiKey, getResource);
 
 const nodeServer = http.createServer(async function(req, res) {
   const parsedUrl = url.parse(req.url);
@@ -104,19 +110,25 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/unconsidered.html": {
-	      const response = await server.unconsidered();
+	      const submissions = await server.unconsidered();
+        const pageHtml = await this.getResource("unconsidered.html");
+        const response = eta.renderString(pageHtml, { submissions: submissions });
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;
 
 	    case "/confirmed.html": {
-	      const response = await server.confirmed();
+	      const submissions = await server.confirmed();
+        const pageHtml = await getResource("confirmed.html");
+        const response = eta.renderString(pageHtml, { events: events });
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;
 
 	    case "/failed.html": {
-	      const response = await server.failed();
+	      const submissions = await server.allFailed();
+        const pageHtml = await this.getResource("failed.html");
+        const response = eta.renderString(pageHtml, { submissions: submissions });
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;
@@ -124,6 +136,16 @@ const nodeServer = http.createServer(async function(req, res) {
 	    case "/askGpt.html": {
 	      res.write(await server.askGpt());
 	    } break;
+
+      case "/waiting.html": {
+        const confirmedSubmissions = await server.confirmed();
+        const unconsideredSubmissions = await server.unconsidered();
+        const failedNeedSubmissions = await server.failedNeedSubmissions();
+        const pageHtml = await getResource("waiting.html");
+        const response = eta.renderString(pageHtml, { confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions });
+        console.log("Response:", response);
+        res.write(response);
+      } break;
 
 	    case "/submission": {
 	      const {submission_id: submissionId} = queryParams;
@@ -134,16 +156,17 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/submit": {
-	      const {status, name, city, state, description, url, origin_query} = queryParams;
+	      const {status, name, city, state, description, url, need, origin_query} = queryParams;
 	      if (status == null) throw "Missing status!";
 	      if (name == null) throw "Missing name!";
 	      if (state == null) throw "Missing state!";
 	      if (city == null) throw "Missing city!";
+        if (need == null) throw "Missing need!";
 	      // url is optional
 	      if (description == null) throw "Missing description!";
 	      // origin_query is optional
 
-	      const submissionId = await server.submit(status, name, city, state, description, url, origin_query);
+	      const submissionId = await server.submit(status, name, city, state, description, url, origin_query, need);
 	      if (submissionId) {
 	        res.writeHead(200);
 	        res.write(submissionId)
@@ -154,10 +177,11 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/publish": {
-	      const {event_id: eventId} = queryParams;
-	      if (eventId == null) throw "Missing event_id!";
+	      const {event_id: eventId, best_url: bestUrl} = queryParams;
+        if (eventId == null) throw "Missing event_id!";
+        if (bestUrl == null) throw "Missing best_url!";
 
-	      await server.publish(eventId);
+	      await server.publish(eventId, bestUrl);
 	    } break;
 
 	    case "/rejectEvent": {
@@ -168,10 +192,11 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/approve": {
-	      const {submission_id: submissionId} = queryParams;
-	      if (submissionId == null) throw "Missing submission_id!";
+	      const {submission_id: submissionId, need} = queryParams;
+        if (submissionId == null) throw "Missing submission_id!";
+        if (need == null) throw "Missing need!";
 
-	      await server.approve(submissionId);
+	      await server.approve(submissionId, need);
 	    } break;
 
 	    case "/reject": {
@@ -179,6 +204,12 @@ const nodeServer = http.createServer(async function(req, res) {
 	      if (submissionId == null) throw "Missing submission_id!";
 	      await server.reject(submissionId);
 	    } break;
+
+      case "/bury": {
+        const {submission_id: submissionId} = queryParams;
+        if (submissionId == null) throw "Missing submission_id!";
+        await server.bury(submissionId);
+      } break;
 
 	    default: {
 	      res.write("404");

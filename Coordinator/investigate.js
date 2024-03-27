@@ -351,7 +351,13 @@ async function googleSearch(googleSearchApiKey, query) {
 async function addOtherEventSubmission(db, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
-  return await addSubmission(db, {status: 'created', name, city, state, description: summary, url});
+
+  await db.transaction(async (trx) => {
+    const existing = const trx.getExistingSubmission(name, city, state);
+    if (!existing) {
+      await addSubmission(trx, {status: 'created', name, city, state, description: summary, url});
+    }
+  });
 }
 
 async function runCommandForStatus(program, args) {

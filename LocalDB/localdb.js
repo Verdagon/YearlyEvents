@@ -86,12 +86,13 @@ export class LocalDb {
 				await (this.target)
 						.from("ConfirmedEvents as e1")
 						.select("e2.*")
-						.where("e1.submission_id", id)
-						.where("e1.status", "confirmed")
+						.where("e1.id", id)
+						.where("e2.status", "published")
 				    .join("ConfirmedEvents as e2", function() {
 				        this.on("e1.name", "=", "e2.name")
 				            .andOn("e1.id", "!=", "e2.id");
 				    });
+    console.log("similar results:", results);
 	  return results[0] || null;
 	}
 
@@ -107,9 +108,10 @@ export class LocalDb {
 	}
 
 
-	async approveSubmission(submissionId) {
+	async approveSubmission(submissionId, need) {
 		await (this.target)("Submissions").where({'submission_id': submissionId}).update({
-			'status': 'approved'
+			'status': 'approved',
+      'need': need
 		});
 	}
 
@@ -118,6 +120,12 @@ export class LocalDb {
 			'status': 'rejected'
 		});
 	}
+
+  async burySubmission(submissionId) {
+    await (this.target)("Submissions").where({'submission_id': submissionId}).update({
+      'status': 'buried'
+    });
+  }
 
 	async getApprovedSubmissions(trx) {
 		return await (this.target).select().from("Submissions")
@@ -189,6 +197,10 @@ export class LocalDb {
     return await (this.target).select().from("Submissions").where({status: "failed"});
   }
 
+  async getFailedNeedSubmissions() {
+    return await (this.target).select().from("Submissions").whereNot('need', 0).where({status: "failed"}).orWhere({status:'errors'});
+  }
+
   async getEventConfirmations(eventId) {
     return await (this.target).select().from("EventConfirmations").where({event_id: eventId});
   }
@@ -223,27 +235,16 @@ export class LocalDb {
     return rows && rows[0] || null;
   }
 
-  async publishEvent(eventId) {
+  async publishEvent(eventId, bestUrl) {
 	  await (this.target)("ConfirmedEvents").where({'id': eventId}).update({
-			'status': 'published'
+			'status': 'published',
+      'best_url': bestUrl
 		});
 	}
 
 	async rejectEvent(eventId) {
     await (this.target)("ConfirmedEvents").where({'id': eventId}).update({
 			'status': 'rejected'
-		});
-  }
-
-  async rejectSubmission(submissionId) {
-    await (this.target)("Submissions").where({'submission_id': submissionId}).update({
-			'status': 'rejected'
-		});
-  }
-
-  async approveSubmission(submissionId) {
-    await (this.target)("Submissions").where({'submission_id': submissionId}).update({
-			'status': 'approved'
 		});
   }
 
