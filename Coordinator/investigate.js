@@ -293,14 +293,14 @@ export async function investigate(
             alreadyConfirmed = true;
             // continue on, we're going to mark the rest as moot
           }
-        } else if (pageStatus == 'errors') {
+        } else if (pageAnalysisRow.status == 'errors') {
           console.log("Counting error from url:", url);
           num_errors++;
-        } else if (pageStatus == 'rejected') {
+        } else if (pageAnalysisRow.status == 'rejected') {
           console.log("Counting reject from url:", url);
           // Do nothing
         } else {
-          throw "Weird status from analyze: " + pageStatus;
+          throw "Weird status from analyze: " + pageAnalysisRow.status;
         }
       }
     }
