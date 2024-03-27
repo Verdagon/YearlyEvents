@@ -131,7 +131,7 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
       }
     } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
       await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId
+        inspiration_submission_id: submissionId,
         url: search_result_url,
         pageText,
         analysis,
@@ -149,7 +149,7 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
       });
     } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
       await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId
+        inspiration_submission_id: submissionId,
         url: search_result_url,
         pageText,
         analysis
