@@ -156,6 +156,7 @@ export function logs(...destinations) {
 		} else if (typeof destination == 'boolean') {
 			useStdout = destination;
 		} else {
+      console.trace();
 			throw "Weird log() destination: " + JSON.stringify(destination);
 		}
 	}
