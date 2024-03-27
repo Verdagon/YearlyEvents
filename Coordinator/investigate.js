@@ -94,7 +94,7 @@ export async function investigate(
       num_errors++;
 
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -115,7 +115,7 @@ export async function investigate(
       logs(pageSteps, broadSteps)("Multiple events, ignoring.");
 
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -133,7 +133,7 @@ export async function investigate(
       }
 
       pageAnalyses.push({
-        conclusion: 'confirmed',
+        status: 'confirmed',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -157,7 +157,7 @@ export async function investigate(
       
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -175,7 +175,7 @@ export async function investigate(
       
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -187,7 +187,7 @@ export async function investigate(
       logs(pageSteps, broadSteps)("Not same event at all, ignoring.");
 
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
@@ -199,7 +199,7 @@ export async function investigate(
       logs(pageSteps, broadSteps)("Not an event, skipping.")
 
       pageAnalyses.push({
-        conclusion: 'rejected',
+        status: 'rejected',
         url: search_result_url,
         pageSteps: pageSteps,
         pageText,
