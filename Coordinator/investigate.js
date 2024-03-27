@@ -157,18 +157,22 @@ export async function investigate(
   let num_errors = 0
   let unanimousMonth = null;
 
-  const investigation =
-    await db.transaction(async (trx) => {
-      const maybeInvestigation = await trx.getInvestigation(submissionId, model);
-      if (maybeInvestigation) {
-        investigationStatus = maybeInvestigation.status;
-        broadSteps = maybeInvestigation.steps;
-        pageAnalyses = maybeInvestigation.pageAnalyses;
-      } else {
-        investigationStatus = 'created';
-        await trx.startInvestigation(submissionId, model);
-      }
-    });
+  await db.transaction(async (trx) => {
+    const maybeInvestigation = await trx.getInvestigation(submissionId, model);
+    if (maybeInvestigation) {
+      investigationStatus = maybeInvestigation.status;
+      broadSteps = maybeInvestigation.steps || [];
+      pageAnalyses = maybeInvestigation.pageAnalyses || [];
+    } else {
+      investigationStatus = 'created';
+      await trx.startInvestigation(submissionId, model);
+    }
+  });
+
+  if (investigationStatus != 'created') {
+    console.log("Investigation already done, returning.");
+    return;
+  }
 
   try {
     const googleQuery = event_name + " " + event_city + " " + event_state;
