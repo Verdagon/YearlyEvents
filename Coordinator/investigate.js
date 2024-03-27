@@ -29,6 +29,7 @@ export async function analyze(
     event_state,
     maybeUrl,
     submissionId,
+    broadSteps,
     pageSteps,
     search_result_i,
     url) {
@@ -243,6 +244,7 @@ export async function investigate(
           event_state,
           maybeUrl,
           submissionId,
+          broadSteps,
           pageSteps,
           search_result_i,
           search_result_url);
