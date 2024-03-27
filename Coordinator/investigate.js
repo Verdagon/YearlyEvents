@@ -3,7 +3,7 @@ import util from 'node:util';
 import { execFile, spawn } from 'node:child_process'
 import fs from "fs/promises";
 import urlencode from 'urlencode';
-import { logs, normalizeName, distinct, VException } from "../Common/utils.js";
+import { logs, normalizeName, normalizeState, distinct, VException } from "../Common/utils.js";
 import { analyzePage } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { parallelEachI } from "../Common/parallel.js";
@@ -71,8 +71,11 @@ export async function analyze(
     pageText = pageText_;
     pageTextError = pageTextError_;
 
+    if (pageTextError) {
+      throw logs(pageSteps, broadSteps)("Bad pdf-to-text. Error:", pageTextError);
+    }
     if (!pageText) {
-      throw logs(pageSteps, broadSteps)("No page text, skipping. Error:", pageTextError);
+      throw logs(pageSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
     }
 
     const [matchness, analysis] =
@@ -172,11 +175,6 @@ export async function investigate(
       await trx.startInvestigation(submissionId, model);
     }
   });
-
-  if (investigationStatus != 'created') {
-    console.log("Investigation already done (" + investigationStatus + "), returning.");
-    return;
-  }
 
   try {
     const googleQuery = event_name + " " + event_city + " " + event_state;
