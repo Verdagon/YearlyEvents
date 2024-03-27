@@ -387,11 +387,16 @@ async function runCommandForStatus(program, args) {
     await execFileAsync(program, args);
     return 0;
   } catch (e) {
-    console.log("Command failed: ", program, args);
-    console.log("exitCode:\n" + e.exitCode);
-    console.log("stdout:\n" + e.stdout);
-    console.log("stderr:\n" + e.stderr);
-    return e.exitCode;
+    if (e.exitCode !== undefined || e.stdout !== undefined || e.stderr !== undefined) {
+      console.log("Command failed: ", program, args);
+      console.log("exitCode:\n" + e.exitCode);
+      console.log("stdout:\n" + e.stdout);
+      console.log("stderr:\n" + e.stderr);
+      return e.exitCode;
+    } else {
+      console.log("Command failed: ", program, args, "Error:", e);
+      throw e;
+    }
   }
 }
 
