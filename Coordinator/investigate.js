@@ -160,137 +160,161 @@ export async function investigate(
     maybeUrl,
     submissionId) {
   const broadSteps = [];
-  const googleQuery = event_name + " " + event_city + " " + event_state;
-  logs(broadSteps)("Googling:", googleQuery);
-  const searcherResult = await getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
-  if (searcherResult == null) {
-    logs(broadSteps)("Bad search for event ", event_name);
-    const result = {
-      pageAnalyses: [],
-      month: "",
-      num_errors: 1,
-      num_promising: 0,
+  const pageAnalyses = []
+  let num_confirms = 0
+  let num_promising = 0
+  let num_errors = 0
+  let unanimousMonth = null;
+
+  try {
+    const googleQuery = event_name + " " + event_city + " " + event_state;
+    logs(broadSteps)("Googling:", googleQuery);
+    const searcherResult = await getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
+    if (searcherResult == null) {
+      logs(broadSteps)("Bad search for event ", event_name);
+      const result = {
+        pageAnalyses: [],
+        month: "",
+        num_errors: 1,
+        num_promising: 0,
+        name: event_name,
+        city: event_city,
+        state: event_state,
+        broad_steps: broadSteps
+      };
+      return result;
+    }
+    const response = searcherResult.response;
+
+    if (maybeUrl) {
+      if (!response.includes(maybeUrl)) {
+        response.unshift(maybeUrl);
+      }
+    }
+
+    // Order them by shortest first, shorter URLs tend to be more canonical
+    response.sort((a, b) => a.length - b.length);
+
+    logs(broadSteps)("Google result URLs:", response);
+
+    let months = [];
+
+    // We dont parallelize this loop because we want it to early-exit if it finds
+    // enough to confirm.
+    for (const [search_result_i, search_result_url] of response.entries()) {
+      logs(broadSteps)("Considering", search_result_url);
+
+      if (search_result_url == "") {
+        logs(broadSteps)("Skipping blank url");
+        continue
+      }
+      if (search_result_url.includes("youtube.com")) {
+        logs(broadSteps)("Skipping blacklisted domain");
+        continue
+      }
+      if (search_result_url.includes("twitter.com")) {
+        logs(broadSteps)("Skipping blacklisted domain");
+        continue
+      }
+
+      const pageSteps = [];
+
+      const {
+        status,
+        pageText,
+        pageTextError,
+        analysis
+      } = analyze(
+          openai,
+          scratchDir,
+          db,
+          googleSearchApiKey,
+          searchThrottler,
+          searchCacheCounter,
+          chromeFetcher,
+          chromeCacheCounter,
+          gptThrottler,
+          throttlerPriority,
+          gptCacheCounter,
+          otherEvents,
+          event_i,
+          event_name,
+          event_city,
+          event_state,
+          maybeUrl,
+          submissionId,
+          pageSteps,
+          search_result_i,
+          search_result_url);
+      pageAnalyses.push({
+        status,
+        url: search_result_url,
+        pageText,
+        pageTextError,
+        analysis,
+        steps: pageSteps
+      });
+
+      if (status == 'confirmed') {
+        logs(broadSteps)("Confirmed this page!");
+        num_confirms++;
+        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
+        if (month) {
+          months.push(month);
+        }
+        const promising = yearly || (nextDate != null)
+        if (promising) {
+          num_promising++;
+        }
+        if (num_confirms + num_promising >= 5) {
+          logs(broadSteps)("Found enough confirming " + event_name + ", continuing!");
+          break;
+        }
+      } else if (status == 'errors') {
+        logs(broadSteps)("Errors for this page.");
+        num_errors++;
+      } else if (status == 'rejected') {
+        logs(broadSteps)("Rejected this page.");
+        // Do nothing
+      } else {
+        throw "Weird status from analyze: " + status;
+      }
+    }
+
+    months = distinct(months);
+    unanimousMonth = months.length == 1 ? months[0] : "";
+    logs(broadSteps)("Unanimous month?:", unanimousMonth);
+
+    const investigation = {
+      pageAnalyses: pageAnalyses,
+      month: unanimousMonth,
+      num_errors: num_errors,
+      num_promising: num_promising,
       name: event_name,
       city: event_city,
       state: event_state,
       broad_steps: broadSteps
     };
-    return result;
+    return investigation;
+
+  } catch (error) {
+    // Make sure the error's contents is put into the steps.
+    // (unless it's a VException, was already logged to the steps)
+    if (!(error instanceof VException)) {
+      logs(broadSteps)(error);
+    }
+    return {
+      status: "errors",
+      pageAnalyses: pageAnalyses,
+      month: unanimousMonth,
+      num_errors: num_errors,
+      num_promising: num_promising,
+      name: event_name,
+      city: event_city,
+      state: event_state,
+      broad_steps: broadSteps
+    };
   }
-  const response = searcherResult.response;
-
-  if (maybeUrl) {
-    if (!response.includes(maybeUrl)) {
-      response.unshift(maybeUrl);
-    }
-  }
-
-  // Order them by shortest first, shorter URLs tend to be more canonical
-  response.sort((a, b) => a.length - b.length);
-
-  const pageAnalyses = []
-  let num_confirms = 0
-  let num_promising = 0
-  let num_errors = 0
-  let months = [];
-
-  // We dont parallelize this loop because we want it to early-exit if it finds
-  // enough to confirm.
-  for (const [search_result_i, search_result_url] of response.entries()) {
-    const pageSteps = [];
-
-    logs(pageSteps, broadSteps)("Considering", search_result_url);
-
-    if (search_result_url == "") {
-      logs(pageSteps, broadSteps)("Skipping blank url");
-      continue
-    }
-    if (search_result_url.includes("youtube.com")) {
-      logs(pageSteps, broadSteps)("Skipping blacklisted domain");
-      continue
-    }
-    if (search_result_url.includes("twitter.com")) {
-      logs(pageSteps, broadSteps)("Skipping blacklisted domain");
-      continue
-    }
-
-    const {
-      status,
-      pageText,
-      pageTextError,
-      analysis
-    } = analyze(
-        openai,
-        scratchDir,
-        db,
-        googleSearchApiKey,
-        searchThrottler,
-        searchCacheCounter,
-        chromeFetcher,
-        chromeCacheCounter,
-        gptThrottler,
-        throttlerPriority,
-        gptCacheCounter,
-        otherEvents,
-        event_i,
-        event_name,
-        event_city,
-        event_state,
-        maybeUrl,
-        submissionId,
-        pageSteps,
-        search_result_i,
-        search_result_url);
-    pageAnalyses.push({
-      status,
-      url: search_result_url,
-      pageText,
-      pageTextError,
-      analysis,
-      steps: pageSteps
-    });
-
-    if (status == 'confirmed') {
-      num_confirms++;
-
-      const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
-
-      if (month) {
-        months.push(month);
-      }
-
-      const promising = yearly || (nextDate != null)
-      if (promising) {
-        num_promising++;
-      }
-
-      if (num_confirms + num_promising >= 5) {
-        logs(pageSteps, broadSteps)("Found enough confirming " + event_name + ", continuing!");
-        break;
-      }
-    } else if (status == 'errors') {
-      num_errors++;
-    } else if (status == 'rejected') {
-      // Do nothing
-    } else {
-      throw "Weird status from analyze: " + status;
-    }
-  }
-
-  months = distinct(months);
-  const unanimousMonth = months.length == 1 ? months[0] : "";
-
-  const investigation = {
-    pageAnalyses: pageAnalyses,
-    month: unanimousMonth,
-    num_errors: num_errors,
-    num_promising: num_promising,
-    name: event_name,
-    city: event_city,
-    state: event_state,
-    broad_steps: broadSteps
-  };
-  return investigation;
 }
 
 async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
