@@ -351,8 +351,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   // pool to get exhausted.
 
     console.log("bork 2")
-  const cachedPageTextRow =
-      await db.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+  const cachedPageTextRow = await db.getPageText(url);
     console.log("bork 2.4")
   if (cachedPageTextRow) {
     console.log("bork 2.5")
@@ -426,8 +425,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 
 
   await db.transaction(async (trx) => {
-    const cachedPageTextRow =
-        await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+    const cachedPageTextRow = await trx.getPageText(url);
     if (!cachedPageTextRow) {
       await trx.cachePageText({url, text, error: null});
     }
@@ -471,10 +469,17 @@ async function addOtherEventSubmission(db, otherEvent) {
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
   console.log("zork 1")
-  const existing = await db.getExistingSubmission(name, city, state);
-  if (!existing) {
-    await addSubmission(db, {status: 'created', name, city, state, description: summary, url});
-  }
+  await db.insertSubmission({
+    submission_id: crypto.randomUUID(),
+    name,
+    state: state && normalizeState(state),
+    city,
+    description: summary,
+    'created',
+    url,
+    origin_query: null,
+    need: 0
+  });
   console.log("zork 3")
 }
 

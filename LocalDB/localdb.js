@@ -113,7 +113,7 @@ export class LocalDb {
 	async insertSubmission(row) {
 		await (this.target).into("Submissions")
         .insert(row)
-        //.onConflict(['name', 'state', 'city']).merge();;
+        .onConflict(['name', 'state', 'city']).ignore();;
 	}
 
 
