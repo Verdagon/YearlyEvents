@@ -68,6 +68,8 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
       continue
     }
 
+    console.log("bork 1")
+
     const {text: pageText, error: pageTextError} =
         await getPageText(
             scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
@@ -239,13 +241,17 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   // This used to be wrapped in a transaction but I think it was causing the connection
   // pool to get exhausted.
 
+    console.log("bork 2")
   const cachedPageTextRow =
       await db.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
+    console.log("bork 2.4")
   if (cachedPageTextRow) {
+    console.log("bork 2.5")
     chromeCacheCounter.count++;
     return cachedPageTextRow;
   }
 
+    console.log("bork 3")
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
@@ -254,6 +260,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
     } else {
       await chromeFetcher.send(url + " " + pdfOutputPath);
     }
+    console.log("bork 4")
   } catch (err) {
     const error =
         "Bad fetch/browse for event " + eventName + " result " + url + ": " + 
@@ -272,6 +279,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
     return {text: null, error};
   }
 
+    console.log("bork 5")
   const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
   const pdftotextExitCode =
       await runCommandForStatus(
@@ -352,12 +360,12 @@ async function addOtherEventSubmission(db, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
-  await db.transaction(async (trx) => {
-    const existing = await trx.getExistingSubmission(name, city, state);
-    if (!existing) {
-      await addSubmission(trx, {status: 'created', name, city, state, description: summary, url});
-    }
-  });
+  console.log("zork 1")
+  const existing = await db.getExistingSubmission(name, city, state);
+  if (!existing) {
+    await addSubmission(db, {status: 'created', name, city, state, description: summary, url});
+  }
+  console.log("zork 3")
 }
 
 async function runCommandForStatus(program, args) {

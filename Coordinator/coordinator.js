@@ -71,7 +71,7 @@ try {
 
 
 	const otherEvents = [];
-	const approvedSubmissions = await db.getApprovedSubmissions();
+	const approvedSubmissions = (await db.getApprovedSubmissions()).slice(0, 20);
 
 	console.log("Considering approved submissions:");
 	for (const submission of approvedSubmissions) {
