@@ -52,7 +52,9 @@
           <ul>
             <% investigation.steps && investigation.steps.forEach(function(step) { %>
               <li>
-                <% if (typeof step == 'object') { %>
+                <% if (Array.isArray(step)) { %>
+                  <%= JSON.stringify(step) %>
+                <% } else if (typeof step == 'object') { %>
                   <%= step[""] %>
                   <% Object.entries(step).forEach(([key, member]) => { %>
                     <% if (key) { %>
@@ -113,7 +115,9 @@
 							<ul>
 								<% analysis.steps.forEach(function(step) { %>
 									<li>
-										<% if (typeof step == 'object') { %>
+                    <% if (Array.isArray(step)) { %>
+                      <%= JSON.stringify(step) %>
+                    <% } else if (typeof step == 'object') { %>
 											<%= step[""] %>
 											<% Object.entries(step).forEach(([key, member]) => { %>
 												<% if (key) { %>

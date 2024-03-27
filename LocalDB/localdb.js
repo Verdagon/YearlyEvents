@@ -34,7 +34,15 @@ export class LocalDb {
 		});
 	}
 
-	async getFromDb(tableName, cacheCounter, where, jsonFields) {
+  async getFromDb(tableName, cacheCounter, where, jsonFields) {
+    const maybeRow = this.getRowFromDb(tableName, where, jsonFields);
+    if (maybeRow) {
+      cacheCounter.count++;
+    }
+    return maybeRow;
+  }
+
+	async getRowFromDb(tableName, where, jsonFields) {
 	  let response =
 	    await (this.target)
 	      .select()
@@ -44,7 +52,6 @@ export class LocalDb {
 	  if (response.length == 0 || response[0] == null) {
 	    return null;
 	  }
-	  cacheCounter.count++;
 	  const result = response[0];
 	  for (const jsonField of (jsonFields || [])) {
 	    result[jsonField] = JSON.parse(result[jsonField]);
@@ -104,7 +111,9 @@ export class LocalDb {
 	}
 
 	async insertSubmission(row) {
-		await (this.target).into("Submissions").insert(row);
+		await (this.target).into("Submissions")
+        .insert(row)
+        //.onConflict(['name', 'state', 'city']).merge();;
 	}
 
 
@@ -136,7 +145,9 @@ export class LocalDb {
 	}
 
 	async cachePageText(row) {
-		await (this.target).into("PageTextCache").insert(row);
+		await (this.target).into("PageTextCache")
+        .insert(row)
+        .onConflict(['url']).merge();;
 	}
 
   async getPageText(url) {
@@ -145,7 +156,9 @@ export class LocalDb {
   }
 
 	async cachePageSummary(row) {
-		await (this.target).into("SummarizeCache").insert(row);
+		await (this.target).into("SummarizeCache")
+        .insert(row)
+        .onConflict(['url', 'prompt_version', 'model']).merge();
 	}
 
 	async updateSubmissionStatus(submissionId, status) {
@@ -154,34 +167,100 @@ export class LocalDb {
 				.update({ status: status });
 	}
 
-  async addInvestigation(submissionId, model, status, investigation, steps, pageAnalyses) {
+  async startInvestigation(submissionId, model) {
+    // Do this in a transaction so we can detect any conflicts here
     await (this.target).into("Investigations")
         .insert({
           submission_id: submissionId,
-          status: status,
+          status: 'created',
           model: model,
+          steps: null,
+          investigation: null
+        });
+  }
+
+  async getInvestigation(submissionId, model) {
+    const row =
+        (await (this.target).select().from("Investigations")
+            .where({submission_id: submissionId, model}))
+            .map(row => {
+              if (row.steps) {
+                row.steps = JSON.parse(row.steps);
+              }
+              return row;
+            });
+    return row && row[0] || null;
+  }
+
+  async finishInvestigation(submissionId, model, status, investigation, steps) {
+    await (this.target)("Investigations")
+        .where({submission_id: submissionId, model: model})
+        .update({
+          status: status,
           steps: JSON.stringify(steps),
           investigation: JSON.stringify(investigation)
         });
-    await parallelEachI(pageAnalyses, async (_, pageAnalysis) => {
-      const {submissionId, url, status, model, steps, analysis} = pageAnalysis;
-      await (this.target).into("PageAnalyses")
-          .insert({
-            submission_id: submissionId,
-            url: url,
-            status: status,
-            steps: JSON.stringify(steps),
-            analysis: JSON.stringify(analysis)
-          });
-    });
+  }
+
+  async getInvestigationPageAnalyses(submissionId, model) {
+    return (await (this.target).select().from("PageAnalyses")
+        .where({submission_id: submissionId, model}))
+        .map(row => {
+          if (row.steps) {
+            row.steps = JSON.parse(row.steps);
+          }
+          return row;
+        });
+  }
+
+  async getPageAnalysis(submissionId, url, model) {
+    const row =
+        (await (this.target).select().from("PageAnalyses")
+            .where({submission_id: submissionId, url}))
+            .map(row => {
+              if (row.steps) {
+                row.steps = JSON.parse(row.steps);
+              }
+              return row;
+            });
+    return row && row[0] || null;
+  }
+
+  async startPageAnalysis(submissionId, url, model) {
+    await (this.target).into("PageAnalyses")
+        .insert({
+          submission_id: submissionId,
+          url: url,
+          model,
+          status: 'created'
+        })
+        //.onConflict(['submission_id', 'url', 'model']).merge();
+  }
+
+  async finishPageAnalysis(submissionId, url, model, status, steps, analysis) {
+    await (this.target)("PageAnalyses")
+        .where({
+          submission_id: submissionId,
+          url: url,
+          model: model
+        })
+        .update({
+          status: status,
+          steps: JSON.stringify(steps),
+          analysis: JSON.stringify(analysis)
+        });
   }
 
 	async insertEvent(row) {
-		await (this.target).into("ConfirmedEvents").insert(row);
+		await (this.target).into("ConfirmedEvents")
+        .insert(row);
+        //.onConflict(['submission_id']).merge();
 	}
 
 	async insertConfirmation(row) {
-		await (this.target).into("EventConfirmations").insert(row);
+		await (this.target).into("EventConfirmations")
+        .insert(row)
+        //.onConflict(['event_id', 'url']).merge();
 	}
 
 	async getCreatedSubmissions() {
@@ -190,6 +269,43 @@ export class LocalDb {
 
 	async getAnalyzedEvents() {
     return await (this.target).select().from("ConfirmedEvents").where({status: "analyzed"});
+  }
+
+  async getAnalysisQuestion(url, question, model, summarizePromptVersion) {
+    const rows = await (this.target).select()
+        .from("AnalyzeCache")
+        .where({
+          url,
+          question,
+          model,
+          summarize_prompt_version: summarizePromptVersion
+        });
+    return rows && rows[0];
+  }
+
+  async createAnalysisQuestion(url, question, model, summarizePromptVersion) {
+    await (this.target).into("AnalyzeCache")
+        .insert({
+          url,
+          question,
+          model,
+          summarize_prompt_version: summarizePromptVersion,
+          answer: null
+        })
+        .onConflict(['url', 'question', 'model', 'summarize_prompt_version']).merge();
+  }
+
+  async finishAnalysisQuestion(url, question, model, summarizePromptVersion, answer) {
+    await (this.target)("AnalyzeCache")
+        .where({
+          url,
+          question,
+          model,
+          summarize_prompt_version: summarizePromptVersion
+        })
+        .update({
+          answer
+        });
   }
 
   async getFailedSubmissions() {
@@ -210,7 +326,14 @@ export class LocalDb {
   }
 
   async getInvestigations(submissionId) {
-    return (await (this.target).select().from("Investigations").where({submission_id: submissionId}));
+    return (await (this.target).select().from("Investigations")
+        .where({submission_id: submissionId}))
+        .map(row => {
+          if (row.steps) {
+            row.steps = JSON.parse(row.steps);
+          }
+          return row;
+        });
   }
 
   async getPageAnalyses(submissionId, model) {
@@ -249,7 +372,8 @@ export class LocalDb {
 
 	async cacheGoogleResult({query, response}) {
 		await (this.target).into("GoogleCache")
-				.insert({query, response: JSON.stringify(response)});
+				.insert({query, response: JSON.stringify(response)})
+        .onConflict(['query']).merge();
 	}
 }
 

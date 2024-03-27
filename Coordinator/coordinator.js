@@ -106,13 +106,10 @@ try {
 
 		console.log("Starting doublecheck for event " + eventName + " in " + eventCity + ", " + eventState);
 
-		const {
-      pageAnalyses,
-      unanimousMonth,
-      numErrors,
-      numPromising,
-      broadSteps
-    } = await investigate(
+    const model = 'gpt-3.5-turbo';
+
+    // This will update things in the database
+		await investigate(
         openai,
 				scratchDir,
 				db,
@@ -130,55 +127,52 @@ try {
 				eventCity,
 				eventState,
 				maybeUrl,
-        submissionId)
+        submissionId,
+        model)
 		
-		await db.transaction(async (trx) => {
-      const numConfirms = pageAnalyses.filter(x => x.status == 'confirmed').length;
-      const status =
-          (numConfirms ? "confirmed" : (num_errors > 0 ? "errors" : "hallucinated"));
-      logs(broadSteps)("Concluded", status, "for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
-      for (const analysis of pageAnalyses) {
-        if (analysis.status == 'confirmed') {
-          console.log("    " + analysis.url);
-        }
-      }
+    const investigationRow = await db.getInvestigation(submissionId, model);
+    const pageAnalysesRows = await db.getInvestigationPageAnalyses(submissionId, model);
 
-      await trx.updateSubmissionStatus(submissionId, status);
-      await trx.addInvestigation(
-          submissionId, 'gpt-3.5-turbo', status, {
-            unanimousMonth,
-            numErrors,
-            numPromising,
-          }, broadSteps, pageAnalyses);
+    if (investigationRow.status == 'created') {
+      // Continue on, this one's paused on some external thing.
+      logs()("Concluded nothing yet for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+      return;
+    } else if (investigationRow.status == 'failed') {
+      await db.updateSubmissionStatus(submissionId, 'failed');
+      logs()("Concluded failed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
 
-			if (numConfirms) {
+    } else if (investigationRow == 'confirmed') {
+      logs()("Concluded confirmed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+
+      await db.transaction(async (trx) => {
+        await trx.updateSubmissionStatus(submissionId, 'confirmed');
+
         const eventId = crypto.randomUUID();
-
-				await trx.insertEvent({
-					id: eventId,
-					submission_id: submissionId,
-		    	name: eventName,
-		    	city: eventCity,
-		    	state: eventState,
-		    	month_number: unanimousMonth,
-		    	status: "analyzed"
-		    });
+        await trx.insertEvent({
+          id: eventId,
+          submission_id: submissionId,
+          name: eventName,
+          city: eventCity,
+          state: eventState,
+          month_number: unanimousMonth,
+          status: "created"
+        });
         await parallelEachI(
             pageAnalyses,
             async ({status, url, steps, pageText, pageLongSummary, analysis, month}) => {
               if (status == 'confirmed') {
-      					await trx.insertConfirmation({
-      						id: crypto.randomUUID(),
-      						event_id: eventId,
-      						url,
-      						page_text: pageText,
-      						page_long_summary: analysis.description,
-      						event_short_summary: analysis.summary
-      			    });
+                await trx.insertConfirmation({
+                  id: crypto.randomUUID(),
+                  event_id: eventId,
+                  url,
+                  page_text: pageText,
+                  page_long_summary: analysis.description,
+                  event_short_summary: analysis.summary
+                });
               }
             });
-			}
-		});
+      });
+    }
 	});
 
 	console.log("");

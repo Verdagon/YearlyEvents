@@ -57,24 +57,6 @@ function getMonthOrNull(month_response) {
 	return (match && match.length > 1 && match[1]) || null;
 }
 
-async function getCachedAnswer(db, cacheCounter, url, question) {
-	const maybeRow =
-    await db.getFromDb(
-				"AnalyzeCache",
-				cacheCounter,
-				{
-					"url": url,
-					question,
-					model: "gpt-3.5-turbo",
-					summarize_prompt_version: SUMMARIZE_PROMPT_VERSION
-				});
-	if (!maybeRow) {
-		return null;
-	}
-	const {answer} = maybeRow;
-	return answer;
-}
-
 
 async function getCachedDescription(db, gptCacheCounter, url) {
 	const maybeRow =
@@ -108,25 +90,27 @@ export async function analyzePage(
     throttlerPriority,
     steps,
     openai,
+    model,
     url,
     page_text,
     event_name,
     event_city,
     event_state) {
 
-	logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
-
 	let description =
 			await getCachedDescription(db, gptCacheCounter, url);
-	if (!description) {
+	if (description) {
+    console.log("Using cached summary:", description);
+  } else {
+    logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 		description =
 		    await askTruncated(gptThrottler, throttlerPriority, openai, SUMMARIZE_PROMPT + "\n------\n" + page_text);
 		await db.cachePageSummary({url, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
+    logs(steps)({ "": "GPT response:", "details": description });
 	}
 
 	// console.log("GPT:");
 	// console.log(description);
-	logs(steps)({ "": "GPT response:", "details": description });
 
 	if (description.trim().toLowerCase().startsWith("nothing")) {
 		logs(steps)("Not an event, skipping.");
@@ -164,8 +148,17 @@ export async function analyzePage(
 
 	const questionToMaybeCachedAnswer = {};
 	for (const question of questions) {
-		questionToMaybeCachedAnswer[question] =
-			await getCachedAnswer(db, gptCacheCounter, url, question);
+    const questionRow =
+        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
+    if (questionRow) {
+      console.log("Resuming question row", questionRow.url, questionRow.question);
+    } else {
+      console.log("Creating analysis question row.");
+      await db.createAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
+    }
+    if (questionRow && questionRow.answer) {
+      questionToMaybeCachedAnswer[question] = questionRow.answer;
+    }
 	}
 
 	let analyzeQuestion =
@@ -228,6 +221,7 @@ export async function analyzePage(
 				const answer = answerParts[2];
 
 				questionToGptAnswer[question] = answer;
+        await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, answer);
 			}
 		}
 	}

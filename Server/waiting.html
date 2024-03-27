@@ -179,6 +179,13 @@ Failed NEED-level submissions:
       <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
     </div>
     <div><%= submission.description %></div>
+    <% if (submission.url) { %>
+      <div>
+        Suggested url:
+        <a href="<%~ submission.url %>"><%~ submission.url %></a>
+      </div>
+    <% } %>
+    <div>
     <div><%= submission.notes %></div>
   </div>
 <% }) %>

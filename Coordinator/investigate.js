@@ -23,6 +23,7 @@ export async function analyze(
     throttlerPriority,
     gptCacheCounter,
     otherEvents,
+    model,
     event_i,
     event_name,
     event_city,
@@ -30,16 +31,35 @@ export async function analyze(
     maybeUrl,
     submissionId,
     broadSteps,
-    pageSteps,
     search_result_i,
     url) {
   // We declare these up here so that the try block's exception can include them.
+  let pageSteps = [];
   let pageText = null;
   let pageTextError = null;
   let analysis = null;
 
   try {
     console.log("bork 1")
+
+    await db.transaction(async (trx) => {
+      const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
+      if (maybePageAnalysisRow) {
+        const analysisStatus = maybePageAnalysisRow.status;
+        pageSteps = maybePageAnalysisRow.steps;
+
+        if (analysisStatus == 'created') {
+          console.log("Resuming existing page analysis row for url:", url);
+          // Continue
+        } else {
+          console.log("Already finished page analysis for url:", url);
+          return;
+        }
+      } else {
+        logs(pageSteps)("Starting analysis for page:", url);
+        await trx.startPageAnalysis(submissionId, url, model);
+      }
+    });
 
     const {text: pageText_, error: pageTextError_} =
         await getPageText(
@@ -51,95 +71,61 @@ export async function analyze(
       throw logs(pageSteps, broadSteps)("No page text, skipping. Error:", pageTextError);
     }
 
-    logs(pageSteps)("Analyzing page...");
     const [matchness, analysis] =
         await analyzePage(
-            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, url, pageText, event_name, event_city, event_state);
+            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, model, url, pageText, event_name, event_city, event_state);
 
     if (matchness == 5) { // Multiple events
       logs(pageSteps, broadSteps)("Multiple events, ignoring.");
-
-      return {
-        status: 'rejected',
-        pageText,
-        pageTextError,
-        analysis: analysis,
-      };
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
     } else if (matchness == 4) { // Same city, confirmed.
-      logs(pageSteps, broadSteps)(event_name, "confirmed by", url);
+      logs(broadSteps)(event_name, "confirmed by", url);
 
       const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
 
-      return {
-        status: 'confirmed',
-        pageText,
-        analysis: analysis,
-        month: month,
-      };
+      await db.finishPageAnalysis(submissionId, url, model, 'confirmed', pageSteps, analysis);
+      return;
     } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
+      logs(broadSteps)("Not same, but discovered similar:", analysis.name);
       await addOtherEventSubmission(db, {
         inspiration_submission_id: submissionId,
         pageText,
         analysis,
       });
-      
-      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
-      return {
-        status: 'rejected',
-        pageText,
-        pageTextError,
-        analysis,
-      };
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
     } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
+      logs(broadSteps)("Not same, but discovered similar:", analysis.name);
       await addOtherEventSubmission(db, {
         inspiration_submission_id: submissionId,
         pageText,
         analysis
       });
-      
-      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
-      return {
-        status: 'rejected',
-        pageText,
-        pageTextError,
-        analysis,
-      };
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
     } else if (matchness == 1) { // Not same event, ignore it.
-      logs(pageSteps, broadSteps)("Not same event at all, ignoring.");
-
-      return {
-        status: 'rejected',
-        pageText,
-        pageTextError,
-        analysis,
-      };
+      logs(broadSteps)("Not same event at all, ignoring.");
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
     } else if (matchness == 0) { // Not an event, skip
-      logs(pageSteps, broadSteps)("Not an event, skipping.")
-
-      return {
-        status: 'rejected',
-        pageText,
-        pageTextError,
-        analysis,
-      };
+      logs(broadSteps)("Not an event, skipping.")
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
     } else {
-      logs(pageSteps, broadSteps)("Wat response:", matchness, analysis);
+      logs(broadSteps)("Wat response:", matchness, analysis);
       num_errors++;
     }
   } catch (error) {
     // Make sure the error's contents is put into the steps.
     // (unless it's a VException, was already logged to the steps)
     if (!(error instanceof VException)) {
-      logs(pageSteps)(error);
+      logs(pageSteps, broadSteps)(error);
     } else {
       console.log("Already logged error:", error);
     }
-    return {
-      status: "errors",
-      pageText,
-      pageTextError,
-      analysis,
-    };
+    await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
+    return;
   }
 }
 
@@ -161,18 +147,35 @@ export async function investigate(
     event_city,
     event_state,
     maybeUrl,
-    submissionId) {
-  const broadSteps = [];
-  const pageAnalyses = []
+    submissionId,
+    model) {
+  let investigationStatus = null;
+  let broadSteps = [];
+  let pageAnalyses = []
   let num_confirms = 0
   let num_promising = 0
   let num_errors = 0
   let unanimousMonth = null;
 
+  const investigation =
+    await db.transaction(async (trx) => {
+      const maybeInvestigation = await trx.getInvestigation(submissionId, model);
+      if (maybeInvestigation) {
+        investigationStatus = maybeInvestigation.status;
+        broadSteps = maybeInvestigation.steps;
+        pageAnalyses = maybeInvestigation.pageAnalyses;
+      } else {
+        investigationStatus = 'created';
+        await trx.startInvestigation(submissionId, model);
+      }
+    });
+
   try {
     const googleQuery = event_name + " " + event_city + " " + event_state;
     logs(broadSteps)("Googling:", googleQuery);
-    const searcherResult = await getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
+    const searcherResult =
+        await getSearchResult(
+            db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
     if (searcherResult == null) {
       logs(broadSteps)("Bad search for event ", event_name);
       const result = {
@@ -187,47 +190,48 @@ export async function investigate(
       };
       return result;
     }
-    const response = searcherResult.response;
+    const responseUrls = searcherResult.response;
 
+    // Order them by shortest first, shorter URLs tend to be more canonical
+    responseUrls.sort((a, b) => a.length - b.length);
+
+    // If the submission came with a URL, move it to the top of the list.
     if (maybeUrl) {
-      if (!response.includes(maybeUrl)) {
-        response.unshift(maybeUrl);
+      if (!responseUrls.includes(maybeUrl)) {
+        responseUrls.unshift(maybeUrl);
       }
     }
 
-    // Order them by shortest first, shorter URLs tend to be more canonical
-    response.sort((a, b) => a.length - b.length);
+    logs(broadSteps)("Google result URLs:", responseUrls);
 
-    logs(broadSteps)("Google result URLs:", response);
-
-    let months = [];
-
-    // We dont parallelize this loop because we want it to early-exit if it finds
-    // enough to confirm.
-    for (const [search_result_i, search_result_url] of response.entries()) {
-      logs(broadSteps)("Considering", search_result_url);
-
-      if (search_result_url == "") {
+    // Make sure we don't overwrite any existing page analyses
+    let urls =
+        (await db.getInvestigationPageAnalyses(submissionId, model))
+        .map(row => row.url);
+    // Add new rows for new URLs
+    for (const responseUrl of responseUrls) {
+      logs(broadSteps)("Encountered new search result url:", responseUrl);
+      if (responseUrl == "") {
         logs(broadSteps)("Skipping blank url");
         continue
       }
-      if (search_result_url.includes("youtube.com")) {
+      if (responseUrl.includes("youtube.com")) {
         logs(broadSteps)("Skipping blacklisted domain");
         continue
       }
-      if (search_result_url.includes("twitter.com")) {
+      if (responseUrl.includes("twitter.com")) {
         logs(broadSteps)("Skipping blacklisted domain");
         continue
       }
+      urls.push(responseUrl);
+    }
+    urls = distinct(urls);
 
-      const pageSteps = [];
-
-      const {
-        status,
-        pageText,
-        pageTextError,
-        analysis
-      } = analyze(
+    // We dont parallelize this loop because we want it to early-exit if it finds
+    // enough to confirm.
+    for (const [url_i, url] of urls.entries()) {
+      // This will update the rows in the database.
+      await analyze(
           openai,
           scratchDir,
           db,
@@ -240,6 +244,7 @@ export async function investigate(
           throttlerPriority,
           gptCacheCounter,
           otherEvents,
+          model,
           event_i,
           event_name,
           event_city,
@@ -247,20 +252,29 @@ export async function investigate(
           maybeUrl,
           submissionId,
           broadSteps,
-          pageSteps,
-          search_result_i,
-          search_result_url);
-      pageAnalyses.push({
-        status,
-        url: search_result_url,
-        pageText,
-        pageTextError,
-        analysis,
-        steps: pageSteps
-      });
+          url_i,
+          url);
+    }
 
-      if (status == 'confirmed') {
-        logs(broadSteps)("Confirmed this page!");
+    const pageAnalysesRows = await db.getInvestigationPageAnalyses(submissionId, model);
+    // If there are any still in 'created' status then they're waiting on something
+    // external to happen, so return early.
+    if (pageAnalysesRows.filter(row => row.status == 'created').length) {
+      // Update the steps at least
+      await db.finishInvestigation(
+          submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
+      return;
+    }
+
+    let months = [];
+
+    for (const analysisRow of pageAnalysesRows) {
+      const {url, steps, status: pageStatus, analysis} = analysisRow;
+
+      if (pageStatus == 'created') {
+        // Should never get here
+      } else if (pageStatus == 'confirmed') {
+        console.log("Counting confirmation from url:", url);
         num_confirms++;
         const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
         if (month) {
@@ -271,35 +285,29 @@ export async function investigate(
           num_promising++;
         }
         if (num_confirms + num_promising >= 5) {
-          logs(broadSteps)("Found enough confirming " + event_name + ", continuing!");
-          break;
+          logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
+
+          months = distinct(months);
+          unanimousMonth = months.length == 1 ? months[0] : "";
+          logs(broadSteps)("Unanimous month?:", unanimousMonth);
+
+          await db.finishInvestigation(submissionId, model, 'confirmed', {month: unanimousMonth}, broadSteps);
+          return;
         }
-      } else if (status == 'errors') {
-        logs(broadSteps)("Errors for this page.");
+      } else if (pageStatus == 'errors') {
+        console.log("Counting error from url:", url);
         num_errors++;
-      } else if (status == 'rejected') {
-        logs(broadSteps)("Rejected this page.");
+      } else if (pageStatus == 'rejected') {
+        console.log("Counting reject from url:", url);
         // Do nothing
       } else {
-        throw "Weird status from analyze: " + status;
+        throw "Weird status from analyze: " + pageStatus;
       }
     }
 
-    months = distinct(months);
-    unanimousMonth = months.length == 1 ? months[0] : "";
-    logs(broadSteps)("Unanimous month?:", unanimousMonth);
-
-    const investigation = {
-      pageAnalyses: pageAnalyses,
-      month: unanimousMonth,
-      numErrors: num_errors,
-      numPromising: num_promising,
-      name: event_name,
-      city: event_city,
-      state: event_state,
-      broadSteps: broadSteps
-    };
-    return investigation;
+    logs(broadSteps)("Didn't find enough confirming " + event_name + ", concluding failed.");
+    // If we get here, then things are final and we don't have enough confirms.
+    await db.finishInvestigation(submissionId, model, 'failed', {month: unanimousMonth}, broadSteps);
 
   } catch (error) {
     // Make sure the error's contents is put into the steps.
@@ -309,17 +317,7 @@ export async function investigate(
     } else {
       console.log("Already logged error:", error);
     }
-    return {
-      status: "errors",
-      pageAnalyses: pageAnalyses,
-      month: unanimousMonth,
-      numErrors: num_errors,
-      numPromising: num_promising,
-      name: event_name,
-      city: event_city,
-      state: event_state,
-      broadSteps: broadSteps
-    };
+    await db.finishInvestigation(submissionId, model, 'errors', {month: unanimousMonth}, broadSteps);
   }
 }
 
