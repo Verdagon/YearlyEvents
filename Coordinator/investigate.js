@@ -170,7 +170,7 @@ export async function investigate(
   });
 
   if (investigationStatus != 'created') {
-    console.log("Investigation already done, returning.");
+    console.log("Investigation already done (", investigationStatus, ", returning.");
     return;
   }
 
