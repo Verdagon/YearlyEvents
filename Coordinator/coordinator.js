@@ -121,7 +121,8 @@ try {
 				eventCity,
 				eventState,
 				maybeUrl,
-				steps)
+				steps,
+        submissionId)
 
 		if (!investigation) {
 			logs(steps)("Doublecheck failed for", eventName, "in", eventCity, eventState);

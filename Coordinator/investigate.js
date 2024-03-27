@@ -13,7 +13,7 @@ import { parallelEachI } from "../Common/parallel.js";
 // function splitOnce(str, delim) {
 // function newPromise() {LineServerProcess
 
-export async function investigate(openai, scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeFetcher, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl) {
+export async function investigate(openai, scratchDir, db, googleSearchApiKey, searchThrottler, searchCacheCounter, chromeFetcher, chromeCacheCounter, gptThrottler, throttlerPriority, gptCacheCounter, otherEvents, event_i, event_name, event_city, event_state, maybeUrl, submissionId) {
   const broadSteps = [];
   const googleQuery = event_name + " " + event_city + " " + event_state;
   logs(broadSteps)("Googling:", googleQuery);
@@ -130,7 +130,12 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
         break;
       }
     } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
-      await addOtherEventSubmission(db, { url: search_result_url, pageText, analysis: analysis });
+      await addOtherEventSubmission(db, {
+        inspiration_submission_id: submissionId
+        url: search_result_url,
+        pageText,
+        analysis,
+      });
       
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       pageAnalyses.push({
@@ -143,7 +148,12 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
         steps: pageSteps
       });
     } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
-      await addOtherEventSubmission(db, { url: search_result_url, pageText, analysis: analysis });
+      await addOtherEventSubmission(db, {
+        inspiration_submission_id: submissionId
+        url: search_result_url,
+        pageText,
+        analysis
+      });
       
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       pageAnalyses.push({
