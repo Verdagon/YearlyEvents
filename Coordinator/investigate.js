@@ -20,7 +20,8 @@ export async function investigate(openai, scratchDir, db, googleSearchApiKey, se
       num_promising: 0,
       name: event_name,
       city: event_city,
-      state: event_state
+      state: event_state,
+      broad_steps: broadSteps
     };
     return result;
   }

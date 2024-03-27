@@ -188,7 +188,10 @@ export class YearlyEventsServer {
         return pageTextRow;
       });
       investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
-      console.log("steps:", investigation.steps);
+      if (!Array.isArray(investigation.steps)) {
+        console.log("investigation steps isnt array?", JSON.stringify(investigation.steps));
+        investigation.steps = [];
+      }
     	submission.investigations.push(investigation);
     }
 
