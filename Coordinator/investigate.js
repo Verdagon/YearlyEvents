@@ -131,6 +131,8 @@ export async function analyze(
     // (unless it's a VException, was already logged to the steps)
     if (!(error instanceof VException)) {
       logs(pageSteps)(error);
+    } else {
+      console.log("Already logged error:", error);
     }
     return {
       status: "errors",
@@ -176,12 +178,12 @@ export async function investigate(
       const result = {
         pageAnalyses: [],
         month: "",
-        num_errors: 1,
-        num_promising: 0,
+        numErrors: 1,
+        numPromising: 0,
         name: event_name,
         city: event_city,
         state: event_state,
-        broad_steps: broadSteps
+        broadSteps: broadSteps
       };
       return result;
     }
@@ -290,12 +292,12 @@ export async function investigate(
     const investigation = {
       pageAnalyses: pageAnalyses,
       month: unanimousMonth,
-      num_errors: num_errors,
-      num_promising: num_promising,
+      numErrors: num_errors,
+      numPromising: num_promising,
       name: event_name,
       city: event_city,
       state: event_state,
-      broad_steps: broadSteps
+      broadSteps: broadSteps
     };
     return investigation;
 
@@ -304,17 +306,19 @@ export async function investigate(
     // (unless it's a VException, was already logged to the steps)
     if (!(error instanceof VException)) {
       logs(broadSteps)(error);
+    } else {
+      console.log("Already logged error:", error);
     }
     return {
       status: "errors",
       pageAnalyses: pageAnalyses,
       month: unanimousMonth,
-      num_errors: num_errors,
-      num_promising: num_promising,
+      numErrors: num_errors,
+      numPromising: num_promising,
       name: event_name,
       city: event_city,
       state: event_state,
-      broad_steps: broadSteps
+      broadSteps: broadSteps
     };
   }
 }

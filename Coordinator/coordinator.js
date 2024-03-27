@@ -106,8 +106,13 @@ try {
 
 		console.log("Starting doublecheck for event " + eventName + " in " + eventCity + ", " + eventState);
 
-		const investigation =
-			await investigate(
+		const {
+      pageAnalyses,
+      unanimousMonth,
+      numErrors,
+      numPromising,
+      broadSteps
+    } = await investigate(
         openai,
 				scratchDir,
 				db,
@@ -126,13 +131,6 @@ try {
 				eventState,
 				maybeUrl,
         submissionId)
-
-		if (!investigation) {
-			console.log("Doublecheck failed for", eventName, "in", eventCity, eventState);
-			investigation = {pageAnalyses: [], broad_steps: [], found_month: "", num_errors: 1, num_promising: 0};
-		}
-
-		const {pageAnalyses, found_month: foundMonth, num_errors, num_promising, broad_steps: broadSteps} = investigation;
 		
 		await db.transaction(async (trx) => {
       const numConfirms = pageAnalyses.filter(x => x.status == 'confirmed').length;
@@ -147,7 +145,11 @@ try {
 
       await trx.updateSubmissionStatus(submissionId, status);
       await trx.addInvestigation(
-          submissionId, 'gpt-3.5-turbo', status, investigation, broadSteps, pageAnalyses);
+          submissionId, 'gpt-3.5-turbo', status, {
+            unanimousMonth,
+            numErrors,
+            numPromising,
+          }, broadSteps, pageAnalyses);
 
 			if (numConfirms) {
         const eventId = crypto.randomUUID();
@@ -158,7 +160,7 @@ try {
 		    	name: eventName,
 		    	city: eventCity,
 		    	state: eventState,
-		    	month_number: foundMonth,
+		    	month_number: unanimousMonth,
 		    	status: "analyzed"
 		    });
         await parallelEachI(
