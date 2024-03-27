@@ -6,7 +6,7 @@
 <title>Waiting</title>
 <script>
 async function publishConfirmedSubmission(index, bestUrl) {
-  const div = document.getElementById("idea" + index);
+  const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const eventId = div.dataset.eventId;
   div.innerHTML = "<div>Publishing: " + name + "</div>...";
@@ -21,7 +21,7 @@ async function publishConfirmedSubmission(index, bestUrl) {
   }
 }
 async function rejectConfirmedSubmission(index) {
-  const div = document.getElementById("idea" + index);
+  const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const eventId = div.dataset.eventId;
   div.innerHTML = "<div>Rejecting: " + name + "</div>...";
@@ -37,7 +37,7 @@ async function rejectConfirmedSubmission(index) {
 }
 
 async function approveSubmissionClicked(index, need) {
-  const div = document.getElementById("idea" + index);
+  const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const submissionId = div.dataset.submissionId;
   div.innerHTML = "<div>Approving: " + name + "</div>...";
