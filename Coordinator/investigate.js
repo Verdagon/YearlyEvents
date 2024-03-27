@@ -33,7 +33,6 @@ export async function analyze(
     search_result_i,
     url) {
   // We declare these up here so that the try block's exception can include them.
-  const pageSteps = [];
   let pageText = null;
   let pageTextError = null;
   let analysis = null;
@@ -61,11 +60,9 @@ export async function analyze(
 
       return {
         status: 'rejected',
-        url,
         pageText,
         pageTextError,
         analysis: analysis,
-        steps: pageSteps
       };
     } else if (matchness == 4) { // Same city, confirmed.
       logs(pageSteps, broadSteps)(event_name, "confirmed by", url);
@@ -74,16 +71,13 @@ export async function analyze(
 
       return {
         status: 'confirmed',
-        url,
         pageText,
         analysis: analysis,
         month: month,
-        steps: pageSteps
       };
     } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
       await addOtherEventSubmission(db, {
         inspiration_submission_id: submissionId,
-        url,
         pageText,
         analysis,
       });
@@ -91,16 +85,13 @@ export async function analyze(
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       return {
         status: 'rejected',
-        url,
         pageText,
         pageTextError,
         analysis,
-        steps: pageSteps
       };
     } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
       await addOtherEventSubmission(db, {
         inspiration_submission_id: submissionId,
-        url,
         pageText,
         analysis
       });
@@ -108,33 +99,27 @@ export async function analyze(
       logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
       return {
         status: 'rejected',
-        url,
         pageText,
         pageTextError,
         analysis,
-        steps: pageSteps
       };
     } else if (matchness == 1) { // Not same event, ignore it.
       logs(pageSteps, broadSteps)("Not same event at all, ignoring.");
 
       return {
         status: 'rejected',
-        url,
         pageText,
         pageTextError,
         analysis,
-        steps: pageSteps
       };
     } else if (matchness == 0) { // Not an event, skip
       logs(pageSteps, broadSteps)("Not an event, skipping.")
 
       return {
         status: 'rejected',
-        url,
         pageText,
         pageTextError,
         analysis,
-        steps: pageSteps
       };
     } else {
       logs(pageSteps, broadSteps)("Wat response:", matchness, analysis);
@@ -148,11 +133,9 @@ export async function analyze(
     }
     return {
       status: "errors",
-      url,
       pageText,
       pageTextError,
       analysis,
-      steps: pageSteps
     };
   }
 }
@@ -231,32 +214,43 @@ export async function investigate(
       continue
     }
 
-    const analysis =
-        analyze(
-            openai,
-            scratchDir,
-            db,
-            googleSearchApiKey,
-            searchThrottler,
-            searchCacheCounter,
-            chromeFetcher,
-            chromeCacheCounter,
-            gptThrottler,
-            throttlerPriority,
-            gptCacheCounter,
-            otherEvents,
-            event_i,
-            event_name,
-            event_city,
-            event_state,
-            maybeUrl,
-            submissionId,
-            pageSteps,
-            search_result_i,
-            search_result_url);
-    pageAnalyses.push(analysis);
+    const {
+      status,
+      pageText,
+      pageTextError,
+      analysis
+    } = analyze(
+        openai,
+        scratchDir,
+        db,
+        googleSearchApiKey,
+        searchThrottler,
+        searchCacheCounter,
+        chromeFetcher,
+        chromeCacheCounter,
+        gptThrottler,
+        throttlerPriority,
+        gptCacheCounter,
+        otherEvents,
+        event_i,
+        event_name,
+        event_city,
+        event_state,
+        maybeUrl,
+        submissionId,
+        pageSteps,
+        search_result_i,
+        search_result_url);
+    pageAnalyses.push({
+      status,
+      url,
+      pageText,
+      pageTextError,
+      analysis,
+      steps: pageSteps
+    });
 
-    if (analysis.status == 'confirmed') {
+    if (status == 'confirmed') {
       num_confirms++;
 
       const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
@@ -274,12 +268,12 @@ export async function investigate(
         logs(pageSteps, broadSteps)("Found enough confirming " + event_name + ", continuing!");
         break;
       }
-    } else if (analysis.status == 'errors') {
+    } else if (status == 'errors') {
       num_errors++;
-    } else if (analysis.status == 'rejected') {
+    } else if (status == 'rejected') {
       // Do nothing
     } else {
-      throw "Weird status from analyze: " + analysis.status;
+      throw "Weird status from analyze: " + status;
     }
   }
 
