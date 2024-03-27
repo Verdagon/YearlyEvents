@@ -240,7 +240,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
     if (url.includes(".pdf")) {
-      await fetchPDF(url, pdf_path);
+      await fetchPDF(url, pdfOutputPath);
     } else {
       await chromeFetcher.send(url + " " + pdfOutputPath);
     }
