@@ -3,7 +3,7 @@ import util from 'node:util';
 import { execFile, spawn } from 'node:child_process'
 import fs from "fs/promises";
 import urlencode from 'urlencode';
-import { logs, normalizeName, distinct } from "../Common/utils.js";
+import { logs, normalizeName, distinct, VException } from "../Common/utils.js";
 import { analyzePage } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { parallelEachI } from "../Common/parallel.js";
@@ -243,7 +243,7 @@ export async function investigate(
         search_result_url);
     pageAnalyses.push({
       status,
-      url,
+      url: search_result_url,
       pageText,
       pageTextError,
       analysis,
