@@ -38,6 +38,7 @@ export async function analyze(
   let pageText = null;
   let pageTextError = null;
   let analysis = null;
+  let analysisStatus = null;
 
   try {
     console.log("bork 1")
@@ -45,25 +46,26 @@ export async function analyze(
     await db.transaction(async (trx) => {
       const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
       if (maybePageAnalysisRow) {
-        const analysisStatus = maybePageAnalysisRow.status;
+        analysisStatus = maybePageAnalysisRow.status;
         pageSteps = maybePageAnalysisRow.steps || [];
 
         if (!analysisStatus) {
           logs(pageSteps, broadSteps)("Bad analysis status, assuming created.");
           analysisStatus = 'created';
         }
-        if (analysisStatus == 'created') {
-          console.log("Resuming existing page analysis row for url:", url);
-          // Continue
-        } else {
-          console.log("Already finished page analysis for url:", url);
-          return;
-        }
       } else {
         logs(pageSteps)("Starting analysis for page:", url);
         await trx.startPageAnalysis(submissionId, url, model);
       }
     });
+
+    if (analysisStatus == 'created') {
+      console.log("Resuming existing page analysis row for url:", url);
+      // Continue
+    } else {
+      console.log("Already finished page analysis for url:", url);
+      return;
+    }
 
     const {text: pageText_, error: pageTextError_} =
         await getPageText(
@@ -233,88 +235,90 @@ export async function investigate(
     }
     urls = distinct(urls);
 
+    let months = [];
+    let num_errors = 0;
+
     // We dont parallelize this loop because we want it to early-exit if it finds
     // enough to confirm.
+    let alreadyConfirmed = false;
     for (const [url_i, url] of urls.entries()) {
-      // This will update the rows in the database.
-      await analyze(
-          openai,
-          scratchDir,
-          db,
-          googleSearchApiKey,
-          searchThrottler,
-          searchCacheCounter,
-          chromeFetcher,
-          chromeCacheCounter,
-          gptThrottler,
-          throttlerPriority,
-          gptCacheCounter,
-          otherEvents,
-          model,
-          event_i,
-          event_name,
-          event_city,
-          event_state,
-          maybeUrl,
-          submissionId,
-          broadSteps,
-          url_i,
-          url);
-    }
-
-    const pageAnalysesRows = await db.getInvestigationPageAnalyses(submissionId, model);
-    // If there are any still in 'created' status then they're waiting on something
-    // external to happen, so return early.
-    if (pageAnalysesRows.filter(row => row.status == 'created').length) {
-      // Update the steps at least
-      await db.finishInvestigation(
-          submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
-      return;
-    }
-
-    let months = [];
-
-    for (const analysisRow of pageAnalysesRows) {
-      const {url, steps, status: pageStatus, analysis} = analysisRow;
-
-      if (pageStatus == 'created') {
-        // Should never get here
-      } else if (pageStatus == 'confirmed') {
-        console.log("Counting confirmation from url:", url);
-        num_confirms++;
-        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
-        if (month) {
-          months.push(month);
-        }
-        const promising = yearly || (nextDate != null)
-        if (promising) {
-          num_promising++;
-        }
-        if (num_confirms + num_promising >= 5) {
-          logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
-
-          months = distinct(months);
-          unanimousMonth = months.length == 1 ? months[0] : "";
-          logs(broadSteps)("Unanimous month?:", unanimousMonth);
-
-          await db.finishInvestigation(submissionId, model, 'confirmed', {month: unanimousMonth}, broadSteps);
-          return;
-        }
-      } else if (pageStatus == 'errors') {
-        console.log("Counting error from url:", url);
-        num_errors++;
-      } else if (pageStatus == 'rejected') {
-        console.log("Counting reject from url:", url);
-        // Do nothing
+      if (alreadyConfirmed) {
+        await db.finishPageAnalysis(submissionId, url, model, 'moot', [], {});
       } else {
-        throw "Weird status from analyze: " + pageStatus;
+        // This will update the rows in the database.
+        await analyze(
+            openai,
+            scratchDir,
+            db,
+            googleSearchApiKey,
+            searchThrottler,
+            searchCacheCounter,
+            chromeFetcher,
+            chromeCacheCounter,
+            gptThrottler,
+            throttlerPriority,
+            gptCacheCounter,
+            otherEvents,
+            model,
+            event_i,
+            event_name,
+            event_city,
+            event_state,
+            maybeUrl,
+            submissionId,
+            broadSteps,
+            url_i,
+            url);
+        const pageAnalysisRow =
+            await db.getPageAnalysis(submissionId, url, model);
+        if (pageAnalysesRow.status == 'created') {
+          // If it's still created status, then we're waiting on something external.
+          // Update the steps at least and then return.
+          await db.finishInvestigation(
+              submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
+          return;
+        } else if (pageAnalysesRow.status == 'confirmed') {
+          console.log("Counting confirmation from url:", url);
+          num_confirms++;
+          const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysesRow;
+          if (month) {
+            months.push(month);
+          }
+          const promising = yearly || (nextDate != null)
+          if (promising) {
+            num_promising++;
+          }
+          if (num_confirms + num_promising >= 5) {
+            logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
+            alreadyConfirmed = true;
+            // continue on, we're going to mark the rest as moot
+          }
+        } else if (pageStatus == 'errors') {
+          console.log("Counting error from url:", url);
+          num_errors++;
+        } else if (pageStatus == 'rejected') {
+          console.log("Counting reject from url:", url);
+          // Do nothing
+        } else {
+          throw "Weird status from analyze: " + pageStatus;
+        }
       }
     }
+    if (alreadyConfirmed) {
+      months = distinct(months);
+      unanimousMonth = months.length == 1 ? months[0] : "";
+      logs(broadSteps)("Unanimous month?:", unanimousMonth);
 
-    logs(broadSteps)("Didn't find enough confirming " + event_name + ", concluding failed.");
-    // If we get here, then things are final and we don't have enough confirms.
-    await db.finishInvestigation(submissionId, model, 'failed', {month: unanimousMonth}, broadSteps);
-
+      await db.finishInvestigation(submissionId, model, 'confirmed', {month: unanimousMonth}, broadSteps);
+      return;
+    }
+    if (num_errors == 0) {
+      logs(broadSteps)("Didn't find enough confirming " + event_name + ", concluding failed.");
+      // If we get here, then things are final and we don't have enough confirms.
+      await db.finishInvestigation(submissionId, model, 'failed', {month: unanimousMonth}, broadSteps);
+    } else {
+      await db.finishInvestigation(submissionId, model, 'errors', {month: unanimousMonth}, broadSteps);
+    }
   } catch (error) {
     // Make sure the error's contents is put into the steps.
     // (unless it's a VException, was already logged to the steps)
