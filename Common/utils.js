@@ -128,13 +128,13 @@ export function normalizeName(name, city, state) {
 	return unprependiall(name, prefixesToRemove, 9);
 }
 
-class VException {
+export class VException {
 	constructor(...args) {
 		this.message = args;
 	}
 }
 
-function stringify(...args) {
+export function stringify(...args) {
 	return args.map(arg => typeof arg == 'object' ? JSON.stringify(arg) : arg + "").join(" ");
 }
 
