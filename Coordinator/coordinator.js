@@ -74,6 +74,7 @@ try {
   if (filterSubmissionId) {
     approvedSubmissions = approvedSubmissions.filter(x => x.submission_id == filterSubmissionId);
   }
+  approvedSubmissions = approvedSubmissions.slice(0, 1);
 
 
 	console.log("Considering approved submissions:");

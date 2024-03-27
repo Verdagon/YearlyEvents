@@ -101,7 +101,18 @@ async function getCachedDescription(db, gptCacheCounter, url) {
 //   - 4: same event same city.
 //.  - 5: multiple events.
 // - information about the event, or null if not an event.
-export async function analyzePage(db, gptCacheCounter, gptThrottler, throttlerPriority, steps, openai, url, page_text, event_name, event_city, event_state) {
+export async function analyzePage(
+    db,
+    gptCacheCounter,
+    gptThrottler,
+    throttlerPriority,
+    steps,
+    openai,
+    url,
+    page_text,
+    event_name,
+    event_city,
+    event_state) {
 
 	logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 

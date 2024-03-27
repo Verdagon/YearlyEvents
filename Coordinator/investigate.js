@@ -10,6 +10,153 @@ import { parallelEachI } from "../Common/parallel.js";
 
 const execFileAsync = util.promisify(execFile);
 
+export async function analyze(
+    openai,
+    scratchDir,
+    db,
+    googleSearchApiKey,
+    searchThrottler,
+    searchCacheCounter,
+    chromeFetcher,
+    chromeCacheCounter,
+    gptThrottler,
+    throttlerPriority,
+    gptCacheCounter,
+    otherEvents,
+    event_i,
+    event_name,
+    event_city,
+    event_state,
+    maybeUrl,
+    submissionId,
+    pageSteps,
+    search_result_i,
+    url) {
+  // We declare these up here so that the try block's exception can include them.
+  const pageSteps = [];
+  let pageText = null;
+  let pageTextError = null;
+  let analysis = null;
+
+  try {
+    console.log("bork 1")
+
+    const {text: pageText_, error: pageTextError_} =
+        await getPageText(
+            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, url);
+    pageText = pageText_;
+    pageTextError = pageTextError_;
+
+    if (!pageText) {
+      throw logs(pageSteps, broadSteps)("No page text, skipping. Error:", pageTextError);
+    }
+
+    logs(pageSteps)("Analyzing page...");
+    const [matchness, analysis] =
+        await analyzePage(
+            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, url, pageText, event_name, event_city, event_state);
+
+    if (matchness == 5) { // Multiple events
+      logs(pageSteps, broadSteps)("Multiple events, ignoring.");
+
+      return {
+        status: 'rejected',
+        url,
+        pageText,
+        pageTextError,
+        analysis: analysis,
+        steps: pageSteps
+      };
+    } else if (matchness == 4) { // Same city, confirmed.
+      logs(pageSteps, broadSteps)(event_name, "confirmed by", url);
+
+      const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
+
+      return {
+        status: 'confirmed',
+        url,
+        pageText,
+        analysis: analysis,
+        month: month,
+        steps: pageSteps
+      };
+    } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
+      await addOtherEventSubmission(db, {
+        inspiration_submission_id: submissionId,
+        url,
+        pageText,
+        analysis,
+      });
+      
+      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
+      return {
+        status: 'rejected',
+        url,
+        pageText,
+        pageTextError,
+        analysis,
+        steps: pageSteps
+      };
+    } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
+      await addOtherEventSubmission(db, {
+        inspiration_submission_id: submissionId,
+        url,
+        pageText,
+        analysis
+      });
+      
+      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
+      return {
+        status: 'rejected',
+        url,
+        pageText,
+        pageTextError,
+        analysis,
+        steps: pageSteps
+      };
+    } else if (matchness == 1) { // Not same event, ignore it.
+      logs(pageSteps, broadSteps)("Not same event at all, ignoring.");
+
+      return {
+        status: 'rejected',
+        url,
+        pageText,
+        pageTextError,
+        analysis,
+        steps: pageSteps
+      };
+    } else if (matchness == 0) { // Not an event, skip
+      logs(pageSteps, broadSteps)("Not an event, skipping.")
+
+      return {
+        status: 'rejected',
+        url,
+        pageText,
+        pageTextError,
+        analysis,
+        steps: pageSteps
+      };
+    } else {
+      logs(pageSteps, broadSteps)("Wat response:", matchness, analysis);
+      num_errors++;
+    }
+  } catch (error) {
+    // Make sure the error's contents is put into the steps.
+    // (unless it's a VException, was already logged to the steps)
+    if (!(error instanceof VException)) {
+      logs(pageSteps)(error);
+    }
+    return {
+      status: "errors",
+      url,
+      pageText,
+      pageTextError,
+      analysis,
+      steps: pageSteps
+    };
+  }
+}
+
 export async function investigate(
     openai,
     scratchDir,
@@ -55,14 +202,14 @@ export async function investigate(
     }
   }
 
+  // Order them by shortest first, shorter URLs tend to be more canonical
+  response.sort((a, b) => a.length - b.length);
+
   const pageAnalyses = []
   let num_confirms = 0
   let num_promising = 0
   let num_errors = 0
-
-
-  // Order them by shortest first, shorter URLs tend to be more canonical
-  response.sort((a, b) => a.length - b.length);
+  let months = [];
 
   // We dont parallelize this loop because we want it to early-exit if it finds
   // enough to confirm.
@@ -84,149 +231,64 @@ export async function investigate(
       continue
     }
 
-    console.log("bork 1")
+    const analysis =
+        analyze(
+            openai,
+            scratchDir,
+            db,
+            googleSearchApiKey,
+            searchThrottler,
+            searchCacheCounter,
+            chromeFetcher,
+            chromeCacheCounter,
+            gptThrottler,
+            throttlerPriority,
+            gptCacheCounter,
+            otherEvents,
+            event_i,
+            event_name,
+            event_city,
+            event_state,
+            maybeUrl,
+            submissionId,
+            pageSteps,
+            search_result_i,
+            search_result_url);
+    pageAnalyses.push(analysis);
 
-    const {text: pageText, error: pageTextError} =
-        await getPageText(
-            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, search_result_url);
-    if (!pageText) {
-      logs(pageSteps, broadSteps)("No page text, skipping. Error:", pageTextError);
-      num_errors++;
-
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: null,
-        steps: pageSteps
-      });
-
-      continue;
-    }
-
-    logs(pageSteps)("Analyzing page...");
-    const [matchness, analysis] =
-        await analyzePage(
-            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, search_result_url, pageText, event_name, event_city, event_state);
-
-    if (matchness == 5) { // Multiple events
-      logs(pageSteps, broadSteps)("Multiple events, ignoring.");
-
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: analysis,
-        steps: pageSteps
-      });
-    } else if (matchness == 4) { // Same city, confirmed.
-      logs(pageSteps, broadSteps)(event_name, "confirmed by", search_result_url);
+    if (analysis.status == 'confirmed') {
+      num_confirms++;
 
       const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
+
+      if (month) {
+        months.push(month);
+      }
+
       const promising = yearly || (nextDate != null)
       if (promising) {
         num_promising++;
       }
 
-      pageAnalyses.push({
-        status: 'confirmed',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        analysis: analysis,
-        month: month,
-        steps: pageSteps
-      });
-      num_confirms++;
-
       if (num_confirms + num_promising >= 5) {
         logs(pageSteps, broadSteps)("Found enough confirming " + event_name + ", continuing!");
         break;
       }
-    } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
-      await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId,
-        url: search_result_url,
-        pageText,
-        analysis,
-      });
-      
-      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: analysis,
-        steps: pageSteps
-      });
-    } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
-      await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId,
-        url: search_result_url,
-        pageText,
-        analysis
-      });
-      
-      logs(pageSteps, broadSteps)("Rediscovered:", analysis.name);
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: analysis,
-        steps: pageSteps
-      });
-    } else if (matchness == 1) { // Not same event, ignore it.
-      logs(pageSteps, broadSteps)("Not same event at all, ignoring.");
-
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: analysis,
-        steps: pageSteps
-      });
-    } else if (matchness == 0) { // Not an event, skip
-      logs(pageSteps, broadSteps)("Not an event, skipping.")
-
-      pageAnalyses.push({
-        status: 'rejected',
-        url: search_result_url,
-        pageSteps: pageSteps,
-        pageText,
-        pageTextError,
-        analysis: analysis,
-        steps: pageSteps
-      });
-    } else {
-      logs(pageSteps, broadSteps)("Wat response:", matchness, analysis);
+    } else if (analysis.status == 'errors') {
       num_errors++;
+    } else if (analysis.status == 'rejected') {
+      // Do nothing
+    } else {
+      throw "Weird status from analyze: " + analysis.status;
     }
   }
 
-  let months = [];
-  for (const {status, url, month, promising} of pageAnalyses) {
-    if (status == 'confirmed') {
-      if (month) {
-        months.push(month);
-      }
-    }
-  }
   months = distinct(months);
-  const month = months.length == 1 ? months[0] : "";
+  const unanimousMonth = months.length == 1 ? months[0] : "";
 
   const investigation = {
     pageAnalyses: pageAnalyses,
-    month: month,
+    month: unanimousMonth,
     num_errors: num_errors,
     num_promising: num_promising,
     name: event_name,
