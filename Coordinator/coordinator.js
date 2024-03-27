@@ -71,10 +71,11 @@ try {
 
 	const otherEvents = [];
 	let approvedSubmissions = (await db.getApprovedSubmissions());
-  if (filterSubmissionId) {
+  if (filterSubmissionId - 0 == filterSubmissionId) {
+    approvedSubmissions = approvedSubmissions.slice(0, filterSubmissionId - 0);
+  } else if (filterSubmissionId) {
     approvedSubmissions = approvedSubmissions.filter(x => x.submission_id == filterSubmissionId);
   }
-  approvedSubmissions = approvedSubmissions.slice(0, 1);
 
 
 	console.log("Considering approved submissions:");
