@@ -205,7 +205,11 @@ export async function analyzePage(
 					continue;
 				}
 				const answer = answerParts[2];
-				gptResolvers[0](answer);
+        for (const question in questionToGptAnswer) {
+          questionToGptAnswer[question] = answer;
+          await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, answer);
+          break;
+        }
 			} else {
 				if (!answerParts || !answerParts[1] || !answerParts[2]) {
 					logs(steps)("Got invalid line:", line);
@@ -219,7 +223,7 @@ export async function analyzePage(
 				}
 				const question = gptQuestionNumberToQuestion[number];
 				if (question == null) {
-					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", gptResolvers.length);
+					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", Object.keys(questionToGptAnswer).length);
 					continue;
 				}
 				const answer = answerParts[2];
