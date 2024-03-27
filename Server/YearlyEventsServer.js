@@ -159,20 +159,18 @@ export class YearlyEventsServer {
 	async submission(submissionId) {
     const submission = await this.db.getSubmission(submissionId);
 
-		let analyses = [];
-    if (submission.investigation) {
-	    analyses =
-	    		submission.investigation.confirms.map(confirm => {
-	    			const result = JSON.parse(JSON.stringify(confirm));
-	    			result.conclusion = "confirmed";
-	    			return result;
-	    		})
-	    		.concat(submission.investigation.rejects.map(reject => {
-	    			const result = JSON.parse(JSON.stringify(reject));
-	    			result.conclusion = "rejected";
-	    			return result;
-	    		}));
-	  }
+    submission.investigations = [];
+    for (const investigation of await this.db.getInvestigations(submissionId)) {
+    	investigation.pageAnalyses =
+          await this.db.getPageAnalyses(submissionId, investigation.model);
+      await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
+        const pageTextRow = await this.db.getPageText(analysis.url);
+        analysis.pageText = pageTextRow && pageTextRow.text;
+        analysis.pageTextError = pageTextRow && pageTextRow.error;
+        return pageTextRow;
+      });
+    	submission.investigations.push(investigation);
+    }
 
     const event = await this.db.getSubmissionEvent(submissionId);
     if (event) {
@@ -180,7 +178,7 @@ export class YearlyEventsServer {
     }
 
     const pageHtml = await this.getResource("submission.html");
-		const response = this.eta.renderString(pageHtml, { submission, event, analyses });
+		const response = this.eta.renderString(pageHtml, { submission, event });
     console.log("Response:", response);
     return response;
   }

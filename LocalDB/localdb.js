@@ -1,4 +1,5 @@
 import knexBuilder from 'knex';
+import { parallelEachI } from "../Common/parallel.js";
 
 export class LocalDb {
 	constructor(parent, dbPath) {
@@ -130,18 +131,43 @@ export class LocalDb {
 		await (this.target).into("PageTextCache").insert(row);
 	}
 
+  async getPageText(url) {
+    const result = await (this.target).from("PageTextCache").select().where({url});
+    return (result && result[0]) || null;
+  }
+
 	async cachePageSummary(row) {
 		await (this.target).into("SummarizeCache").insert(row);
 	}
 
-	async updateSubmissionStatus(submissionId, status, eventId, investigation) {
-		await (this.target)("Submissions").where({'submission_id': submissionId})
-				.update({
-					status: status,
-					event_id: eventId,
-					investigation: JSON.stringify(investigation)
-				});
+	async updateSubmissionStatus(submissionId, status) {
+		await (this.target)("Submissions")
+        .where({'submission_id': submissionId})
+				.update({ status: status });
 	}
+
+  async addInvestigation(submissionId, model, status, investigation, steps, pageAnalyses) {
+    await (this.target).into("Investigations")
+        .insert({
+          submission_id: submissionId,
+          status: status,
+          model: model,
+          steps: steps,
+          investigation: JSON.stringify(investigation)
+        });
+    await parallelEachI(pageAnalyses, async (_, pageAnalysis) => {
+      const {submissionId, url, status, model, steps, analysis} = pageAnalysis;
+      await (this.target).into("PageAnalyses")
+          .insert({
+            submission_id: submissionId,
+            url: url,
+            status: status,
+            steps: steps,
+            analysis: analysis,
+            analysis: JSON.stringify(analysis)
+          });
+    });
+  }
 
 	async insertEvent(row) {
 		await (this.target).into("ConfirmedEvents").insert(row);
@@ -168,13 +194,21 @@ export class LocalDb {
   }
 
   async getSubmission(submissionId) {
-    const rows =
-    		(await (this.target).select().from("Submissions").where({submission_id: submissionId}))
-    		.map(row => {
-    			row.investigation = JSON.parse(row.investigation);
+    const rows = (await (this.target).select().from("Submissions").where({submission_id: submissionId}));
+		return rows[0] || null;
+  }
+
+  async getInvestigations(submissionId) {
+    return (await (this.target).select().from("Investigations").where({submission_id: submissionId}));
+  }
+
+  async getPageAnalyses(submissionId, model) {
+    return (await (this.target).select().from("PageAnalyses").where({submission_id: submissionId, model: model}))
+    		.map((row) => {
+    			row.steps = JSON.parse(row.steps);
+    			row.analysis = JSON.parse(row.analysis);
     			return row;
     		});
-		return rows[0] || null;
   }
 
   async findApprovedSubmissionsAt(at, limit) {

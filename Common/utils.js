@@ -1,4 +1,7 @@
 
+import terminate from 'terminate';
+import { execFile, spawn } from 'node:child_process'
+
 export function unprependi(str, prefix, minLength) {
 	if (str.toLowerCase().startsWith(prefix.toLowerCase())) {
 		const result = str.substring(prefix.length);
@@ -169,4 +172,152 @@ export function logs(...destinations) {
 		}
 		return new VException(args);
 	}
+}
+
+export function onlyUnique(value, index, array) {
+  return array.indexOf(value) === index;
+}
+export function distinct(a) {
+  return a.filter(onlyUnique);
+}
+
+
+export function makeLineServerProcess(executable, flags, readyLine) {
+  const child = spawn(executable, flags);
+  child.stdin.setEncoding('utf-8');
+  child.stdout.setEncoding('utf-8');
+  child.stderr.pipe(process.stdout);
+
+  let instance = null;
+
+  return new Promise((readyResolve, readyReject) => {
+    let bufferFromChildStdout = "";
+    child.stdout.on('data', data => {
+      bufferFromChildStdout += data;
+      while (true) {
+        const newlineIndex = bufferFromChildStdout.indexOf('\n');
+        if (newlineIndex >= 0) {
+          const line = bufferFromChildStdout.slice(0, newlineIndex);
+          bufferFromChildStdout = bufferFromChildStdout.slice(newlineIndex + 1);
+          if (instance == null) {
+            if (line == readyLine) {
+              instance = new LineServerProcess(child);
+              readyResolve(instance);
+            } else {
+              console.error("Received unexpected line from child process, ignoring:", line);
+            }
+          } else {
+            instance.onLine(line);
+          }
+        } else {
+          break;
+        }
+      }
+    });
+
+    child.on('error', error => {
+      if (instance) {
+        instance.onError();
+        console.error("Received error from fetcher:", error);
+      } else {
+        readyReject(error);
+      }
+    });
+
+    child.on('close', code => {
+      if (instance) {
+        instance.onClose(code);
+      } else {
+        // We might have already rejected from the error handler, but that's fine.
+        readyReject(code);
+      }
+    });
+  });
+}
+
+export function splitOnce(str, delim) {
+  const delimIndex = str.indexOf(' ');
+  if (delimIndex < 0) {
+    return null;
+  }
+  const requestId = str.slice(0, delimIndex);
+  const rest = str.slice(delimIndex + 1);
+  return [requestId, rest];
+}
+
+export function newPromise() {
+  let resolver;
+  let rejecter;
+  const promise = new Promise((res, rej) => {
+    resolver = res;
+    rejecter = rej;
+  });
+  return [promise, resolver, rejecter];
+}
+
+class LineServerProcess {
+  constructor(child, readyLine, onLine) {
+    this.child = child;
+    this.requestHandlers = {};
+  }
+  async destroy() {
+    this.child.stdin.end();
+    return new Promise((resolver, rejecter) => {
+      terminate(this.child.pid, err => {
+        if (err) {
+          rejecter(err);
+        } else {
+          resolver();
+        }
+      });
+    });
+  }
+  // These are meant to be overridden
+  onLine(line) {
+    const maybeRequestIdAndRest = splitOnce(line, ' ');
+    if (!maybeRequestIdAndRest) {
+      console.error("Weird line from fetcher:", line);
+      return;
+    }
+    const [requestId, afterRequestId] = maybeRequestIdAndRest;
+    const handlerPair = this.requestHandlers[requestId];
+    if (!handlerPair) {
+      console.error("Line from fetcher without handler:", line);
+      return;
+    }
+    delete this.requestHandlers[requestId];
+    const [resolver, rejecter] = handlerPair;
+    try {
+      const maybeStatusAndRest = splitOnce(afterRequestId, ' ');
+      if (!maybeStatusAndRest) {
+        console.error("Weird line from fetcher: " + responseLine);
+        return;
+      }
+      const [status, rest] = maybeStatusAndRest;
+      if (status == 'success') {
+        resolver(rest);
+      } else {
+        rejecter({status, rest});
+      }
+    } catch (e) {
+      rejecter({status: "", rest: e});
+    }
+  }
+  onError(err) {
+    console.error("Error from LineServerProcess:", err);
+  }
+  onClose(code) {
+    // console.error("LineServerProcess closed:", code);
+  }
+  send(request) {
+    const requestId = crypto.randomUUID();
+
+    let line = requestId + " " + request;
+    line = line.endsWith('\n') ? line : line + "\n";
+    this.child.stdin.write(line);
+
+    const [promise, resolver, rejecter] = newPromise();
+    this.requestHandlers[requestId] = [resolver, rejecter];
+    return promise;
+  }
 }
