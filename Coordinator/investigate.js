@@ -423,14 +423,14 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
             err.status + ": " + err.rest :
             err);
     console.log(error)
-    // Don't save errors
-    // await db.transaction(async (trx) => {
-    //  const cachedPageTextRow =
-    //      await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-    //  if (!cachedPageTextRow) {
-    //    await trx.cachePageText({url, text: null, error});
-    //  }
-    // });
+    // TODO: We should probably periodically retry every fetch, investigation, analysis, and
+    // submission that ended with errors.
+    await db.transaction(async (trx) => {
+     const cachedPageTextRow = await db.getPageText(url);
+     if (!cachedPageTextRow) {
+       await trx.cachePageText({url, text: null, error});
+     }
+    });
     return {text: null, error};
   }
 
