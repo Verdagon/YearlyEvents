@@ -156,22 +156,10 @@ try {
           city: eventCity,
           state: eventState,
           month_number: investigationRow.investigation.month,
-          status: "created"
+          status: "created",
+          best_url: null,
+          description: null
         });
-        await parallelEachI(
-            pageAnalyses,
-            async ({status, url, steps, pageText, pageLongSummary, analysis, month}) => {
-              if (status == 'confirmed') {
-                await trx.insertConfirmation({
-                  id: crypto.randomUUID(),
-                  event_id: eventId,
-                  url,
-                  page_text: pageText,
-                  page_long_summary: analysis.description,
-                  event_short_summary: analysis.summary
-                });
-              }
-            });
       });
     }
 	});
