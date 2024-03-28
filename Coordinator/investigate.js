@@ -509,7 +509,7 @@ async function googleSearch(googleSearchApiKey, query) {
   }
 }
 
-async function addOtherEventSubmission(db, url, otherEvent) {
+async function addOtherEventSubmission(db, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
