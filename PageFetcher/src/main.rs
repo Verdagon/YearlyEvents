@@ -134,8 +134,8 @@ fn main() {
 
 		if batch_had_timeouts {
 			if max_tab_count > 1 {
-				eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
 				max_tab_count -= 1;
+        eprintln!("Batch had timeouts, reducing throttle to {}", max_tab_count);
 			}
 		} else {
 			last_successful_batch_time = batch_end_time;

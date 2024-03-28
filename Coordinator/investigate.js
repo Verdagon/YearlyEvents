@@ -246,27 +246,33 @@ export async function investigate(
         logs(broadSteps)("Skipping blacklisted domain:", url);
         return;
       }
-      await fetchThrottler.prioritized(throttlerPriority, async () => {
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            logs(broadSteps)("Skipping non-ok'd url:", url);
+      const cachedRow = await db.getPageText(url);
+      if (cachedRow && cachedRow.text) {
+        // We have it cached, so it must be a good url, proceed.
+      } else {
+        // We don't have it, so see if we can do a basic request to it
+        await fetchThrottler.prioritized(throttlerPriority, async () => {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) {
+              logs(broadSteps)("Skipping non-ok'd url:", url);
+              return;
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType) {
+              logs(broadSteps)("No content-type, skipping:", url);
+              return;
+            }
+            if (!contentType.includes('text/html')) {
+              logs(broadSteps)("Skipping non-html response:", url);
+              return;
+            }
+          } catch (error) {
+            logs(broadSteps)("Skipping error'd url:", url, "error:", error);
             return;
           }
-          const contentType = response.headers.get('content-type');
-          if (!contentType) {
-            logs(broadSteps)("No content-type, skipping:", url);
-            return;
-          }
-          if (!contentType.includes('text/html')) {
-            logs(broadSteps)("Skipping non-html response:", url);
-            return;
-          }
-        } catch (error) {
-          logs(broadSteps)("Skipping error'd url:", url, "error:", error);
-          return;
-        }
-      });
+        });
+      }
       urls.push(url);
     })
 
