@@ -248,7 +248,7 @@ export async function analyzePage(
 		}
 	}
 
-
+  const questionToAnswer = {};
   for (const question of questions) {
     const questionRow =
         await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
