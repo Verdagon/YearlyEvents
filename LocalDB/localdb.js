@@ -375,6 +375,19 @@ export class LocalDb {
 				.insert({query, response: JSON.stringify(response)})
         .onConflict(['query']).merge();
 	}
+
+  async getCachedGoogleResult(query) {
+    const result =
+        (await (this.target).from("GoogleCache").select().where({query}))
+        .map(row => {
+          if (row.response) {
+            row.response = JSON.parse(row.response);
+          }
+          return row;
+        });;
+    return (result && result[0]) || null;
+  }
+
 }
 
 // export async function dbCachedZ(knex, tableName, cacheCounter, cacheKeyMap, inner, transform, cacheIf, jsonFields) {

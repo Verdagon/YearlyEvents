@@ -333,9 +333,11 @@ export async function investigate(
 
 async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
   const maybeSearcherResult =
-      await db.getFromDb("GoogleCache", searchCacheCounter, {"query": googleQuery}, ["response"]);
+      await db.getCachedGoogleResult(googleQuery);
   if (maybeSearcherResult) {
     const {response} = maybeSearcherResult;
+    console.log("Using cached google query");
+    searchCacheCounter.count++;
     return {response};
   }
   const response =
@@ -344,6 +346,7 @@ async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCa
         console.log("Expensive: Google:", googleQuery);
         return await googleSearch(googleSearchApiKey, googleQuery);
       });
+  console.log("Caching google result");
   await db.cacheGoogleResult({query: googleQuery, response: response});
   return {response: response};
 }
