@@ -231,7 +231,7 @@ export async function investigate(
         logs(broadSteps)("Skipping blank url");
         return;
       }
-      const blacklistedDomtains = [
+      const blacklistedDomains = [
         "youtube.com",
         "twitter.com"
       ];
