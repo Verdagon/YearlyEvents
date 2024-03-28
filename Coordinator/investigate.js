@@ -241,7 +241,7 @@ export async function investigate(
         return;
       }
       try {
-        const response = fetch(url);
+        const response = await fetch(url);
         if (!response.ok) {
           logs(broadSteps)("Skipping non-ok'd url:", url);
           return;
@@ -261,15 +261,6 @@ export async function investigate(
       }
       urls.push(url);
     })
-
-
-    fetch('https://example.com/some/resource')
-  .then(response => {
-    
-  })
-  .catch(error => {
-    console.error('There was a problem with the fetch operation:', error);
-  });
 
     let months = [];
     let num_errors = 0;
