@@ -218,7 +218,7 @@ export async function investigate(
         .map(row => row.url);
     // Add new rows for new URLs
     const urls = [];
-    await parallelEachI(unfilteredResponseUrls, async (url) => {
+    await parallelEachI(unfilteredResponseUrls, async (urlI, url) => {
       if (urls.length >= 7) {
         // Limit to 7
         return;
@@ -235,7 +235,6 @@ export async function investigate(
         "youtube.com",
         "twitter.com"
       ];
-      console.log("url:", url);
       const urlLowercase = url.toLowerCase();
       if (blacklistedDomains.filter(entry => urlLowercase.includes(entry)).length) {
         logs(broadSteps)("Skipping blacklisted domain:", url);
