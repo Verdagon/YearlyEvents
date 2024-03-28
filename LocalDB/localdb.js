@@ -286,14 +286,14 @@ export class LocalDb {
   }
 
   async getAnalysisQuestion(url, question, model, summarizePromptVersion) {
-    const rows = await (this.target).select()
+    const rows = (await (this.target).select()
         .from("AnalyzeCache")
         .where({
           url,
           question,
           model,
           summarize_prompt_version: summarizePromptVersion
-        })
+        }))
         .map(row => {
           row.error = JSON.parse(row.error);
           return row;

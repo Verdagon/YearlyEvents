@@ -67,6 +67,7 @@ function getMonthOrNull(month_response) {
 //   - 4: same event same city.
 //.  - 5: multiple events.
 // - information about the event, or null if not an event.
+// - status: created if paused, errors if any errors, success if success
 export async function analyzePage(
     db,
     gptCacheCounter,
@@ -103,15 +104,15 @@ export async function analyzePage(
 
 	if (description.trim().toLowerCase().startsWith("nothing")) {
 		logs(steps)("Not an event, skipping.");
-		return [0, null];
+		return [0, null, "success"];
 	}
 	if (description.trim().toLowerCase().startsWith("multiple")) {
 		logs(steps)("Multiple events, skipping.");
-		return [5, null];
+		return [5, null, "success"];
 	}
 	if (description.trim().length < 20) {
 		logs(steps)("Too short, probably bad, skipping.");
-		return [0, null];
+		return [0, null, "success"];
 	}
 
 
@@ -262,6 +263,15 @@ export async function analyzePage(
         "\ndeets:\n",
         {nextGptQuestionNumber, gptQuestionNumberToQuestion});
 		}
+    if (answer.status == 'success') {
+      // continue
+    } else if (answer.status == 'created') {
+      return [0, null, "created"];
+    } else if (answer.status == 'error') {
+      return [0, null, "errors"];
+    } else {
+      throw logs(steps)("Wat response from analyze question:", answer.status);
+    }
 		questionToAnswer[question] = answer;
 		steps.push(["Answered \"", answer, "\" to: ", question, (questionToMaybeCachedAnswer[question] ? " (cached)" : "")]);
 	}
@@ -288,7 +298,7 @@ export async function analyzePage(
 	const multipleEventsAnswer =  questionToAnswer[MULTIPLE_EVENTS_QUESTION];
 	if (getStartBoolOrNull(multipleEventsAnswer) !== false) {
 		// multiple events
-		return [5, null];
+		return [5, null, "success"];
 	}
 
 	const yearAnswer = questionToAnswer[YEAR_QUESTION];
@@ -328,12 +338,12 @@ export async function analyzePage(
 	matches.anywhere = getStartBoolOrNull(matchesAnywhereAnswer);
 
 	if (matches.city) {
-		return [4, analysis];
+		return [4, analysis, "success"];
 	} else if (matches.state) {
-		return [3, analysis];
+		return [3, analysis, "success"];
 	} else if (matches.anywhere) {
-		return [2, analysis];
+		return [2, analysis, "success"];
 	} else {
-		return [1, analysis];
+		return [1, analysis, "success"];
 	}
 }

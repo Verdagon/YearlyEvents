@@ -80,56 +80,64 @@ export async function analyze(
       throw logs(pageSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
     }
 
-    const [matchness, analysis] =
+    const [matchness, analysis, analyzeInnerStatus] =
         await analyzePage(
             db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, model, url, pageText, event_name, event_city, event_state);
-    if (!analysis || !analysis.name || !analysis.city || !analysis.state) {
-      logs(pageSteps, broadSteps)("No analysis or city or state or name, rejecting.");
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
-    }
-    if (matchness == 5) { // Multiple events
-      logs(pageSteps, broadSteps)("Multiple events, ignoring.");
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
-    } else if (matchness == 4) { // Same city, confirmed.
-      logs(broadSteps)(event_name, "confirmed by", url);
+    if (analyzeInnerStatus == 'created') {
+      await db.finishPageAnalysis(submissionId, url, model, 'created', pageSteps, analysis);
+    } else if (analyzeInnerStatus == 'errors') {
+      await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
+    } else if (analyzeInnerStatus == 'success') {
+      if (!analysis || !analysis.name || !analysis.city || !analysis.state) {
+        logs(pageSteps, broadSteps)("No analysis or city or state or name, rejecting.");
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      }
+      if (matchness == 5) { // Multiple events
+        logs(pageSteps, broadSteps)("Multiple events, ignoring.");
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      } else if (matchness == 4) { // Same city, confirmed.
+        logs(broadSteps)(event_name, "confirmed by", url);
 
-      const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
+        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
 
-      await db.finishPageAnalysis(submissionId, url, model, 'confirmed', pageSteps, analysis);
-      return;
-    } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
-      logs(broadSteps)("Not same, but discovered similar:", analysis.name);
-      await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId,
-        pageText,
-        analysis,
-        url
-      });
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
-    } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
-      logs(broadSteps)("Not same, but discovered similar:", analysis.name);
-      await addOtherEventSubmission(db, {
-        inspiration_submission_id: submissionId,
-        pageText,
-        analysis,
-        url
-      });
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
-    } else if (matchness == 1) { // Not same event, ignore it.
-      logs(broadSteps)("Not same event at all, ignoring.");
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
-    } else if (matchness == 0) { // Not an event, skip
-      logs(broadSteps)("Not an event, skipping.")
-      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-      return;
+        await db.finishPageAnalysis(submissionId, url, model, 'confirmed', pageSteps, analysis);
+        return;
+      } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
+        logs(broadSteps)("Not same, but discovered similar:", analysis.name);
+        await addOtherEventSubmission(db, {
+          inspiration_submission_id: submissionId,
+          pageText,
+          analysis,
+          url
+        });
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
+        logs(broadSteps)("Not same, but discovered similar:", analysis.name);
+        await addOtherEventSubmission(db, {
+          inspiration_submission_id: submissionId,
+          pageText,
+          analysis,
+          url
+        });
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      } else if (matchness == 1) { // Not same event, ignore it.
+        logs(broadSteps)("Not same event at all, ignoring.");
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      } else if (matchness == 0) { // Not an event, skip
+        logs(broadSteps)("Not an event, skipping.")
+        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+        return;
+      } else {
+        logs(broadSteps)("Wat analyze response:", matchness, analysis, analyzeInnerStatus);
+        num_errors++;
+      }
     } else {
-      logs(broadSteps)("Wat response:", matchness, analysis);
-      num_errors++;
+      throw logs(broadSteps)("Wat analyze response:", matchness, analysis, analyzeInnerStatus)
     }
   } catch (error) {
     // Make sure the error's contents is put into the steps.
