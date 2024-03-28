@@ -156,6 +156,10 @@ Unconsidered submissions:
         <button onclick="rejectSubmissionClicked('<%= submission.submission_id %>')">Reject</button>
       </div>
     </div>
+    <div>
+        Suggested url:
+        <a href="<%~ submission.url %>"><%~ submission.url %></a>
+      </div>
     <div><%= submission.description %></div>
     <div><%= submission.notes %></div>
   </div>

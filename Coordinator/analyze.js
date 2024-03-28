@@ -182,7 +182,7 @@ export async function analyzePage(
 
 		for (const lineUntrimmed of analysisResponse.split("\n")) {
 			const line = lineUntrimmed.trim().replace(/"/g, "");
-			const answerParts = /\s*(\d*)?\s*[:.]?\s*(.*)/i.exec(line);
+			const answerParts = /\s*(\d*)?\s*[:\.]?\s*(.*)/i.exec(line);
 			if (nextGptQuestionNumber == 2) { // Only one question.
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
