@@ -54,7 +54,7 @@
               <li>
                 <% if (Array.isArray(step)) { %>
                   <%= JSON.stringify(step) %>
-                <% } else if (typeof step == 'object') { %>
+                <% } else if (typeof step == 'object' && step[""] !== undefined && step[""] !== undefined) { %>
                   <%= step[""] %>
                   <% Object.entries(step).forEach(([key, member]) => { %>
                     <% if (key) { %>
@@ -117,7 +117,7 @@
 									<li>
                     <% if (Array.isArray(step)) { %>
                       <%= JSON.stringify(step) %>
-                    <% } else if (typeof step == 'object') { %>
+                    <% } else if (typeof step == 'object' && step[""] !== undefined) { %>
 											<%= step[""] %>
 											<% Object.entries(step).forEach(([key, member]) => { %>
 												<% if (key) { %>
