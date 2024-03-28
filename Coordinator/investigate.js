@@ -221,7 +221,7 @@ export async function investigate(
     await parallelEachI(unfilteredResponseUrls, async (url) => {
       if (urls.length >= 7) {
         // Limit to 7
-        break;
+        return;
       }
       if (urls.includes(url)) {
         console.log("Skipping already included URL:", url);
