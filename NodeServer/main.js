@@ -62,9 +62,9 @@ if (!syncFs.existsSync(resourcesDir)) {
 
 const eta = new Eta();
 
-const txnThrottler = new Semaphore(100, null);
+const dbThrottler = new Semaphore(100, null);
 
-const db = new LocalDb(txnThrottler, null, dbPath);
+const db = new LocalDb(dbThrottler, null, dbPath);
 
 const getResource =
     async (file) => {

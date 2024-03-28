@@ -58,9 +58,9 @@ const openai = new OpenAIApi(configuration);
 const fetchThrottler = new Semaphore(10, null);
 const gptThrottler = new Semaphore(null, 120);
 const searchThrottler = new Semaphore(10, null);
-const txnThrottler = new Semaphore(100, null);
+const dbThrottler = new Semaphore(100, null);
 
-const db = new LocalDb(txnThrottler, null, "./db.sqlite");
+const db = new LocalDb(dbThrottler, null, "./db.sqlite");
 
 let chromeFetcher = null;
 try {

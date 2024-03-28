@@ -157,7 +157,7 @@ export async function analyze(
     await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
     return;
   }
-  
+
   if (!await db.getPageAnalysis(submissionId, url, model)) {
     throw logs(pageSteps)("No analysis to use?!");
   }
@@ -522,7 +522,6 @@ async function addOtherEventSubmission(db, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
-  console.log("zork 1")
   await db.insertSubmission({
     submission_id: crypto.randomUUID(),
     name,
@@ -534,7 +533,6 @@ async function addOtherEventSubmission(db, otherEvent) {
     origin_query: null,
     need: 0
   });
-  console.log("zork 3")
 }
 
 async function runCommandForStatus(program, args) {
