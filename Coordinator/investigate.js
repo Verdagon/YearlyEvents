@@ -1,4 +1,5 @@
 
+import syncFs from "fs";
 import util from 'node:util';
 import { execFile, spawn } from 'node:child_process'
 import fs from "fs/promises";
