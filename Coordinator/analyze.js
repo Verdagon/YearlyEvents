@@ -252,7 +252,7 @@ export async function analyzePage(
   for (const question of questions) {
     const questionRow =
         await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
-		if (answer == null) {
+		if (questionRow == null) {
       const error = {
         "": "Question/answer not found!",
         analyzeQuestion,
