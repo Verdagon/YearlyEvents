@@ -142,7 +142,7 @@ try {
       await db.updateSubmissionStatus(submissionId, 'failed');
       logs()("Concluded failed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
 
-    } else if (investigationRow == 'confirmed') {
+    } else if (investigationRow.status == 'confirmed') {
       logs()("Concluded confirmed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
 
       await db.transaction(async (trx) => {
