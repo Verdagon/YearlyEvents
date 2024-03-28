@@ -63,7 +63,7 @@ fn main() {
     if let Some(index) = requests_queue.iter().take(ideal_num_requests).position(|x| x.remaining_tries == 1) {
     	let desperate_request = requests_queue.remove(index);
     	eprintln!("Making dedicated batch for desperate request id {} for url {}", desperate_request.uuid, desperate_request.url);
-	    batch_requests.push();
+	    batch_requests.push(desperate_request);
 	    should_restart_chrome = true;
     } else {
     	// There's no desperate requests in the next ideal_num_requests, add em to the batch.
