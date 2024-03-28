@@ -234,6 +234,10 @@ export async function investigate(
         logs(broadSteps)("Skipping blacklisted domain");
         continue
       }
+      if (responseUrl.includes(".pdf")) {
+        logs(broadSteps)("Skipping PDF");
+        continue
+      }
       urls.push(responseUrl);
     }
 
@@ -371,12 +375,8 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
-    if (url.includes(".pdf")) {
-      await fetchPDF(url, pdfOutputPath);
-    } else {
-      console.log("Expensive: chromeFetcher:", url);
-      await chromeFetcher.send(url + " " + pdfOutputPath);
-    }
+    console.log("Expensive: chromeFetcher:", url);
+    await chromeFetcher.send(url + " " + pdfOutputPath);
     console.log("bork 4")
   } catch (err) {
     const error =
@@ -510,29 +510,29 @@ async function runCommandForStatus(program, args) {
   }
 }
 
-// Function to fetch PDF from URL and save it to a file
-function fetchPDF(url, filePath) {
-    return new Promise((resolve, reject) => {
-        const file = syncFs.createWriteStream(filePath);
+// // Function to fetch PDF from URL and save it to a file
+// function fetchPDF(url, filePath) {
+//     return new Promise((resolve, reject) => {
+//         const file = syncFs.createWriteStream(filePath);
 
-        if (url.startsWith("https://")) {
-          https.get(url, response => {
-              response.pipe(file);
-              file.on('finish', () => {
-                  file.close(resolve);
-              });
-          }).on('error', error => {
-              fs.unlink(filePath, () => reject(error));
-          });
-      } else {
-        http.get(url, response => {
-              response.pipe(file);
-              file.on('finish', () => {
-                  file.close(resolve);
-              });
-          }).on('error', error => {
-              fs.unlink(filePath, () => reject(error));
-          });
-      }
-    });
-}
+//         if (url.startsWith("https://")) {
+//           https.get(url, response => {
+//               response.pipe(file);
+//               file.on('finish', () => {
+//                   file.close(resolve);
+//               });
+//           }).on('error', error => {
+//               fs.unlink(filePath, () => reject(error));
+//           });
+//       } else {
+//         http.get(url, response => {
+//               response.pipe(file);
+//               file.on('finish', () => {
+//                   file.close(resolve);
+//               });
+//           }).on('error', error => {
+//               fs.unlink(filePath, () => reject(error));
+//           });
+//       }
+//     });
+// }
