@@ -155,7 +155,7 @@ try {
           name: eventName,
           city: eventCity,
           state: eventState,
-          month_number: unanimousMonth,
+          month_number: investigationRow.investigation.month,
           status: "created"
         });
         await parallelEachI(
