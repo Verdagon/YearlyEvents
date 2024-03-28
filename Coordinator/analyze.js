@@ -183,17 +183,26 @@ export async function analyzePage(
 		for (const lineUntrimmed of analysisResponse.split("\n")) {
 			const line = lineUntrimmed.trim().replace(/"/g, "");
 			const answerParts = /\s*(\d*)?\s*[:\.]?\s*(.*)/i.exec(line);
-      logs(steps)("Got parts:", answerParts);
 			if (nextGptQuestionNumber == 2) { // Only one question.
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
 					logs(steps)("Got invalid line: " + line);
+          await db.finishAnalysisQuestion(
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
+            {
+              "": "Got invalid line: " + line,
+              analyzeQuestion,
+              analysisResponse,
+              line,
+              answerParts
+            });
 					continue;
 				}
 				const answer = answerParts[2];
         for (const question in questionToGptAnswer) {
           questionToGptAnswer[question] = answer;
-          await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, answer);
+          await db.finishAnalysisQuestion(
+              url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
           break;
         }
 			} else {
@@ -205,17 +214,35 @@ export async function analyzePage(
 				const number = numberStr - 0;
 				if (number != numberStr) {
 					logs(steps)("Got line with invalid number: ", numberStr, " line: ", line);
+          await db.finishAnalysisQuestion(
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
+            {
+              "": "Got line with invalid number: " + numberStr,
+              analyzeQuestion,
+              analysisResponse,
+              line,
+              answerParts
+            });
 					continue;
 				}
 				const question = gptQuestionNumberToQuestion[number];
 				if (question == null) {
 					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", Object.keys(questionToGptAnswer).length);
+          await db.finishAnalysisQuestion(
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
+            {
+              "": "Got line with unknown number: " + numberStr,
+              analyzeQuestion,
+              analysisResponse,
+              line,
+              answerParts
+            });
 					continue;
 				}
 				const answer = answerParts[2];
 
 				questionToGptAnswer[question] = answer;
-        await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, answer);
+        await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
 			}
 		}
 	}

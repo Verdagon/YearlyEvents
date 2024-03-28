@@ -293,6 +293,10 @@ export class LocalDb {
           question,
           model,
           summarize_prompt_version: summarizePromptVersion
+        })
+        .map(row => {
+          row.error = JSON.parse(row.error);
+          return row;
         });
     return rows && rows[0];
   }
@@ -304,12 +308,14 @@ export class LocalDb {
           question,
           model,
           summarize_prompt_version: summarizePromptVersion,
-          answer: null
+          status: 'created',
+          answer: null,
+          error: null
         })
         .onConflict(['url', 'question', 'model', 'summarize_prompt_version']).merge();
   }
 
-  async finishAnalysisQuestion(url, question, model, summarizePromptVersion, answer) {
+  async finishAnalysisQuestion(url, question, model, summarizePromptVersion, status, answer, errorText) {
     await (this.target)("AnalyzeCache")
         .where({
           url,
@@ -318,7 +324,9 @@ export class LocalDb {
           summarize_prompt_version: summarizePromptVersion
         })
         .update({
-          answer
+          answer,
+          status,
+          error: JSON.stringify(errorText)
         });
   }
 
