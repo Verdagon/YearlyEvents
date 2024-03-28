@@ -256,7 +256,7 @@ export async function investigate(
           return;
         }
       } catch (error) {
-        logs(broadSteps)("Skipping error'd url:", url);
+        logs(broadSteps)("Skipping error'd url:", url, "error:", error);
         return;
       }
       urls.push(url);
