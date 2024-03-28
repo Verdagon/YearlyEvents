@@ -111,6 +111,9 @@ export class LocalDb {
 	}
 
 	async insertSubmission(row) {
+    assert(row.name == normalizeName(row.name, row.city, row.state));
+    assert(row.state == normalizeState(row.state));
+    assert(row.city == normalizePlace(row.city));
 		await (this.target).into("Submissions")
         .insert(row)
         .onConflict(['name', 'state', 'city']).ignore();;
@@ -252,6 +255,9 @@ export class LocalDb {
   }
 
 	async insertEvent(row) {
+    assert(row.name == normalizeName(row.name, row.city, row.state));
+    assert(row.state == normalizeState(row.state));
+    assert(row.city == normalizePlace(row.city));
 		await (this.target).into("ConfirmedEvents")
         .insert(row);
         //.onConflict(['submission_id']).merge();

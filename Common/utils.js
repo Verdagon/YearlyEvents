@@ -79,17 +79,21 @@ const STATE_SYNONYMS = [
     ['wyoming', 'wy'],
 ];
 
+export function normalizePlace(placeName) {
+  return placeName
+    .split(" ")
+    .map(x => x.slice(0, 1).toUpperCase() + x.slice(1))
+    .join(" ");
+}
+
 export function normalizeState(stateName) {
 	const lowered = stateName.toLowerCase();
 	for (const row of STATE_SYNONYMS) {
   	if (row.includes(lowered)) {
-  		return row[0]
-        .split(" ")
-        .map(x => x.slice(0, 1).toUpperCase() + x.slice(1))
-        .join(" ");
+  		return normalizePlace(row[0]);
   	}
   }
-  return stateName;
+  return normalizePlace(stateName);
 }
 
 export function getLowercasedSynonyms(stateName) {
