@@ -331,6 +331,7 @@ export class LocalDb {
     return await (this.target).select().from("Submissions")
         .whereNot('need', 0)
         .whereNot('status', "confirmed")
+        .whereNot('status', "approved")
         .whereNot('status', "created")
         .whereNot('status', 'buried');
   }
