@@ -235,6 +235,7 @@ export async function investigate(
         "youtube.com",
         "twitter.com"
       ];
+      console.log("url:", url);
       const urlLowercase = url.toLowerCase();
       if (blacklistedDomains.filter(entry => urlLowercase.includes(entry)).length) {
         logs(broadSteps)("Skipping blacklisted domain:", url);
