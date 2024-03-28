@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Ideas</title>
+<style>
+body {
+  font-family: Verdana;
+}
+</style>
 <script>
 async function submitClicked(id, status, need) {
 	const div = document.getElementById("idea" + id);
@@ -40,9 +45,7 @@ async function submitClicked(id, status, need) {
 <body>
 <div>
   <a href="/askGpt.html">Ask</a> |
-  <a href="/unconsidered.html">Unconsidered</a> |
-  <a href="/confirmed.html">Confirmed</a> |
-  <a href="/failed.html">Failed</a>
+  <a href="/waiting.html">Waiting</a>
 </div>
 
 <form method="POST" action="/eventsFromGpt.html">
