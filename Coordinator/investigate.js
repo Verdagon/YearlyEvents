@@ -226,15 +226,15 @@ export async function investigate(
         logs(broadSteps)("Skipping blank url");
         continue
       }
-      if (responseUrl.includes("youtube.com")) {
+      if (responseUrl.toLowerCase().includes("youtube.com")) {
         logs(broadSteps)("Skipping blacklisted domain");
         continue
       }
-      if (responseUrl.includes("twitter.com")) {
+      if (responseUrl.toLowerCase().includes("twitter.com")) {
         logs(broadSteps)("Skipping blacklisted domain");
         continue
       }
-      if (responseUrl.includes(".pdf")) {
+      if (responseUrl.toLowerCase().includes(".pdf")) {
         logs(broadSteps)("Skipping PDF");
         continue
       }
