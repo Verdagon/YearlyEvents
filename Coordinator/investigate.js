@@ -76,6 +76,7 @@ export async function analyze(
       throw logs(pageSteps, broadSteps)("Bad pdf-to-text. Error:", pageTextError);
     }
     if (!pageText) {
+      // This actually shouldnt happen, there's a check in getPageText.
       throw logs(pageSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
     }
 
@@ -397,9 +398,8 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 
     console.log("bork 5")
   const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
-  const pdftotextExitCode =
-      await runCommandForStatus(
-          "python3", ["./PdfToText/main.py", pdfOutputPath, txt_path])
+  const commandArgs = ["./PdfToText/main.py", pdfOutputPath, txt_path];
+  const pdftotextExitCode = await runCommandForStatus("python3", commandArgs)
   console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
   if (pdftotextExitCode !== 0) {
     const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdfOutputPath;
@@ -417,7 +417,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   steps.push(["Created text in", txt_path])
   const text = (await fs.readFile(txt_path, { encoding: 'utf8' })).trim();
   if (!text) {
-    const error = "No result text found for " + eventName + " at url " + url;
+    const error = "No result text found for " + eventName + ", args: " + commandArgs.join(" ");
     console.log(error);
     // Don't save errors
     // await db.transaction(async (trx) => {
