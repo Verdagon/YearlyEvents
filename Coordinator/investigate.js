@@ -198,48 +198,78 @@ export async function investigate(
       };
       return result;
     }
-    const responseUrls = searcherResult.response;
+    const unfilteredResponseUrls = searcherResult.response;
 
     // Order them by shortest first, shorter URLs tend to be more canonical
-    responseUrls.sort((a, b) => a.length - b.length);
+    unfilteredResponseUrls.sort((a, b) => a.length - b.length);
 
     // If the submission came with a URL, move it to the top of the list.
     if (maybeUrl) {
-      if (!responseUrls.includes(maybeUrl)) {
-        responseUrls.unshift(maybeUrl);
+      if (!unfilteredResponseUrls.includes(maybeUrl)) {
+        unfilteredResponseUrls.unshift(maybeUrl);
       }
     }
 
-    logs(broadSteps)("Google result URLs:", responseUrls);
+    logs(broadSteps)("Google result URLs:", unfilteredResponseUrls);
 
     // Make sure we don't overwrite any existing page analyses
-    let urls =
+    let existingAnalysesUrls =
         (await db.getInvestigationPageAnalyses(submissionId, model))
         .map(row => row.url);
     // Add new rows for new URLs
-    for (const responseUrl of responseUrls) {
-      if (urls.includes(responseUrl)) {
-        console.log("Skipping already included URL:", responseUrl);
-        continue;
+    const urls = [];
+    await parallelEachI(unfilteredResponseUrls, async (url) => {
+      if (urls.length >= 7) {
+        // Limit to 7
+        break;
       }
-      if (responseUrl == "") {
+      if (urls.includes(url)) {
+        console.log("Skipping already included URL:", url);
+        return;
+      }
+      if (url == "") {
         logs(broadSteps)("Skipping blank url");
-        continue
+        return;
       }
-      if (responseUrl.toLowerCase().includes("youtube.com")) {
-        logs(broadSteps)("Skipping blacklisted domain");
-        continue
+      const blacklistedDomtains = [
+        "youtube.com",
+        "twitter.com"
+      ];
+      const urlLowercase = url.toLowerCase();
+      if (blacklistedDomains.filter(entry => urlLowercase.includes(entry)).length) {
+        logs(broadSteps)("Skipping blacklisted domain:", url);
+        return;
       }
-      if (responseUrl.toLowerCase().includes("twitter.com")) {
-        logs(broadSteps)("Skipping blacklisted domain");
-        continue
+      try {
+        const response = fetch(url);
+        if (!response.ok) {
+          logs(broadSteps)("Skipping non-ok'd url:", url);
+          return;
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType) {
+          logs(broadSteps)("No content-type, skipping:", url);
+          return;
+        }
+        if (!contentType.includes('text/html')) {
+          logs(broadSteps)("Skipping non-html response:", url);
+          return;
+        }
+      } catch (error) {
+        logs(broadSteps)("Skipping error'd url:", url);
+        return;
       }
-      if (responseUrl.toLowerCase().includes(".pdf")) {
-        logs(broadSteps)("Skipping PDF");
-        continue
-      }
-      urls.push(responseUrl);
-    }
+      urls.push(url);
+    })
+
+
+    fetch('https://example.com/some/resource')
+  .then(response => {
+    
+  })
+  .catch(error => {
+    console.error('There was a problem with the fetch operation:', error);
+  });
 
     let months = [];
     let num_errors = 0;
@@ -460,7 +490,7 @@ async function googleSearch(googleSearchApiKey, query) {
     if (body.items.length == null) {
       throw "Bad response error, items empty: " + JSON.stringify(body);
     }
-    return body.items.slice(0, 7).map(x => x.link);
+    return body.items.map(x => x.link);
   } catch (error) {
     if (typeof error.json === "function") {
       const jsonError = await error.json();
