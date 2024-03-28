@@ -94,7 +94,7 @@ export async function analyzePage(
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 		description =
 		    await askTruncated(gptThrottler, throttlerPriority, openai, SUMMARIZE_PROMPT + "\n------\n" + page_text);
-		await db.cachePageSummary({url, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
+		await db.cachePageSummary({url, model, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
     logs(steps)({ "": "GPT response:", "details": description });
 	}
 
