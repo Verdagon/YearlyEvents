@@ -17,6 +17,7 @@ export async function analyze(
     scratchDir,
     db,
     googleSearchApiKey,
+    fetchThrottler,
     searchThrottler,
     searchCacheCounter,
     chromeFetcher,
@@ -143,6 +144,7 @@ export async function investigate(
     scratchDir,
     db,
     googleSearchApiKey,
+    fetchThrottler,
     searchThrottler,
     searchCacheCounter,
     chromeFetcher,
@@ -183,7 +185,7 @@ export async function investigate(
     logs(broadSteps)("Googling:", googleQuery);
     const searcherResult =
         await getSearchResult(
-            db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
+            db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
     if (searcherResult == null) {
       logs(broadSteps)("Bad search for event ", event_name);
       const result = {
@@ -240,25 +242,27 @@ export async function investigate(
         logs(broadSteps)("Skipping blacklisted domain:", url);
         return;
       }
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          logs(broadSteps)("Skipping non-ok'd url:", url);
+      await fetchThrottler.prioritized(throttlerPriority, async () => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            logs(broadSteps)("Skipping non-ok'd url:", url);
+            return;
+          }
+          const contentType = response.headers.get('content-type');
+          if (!contentType) {
+            logs(broadSteps)("No content-type, skipping:", url);
+            return;
+          }
+          if (!contentType.includes('text/html')) {
+            logs(broadSteps)("Skipping non-html response:", url);
+            return;
+          }
+        } catch (error) {
+          logs(broadSteps)("Skipping error'd url:", url, "error:", error);
           return;
         }
-        const contentType = response.headers.get('content-type');
-        if (!contentType) {
-          logs(broadSteps)("No content-type, skipping:", url);
-          return;
-        }
-        if (!contentType.includes('text/html')) {
-          logs(broadSteps)("Skipping non-html response:", url);
-          return;
-        }
-      } catch (error) {
-        logs(broadSteps)("Skipping error'd url:", url, "error:", error);
-        return;
-      }
+      });
       urls.push(url);
     })
 
@@ -278,6 +282,7 @@ export async function investigate(
             scratchDir,
             db,
             googleSearchApiKey,
+            fetchThrottler,
             searchThrottler,
             searchCacheCounter,
             chromeFetcher,
@@ -359,7 +364,7 @@ export async function investigate(
   }
 }
 
-async function getSearchResult(db, googleSearchApiKey, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
+async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
   const maybeSearcherResult =
       await db.getCachedGoogleResult(googleQuery);
   if (maybeSearcherResult) {

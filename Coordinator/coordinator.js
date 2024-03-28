@@ -59,6 +59,7 @@ const db = new LocalDb(null, "./db.sqlite");
 
 let chromeFetcher = null;
 try {
+  const fetchThrottler = new Semaphore(10, null);
 	const gptThrottler = new Semaphore(null, 120);
 	const searchThrottler = new Semaphore(10, null);
 	chromeFetcher =
@@ -115,6 +116,7 @@ try {
 				scratchDir,
 				db,
 				googleSearchApiKey,
+        fetchThrottler,
 				searchThrottler,
 				searchCacheCounter,
 				chromeFetcher,
