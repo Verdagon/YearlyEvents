@@ -106,6 +106,7 @@ export async function analyze(
         inspiration_submission_id: submissionId,
         pageText,
         analysis,
+        url
       });
       await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
       return;
@@ -114,7 +115,8 @@ export async function analyze(
       await addOtherEventSubmission(db, {
         inspiration_submission_id: submissionId,
         pageText,
-        analysis
+        analysis,
+        url
       });
       await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
       return;
@@ -507,7 +509,7 @@ async function googleSearch(googleSearchApiKey, query) {
   }
 }
 
-async function addOtherEventSubmission(db, otherEvent) {
+async function addOtherEventSubmission(db, url, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
 
