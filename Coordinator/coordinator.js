@@ -195,8 +195,8 @@ process.on('SIGINT', async () => {
   }
 });
 
-console.log("Handles:");
-console.log(process._getActiveHandles());
-console.log("Requests:");
-console.log(process._getActiveRequests());
+// console.log("Handles:");
+// console.log(process._getActiveHandles());
+// console.log("Requests:");
+// console.log(process._getActiveRequests());
 console.log("Done!");

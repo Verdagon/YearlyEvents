@@ -75,6 +75,7 @@ export async function analyzePage(
     throttlerPriority,
     steps,
     openai,
+    submissionId,
     model,
     url,
     page_text,
@@ -94,7 +95,7 @@ export async function analyzePage(
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
 		description =
-		    await askTruncated(gptThrottler, throttlerPriority, openai, SUMMARIZE_PROMPT + "\n------\n" + page_text);
+		    await askTruncated(gptThrottler, throttlerPriority, openai, submissionId, SUMMARIZE_PROMPT + "\n------\n" + page_text);
 		await db.cachePageSummary({url, model, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
     logs(steps)({ "": "GPT response:", "details": description });
 	}
@@ -175,16 +176,19 @@ export async function analyzePage(
 		logs(steps)("No questions, skipping...");
 	} else {
 		logs(steps)("Asking GPT to analyze...");
+    // console.log("bork 0", submissionId, url);
 		analysisResponse =
-			await askTruncated(gptThrottler, throttlerPriority, openai, analyzeQuestion + "\n------\n" + description);
+			await askTruncated(gptThrottler, throttlerPriority, openai, submissionId, analyzeQuestion + "\n------\n" + description);
 		// console.log("GPT:")
 		// console.log(analysisResponse);
 		// steps.push(analysisResponse);
 
 		for (const lineUntrimmed of analysisResponse.split("\n")) {
+      // console.log("bork a", submissionId, url);
 			const line = lineUntrimmed.trim().replace(/"/g, "");
 			const answerParts = /\s*(\d*)?\s*[:\.]?\s*(.*)/i.exec(line);
 			if (nextGptQuestionNumber == 2) { // Only one question.
+        // console.log("bork b", submissionId, url);
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
 					logs(steps)("Got invalid line: " + line);
@@ -200,19 +204,23 @@ export async function analyzePage(
 					continue;
 				}
 				const answer = answerParts[2];
-        for (const question in questionToGptAnswer) {
+        for (const question in questionToGptQuestionNumber) {
+          // console.log("bork c", submissionId, url);
           questionToGptAnswer[question] = answer;
           await db.finishAnalysisQuestion(
               url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
           break;
         }
+        throw logs(steps)("Couldn't answer only question?");
 			} else {
+        // console.log("bork e", submissionId, url);
 				if (!answerParts || !answerParts[1] || !answerParts[2]) {
 					logs(steps)("Got invalid line:", line);
 					continue;
 				}
 				const numberStr = answerParts[1].replace(/\D/g, '');
 				const number = numberStr - 0;
+        // console.log("bork f", submissionId, url);
 				if (number != numberStr) {
 					logs(steps)("Got line with invalid number: ", numberStr, " line: ", line);
           await db.finishAnalysisQuestion(
@@ -226,6 +234,7 @@ export async function analyzePage(
             });
 					continue;
 				}
+        // console.log("bork g", submissionId, url);
 				const question = gptQuestionNumberToQuestion[number];
 				if (question == null) {
 					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", Object.keys(questionToGptAnswer).length);
@@ -240,13 +249,18 @@ export async function analyzePage(
             });
 					continue;
 				}
+        // console.log("bork h", submissionId, url);
 				const answer = answerParts[2];
 
 				questionToGptAnswer[question] = answer;
+        // console.log("bork i", submissionId, url);
         await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
 			}
+        // console.log("bork j", submissionId, url);
 		}
+        // console.log("bork k", submissionId, url);
 	}
+        // console.log("bork l", submissionId, url);
 
   const questionToAnswer = {};
   for (const question of questions) {

@@ -68,7 +68,7 @@ export async function analyze(
 
     const {text: pageText_, error: pageTextError_} =
         await getPageText(
-            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, pageSteps, event_i, event_name, search_result_i, url);
+            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, pageSteps, event_i, event_name, search_result_i, url);
     pageText = pageText_;
     pageTextError = pageTextError_;
 
@@ -82,7 +82,7 @@ export async function analyze(
 
     const [matchness, analysis, analyzeInnerStatus] =
         await analyzePage(
-            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, model, url, pageText, event_name, event_city, event_state);
+            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, submissionId, model, url, pageText, event_name, event_city, event_state);
     if (analyzeInnerStatus == 'created') {
       await db.finishPageAnalysis(submissionId, url, model, 'created', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'errors') {
@@ -198,7 +198,7 @@ export async function investigate(
     logs(broadSteps)("Googling:", googleQuery);
     const searcherResult =
         await getSearchResult(
-            db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery);
+            db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery);
     if (searcherResult == null) {
       logs(broadSteps)("Bad search for event ", event_name);
       const result = {
@@ -233,18 +233,21 @@ export async function investigate(
         .map(row => row.url);
     // Add new rows for new URLs
     const urls = [];
-    await parallelEachI(unfilteredResponseUrls, async (urlI, url) => {
+    console.log("Filtering...");
+    // We don't parallelize because we want to short-circuit once we hit 7
+    for (const url of unfilteredResponseUrls) {
       if (urls.length >= 7) {
+        console.log("Ignoring url, already at limit.")
         // Limit to 7
-        return;
+        break;
       }
       if (urls.includes(url)) {
         console.log("Skipping already included URL:", url);
-        return;
+        continue;
       }
       if (url == "") {
         logs(broadSteps)("Skipping blank url");
-        return;
+        continue;
       }
       const blacklistedDomains = [
         "youtube.com",
@@ -253,7 +256,7 @@ export async function investigate(
       const urlLowercase = url.toLowerCase();
       if (blacklistedDomains.filter(entry => urlLowercase.includes(entry)).length) {
         logs(broadSteps)("Skipping blacklisted domain:", url);
-        return;
+        continue;
       }
       const cachedRow = await db.getPageText(url);
       if (cachedRow && cachedRow.text) {
@@ -262,7 +265,18 @@ export async function investigate(
         // We don't have it, so see if we can do a basic request to it
         await fetchThrottler.prioritized(throttlerPriority, async () => {
           try {
-            const response = await fetch(url);
+            console.log("Checking url", url);
+            let finished = false;
+            const controller = new AbortController();
+            const abortTimeoutId = setTimeout(() => {
+              if (!finished) {
+                console.log("Aborting lagging request to", url);
+                controller.abort()
+              }
+            }, 30000);
+            const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+            controller.abort();
+            finished = true;
             if (!response.ok) {
               logs(broadSteps)("Skipping non-ok'd url:", url);
               return;
@@ -276,14 +290,19 @@ export async function investigate(
               logs(broadSteps)("Skipping non-html response:", url);
               return;
             }
+            // proceed
           } catch (error) {
             logs(broadSteps)("Skipping error'd url:", url, "error:", error);
             return;
           }
+          // proceed
         });
+        // proceed
       }
+      console.log("Adding url", url);
       urls.push(url);
-    })
+    }
+    console.log("Filtered");
 
     let months = [];
     let num_errors = 0;
@@ -383,7 +402,7 @@ export async function investigate(
   }
 }
 
-async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, googleQuery) {
+async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery) {
   const maybeSearcherResult =
       await db.getCachedGoogleResult(googleQuery);
   if (maybeSearcherResult) {
@@ -395,8 +414,8 @@ async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThr
   const response =
       await searchThrottler.prioritized(throttlerPriority, async () => {
         console.log("Released for Google!", throttlerPriority)
-        console.log("Expensive: Google:", googleQuery);
-        debugger;
+        console.log("Expensive", submissionId, "google:", googleQuery);
+        // debugger;
         return await googleSearch(googleSearchApiKey, googleQuery);
       });
   console.log("Caching google result");
@@ -404,12 +423,12 @@ async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThr
   return {response: response};
 }
 
-async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url) {
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
-    console.log("Expensive: chromeFetcher:", url);
-    debugger;
+    console.log("Expensive", submissionId, "chromeFetcher:", url);
+    // debugger;
     await chromeFetcher.send(url + " " + pdfOutputPath);
   } catch (err) {
     const error =
@@ -441,7 +460,7 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   return {text, error: null};
 }
 
-async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url) {
   // This used to be wrapped in a transaction but I think it was causing the connection
   // pool to get exhausted.
 
@@ -453,7 +472,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 
   const {text, error} =
       await getPageTextInner(
-          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url);
+          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url);
   // This automatically merges on conflict
   await db.cachePageText({url, text, error});
   return {text, error};
