@@ -84,7 +84,11 @@ export async function analyze(
     const [matchness, analysis] =
         await analyzePage(
             db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, model, url, pageText, event_name, event_city, event_state);
-
+    if (!analysis.name || !analysis.city || !analysis.state) {
+      logs(pageSteps, broadSteps)("No city, state, or name, rejecting.");
+      await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
+      return;
+    }
     if (matchness == 5) { // Multiple events
       logs(pageSteps, broadSteps)("Multiple events, ignoring.");
       await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);

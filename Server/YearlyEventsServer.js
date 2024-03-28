@@ -202,6 +202,15 @@ export class YearlyEventsServer {
   }
 
   async submit(status, name, city, state, description, url, origin_query, need) {
+    if (!name) {
+      throw "Missing name!";
+    }
+    if (!city) {
+      throw "Missing city!";
+    }
+    if (!state) {
+      throw "Missing state!";
+    }
     return await addSubmission(this.db, {status, name, city, state, description, url, origin_query, need});
   }
 
