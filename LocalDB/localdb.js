@@ -31,7 +31,7 @@ export class LocalDb {
 		if (this.knex == null) {
 			throw "Already in transaction!";
 		}
-    this.txnThrottler.do(async () => {
+    return await this.txnThrottler.do(async () => {
   		return await this.knex.transaction(async (trx) => {
   			return await inner(new LocalDb(this.txnThrottler, trx, null));
   		});
