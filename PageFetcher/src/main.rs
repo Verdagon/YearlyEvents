@@ -140,7 +140,7 @@ fn main() {
 		} else {
 			last_successful_batch_time = batch_end_time;
 			if num_requests == max_tab_count {
-				max_tab_count += 1;
+				max_tab_count += 3;
 				eprintln!("Maxed batch was successful, increasing throttle to {}", max_tab_count);
 			}
 		}
@@ -246,11 +246,11 @@ fn handle_error_maybe_requeue_inner(
   		"Timeout/disconnect while {} for request {} (tries left {}) url {}",
   		operation, req.uuid, req.remaining_tries, req.url);
 	*batch_had_timeouts = true;
-  if req.remaining_tries == 0 {
+  req.remaining_tries -= 1;
+  if req.remaining_tries <= 0 {
   	eprintln!("Giving up on request {} {}", req.uuid, req.url);
 		println!("{} error Too many timeouts, retries exhausted.", req.uuid);
   } else {
-  	req.remaining_tries -= 1;
   	eprintln!(
   			"Queueing for request {} (tries left {}) url {}",
   			req.uuid, req.remaining_tries, req.url);
