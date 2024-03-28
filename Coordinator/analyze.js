@@ -183,6 +183,7 @@ export async function analyzePage(
 		for (const lineUntrimmed of analysisResponse.split("\n")) {
 			const line = lineUntrimmed.trim().replace(/"/g, "");
 			const answerParts = /\s*(\d*)?\s*[:\.]?\s*(.*)/i.exec(line);
+      log(steps)("Got parts:", answerParts);
 			if (nextGptQuestionNumber == 2) { // Only one question.
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
@@ -224,7 +225,15 @@ export async function analyzePage(
 		const answer =
 			questionToMaybeCachedAnswer[question] || questionToGptAnswer[question];
 		if (answer == null) {
-			throw logs(false, steps)("Error: in original request\n--------\n" + analyzeQuestion + "\n--------\nno answer anywhere for question \"" + question + "\" in GPT answer:\n--------\n" + analysisResponse);
+			throw logs(false, steps)(
+        "Error: in original request\n--------\n",
+        analyzeQuestion,
+        "\n--------\nno answer anywhere for question \"",
+        question,
+        "\" in GPT answer:\n--------\n",
+        analysisResponse,
+        "\ndeets:\n",
+        {nextGptQuestionNumber, gptQuestionNumberToQuestion});
 		}
 		questionToAnswer[question] = answer;
 		steps.push(["Answered \"", answer, "\" to: ", question, (questionToMaybeCachedAnswer[question] ? " (cached)" : "")]);
