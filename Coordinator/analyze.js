@@ -86,7 +86,7 @@ export async function analyzePage(
   }
 
   const maybeRow = await db.getCachedSummary(url, model, SUMMARIZE_PROMPT_VERSION);
-  let description = maybeRow && maybeRow.description;
+  let description = maybeRow && maybeRow.response;
 
 	if (description) {
     console.log("Using cached summary.");
