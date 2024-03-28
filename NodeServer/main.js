@@ -62,7 +62,7 @@ if (!syncFs.existsSync(resourcesDir)) {
 
 const eta = new Eta();
 
-const dbThrottler = new Semaphore(20, null);
+const dbThrottler = new Semaphore(1, null);
 
 const db = new LocalDb(dbThrottler, null, dbPath);
 
