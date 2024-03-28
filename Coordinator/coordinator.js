@@ -106,7 +106,7 @@ try {
 		// Higher ones get prioritized more, and we want the earliest submissions prioritized more.
 		const throttlerPriority = -submissionIndex;
 
-		console.log("Starting doublecheck:", eventName, "in", + eventCity, eventState, submissionId);
+		console.log("Starting doublecheck:", eventName, "in", eventCity, eventState, submissionId);
 
     const model = 'gpt-3.5-turbo';
 
