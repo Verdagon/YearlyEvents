@@ -55,13 +55,15 @@ const configuration =
 		});
 const openai = new OpenAIApi(configuration);
 
-const db = new LocalDb(null, "./db.sqlite");
+const fetchThrottler = new Semaphore(10, null);
+const gptThrottler = new Semaphore(null, 120);
+const searchThrottler = new Semaphore(10, null);
+const txnThrottler = new Semaphore(100, null);
+
+const db = new LocalDb(txnThrottler, null, "./db.sqlite");
 
 let chromeFetcher = null;
 try {
-  const fetchThrottler = new Semaphore(10, null);
-	const gptThrottler = new Semaphore(null, 120);
-	const searchThrottler = new Semaphore(10, null);
 	chromeFetcher =
 			await makeLineServerProcess(
 					'./PageFetcher/target/debug/page_fetcher', [], 'Ready');

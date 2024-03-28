@@ -3,7 +3,8 @@ import { parallelEachI } from "../Common/parallel.js";
 import { normalizeName, normalizeState, normalizePlace } from "../Common/utils.js";
 
 export class LocalDb {
-	constructor(parent, dbPath) {
+	constructor(txnThrottler, parent, dbPath) {
+    this.txnThrottler = txnThrottler;
 		if (parent) {
 			this.knex = null;
 			this.target = parent;
@@ -30,9 +31,11 @@ export class LocalDb {
 		if (this.knex == null) {
 			throw "Already in transaction!";
 		}
-		return await this.knex.transaction(async (trx) => {
-			return await inner(new LocalDb(trx, null));
-		});
+    this.txnThrottler.do(async () => {
+  		return await this.knex.transaction(async (trx) => {
+  			return await inner(new LocalDb(this.txnThrottler, trx, null));
+  		});
+    });
 	}
 
   async getFromDb(tableName, cacheCounter, where, jsonFields) {
