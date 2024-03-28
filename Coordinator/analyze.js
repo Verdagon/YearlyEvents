@@ -248,32 +248,35 @@ export async function analyzePage(
 		}
 	}
 
-	const questionToAnswer = {};
-	for (const question of questions) {
-		const answer =
-			questionToMaybeCachedAnswer[question] || questionToGptAnswer[question];
+
+  for (const question of questions) {
+    const questionRow =
+        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
 		if (answer == null) {
-			throw logs(false, steps)(
-        "Error: in original request\n--------\n",
+      const error = {
+        "": "Question/answer not found!",
         analyzeQuestion,
-        "\n--------\nno answer anywhere for question \"",
-        question,
-        "\" in GPT answer:\n--------\n",
         analysisResponse,
-        "\ndeets:\n",
-        {nextGptQuestionNumber, gptQuestionNumberToQuestion});
+        question,
+        nextGptQuestionNumber,
+        questionToMaybeCachedAnswer,
+        questionToGptAnswer
+      };
+      await db.finishAnalysisQuestion(
+          url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
+      throw logs(false, steps)(error);
 		}
-    if (answer.status == 'success') {
+    if (questionRow.status == 'success') {
       // continue
-    } else if (answer.status == 'created') {
+    } else if (questionRow.status == 'created') {
       return [0, null, "created"];
-    } else if (answer.status == 'error') {
+    } else if (questionRow.status == 'error') {
       return [0, null, "errors"];
     } else {
-      throw logs(steps)("Wat response from analyze question:", answer.status);
+      throw logs(steps)("Wat response from analyze question:", questionRow.status);
     }
-		questionToAnswer[question] = answer;
-		steps.push(["Answered \"", answer, "\" to: ", question, (questionToMaybeCachedAnswer[question] ? " (cached)" : "")]);
+		questionToAnswer[question] = questionRow.answer;
+		steps.push(["Answered \"", questionRow.answer, "\" to: ", question, (questionToMaybeCachedAnswer[question] ? " (cached)" : "")]);
 	}
 
 	const matches = {
