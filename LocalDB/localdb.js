@@ -166,7 +166,10 @@ export class LocalDb {
 	}
 
   async getCachedSummary(url, model, promptVersion) {
-    const result = await (this.target).from("SummarizeCache").select().where({url, model, prompt_version: promptVersion});
+    const result =
+        await (this.target).from("SummarizeCache").select()
+            .where({url, model, prompt_version: promptVersion});
+    console.log("requesting cached", url, model, promptVersion, "result:", (result && result[0]) || null);
     return (result && result[0]) || null;
   }
 
