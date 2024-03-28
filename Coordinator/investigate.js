@@ -233,7 +233,6 @@ export async function investigate(
         .map(row => row.url);
     // Add new rows for new URLs
     const urls = [];
-    console.log("Filtering...");
     // We don't parallelize because we want to short-circuit once we hit 7
     for (const url of unfilteredResponseUrls) {
       if (urls.length >= 7) {
@@ -302,7 +301,6 @@ export async function investigate(
       console.log("Adding url", url);
       urls.push(url);
     }
-    console.log("Filtered");
 
     let months = [];
     let num_errors = 0;
