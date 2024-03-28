@@ -44,7 +44,6 @@ export async function analyze(
   let analysisStatus = null;
 
   try {
-
     await db.transaction(async (trx) => {
       const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
       if (maybePageAnalysisRow) {
@@ -58,11 +57,19 @@ export async function analyze(
       }
     });
 
+    if (!await db.getPageAnalysis(submissionId, url, model)) {
+      throw logs(pageSteps)("No analysis to use?!");
+    }
+
     if (analysisStatus == 'created') {
       console.log("Resuming existing page analysis row for url:", url);
       // Continue
     } else {
       console.log("Already finished page analysis for url:", url);
+
+      if (!await db.getPageAnalysis(submissionId, url, model)) {
+        throw logs(pageSteps)("No analysis to use?!");
+      }
       return;
     }
 
@@ -149,6 +156,10 @@ export async function analyze(
     }
     await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
     return;
+  }
+  
+  if (!await db.getPageAnalysis(submissionId, url, model)) {
+    throw logs(pageSteps)("No analysis to use?!");
   }
 }
 
