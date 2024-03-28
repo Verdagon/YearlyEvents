@@ -426,7 +426,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
     // TODO: We should probably periodically retry every fetch, investigation, analysis, and
     // submission that ended with errors.
     await db.transaction(async (trx) => {
-     const cachedPageTextRow = await db.getPageText(url);
+     const cachedPageTextRow = await trx.getPageText(url);
      if (!cachedPageTextRow) {
        await trx.cachePageText({url, text: null, error});
      }
