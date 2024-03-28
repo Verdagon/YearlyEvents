@@ -1,6 +1,6 @@
 import knexBuilder from 'knex';
 import { parallelEachI } from "../Common/parallel.js";
-import { normalizeName, normalizeState, normalizePlace } from "./utils.js";
+import { normalizeName, normalizeState, normalizePlace } from "../Common/utils.js";
 
 export class LocalDb {
 	constructor(parent, dbPath) {
