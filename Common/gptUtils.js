@@ -9,6 +9,7 @@ export async function askTruncated(gptThrottler, throttlerPriority, openai, quer
 	return await gptThrottler.prioritized(throttlerPriority, async () => {
 		console.log("Released for GPT!", throttlerPriority)
     console.log("Expensive: ChatGPT:", query.slice(0, 100));
+    debugger;
 		try {
 			// https://stackoverflow.com/questions/75396481/openai-gpt-3-api-error-this-models-maximum-context-length-is-4097-tokens
 			const sliceTo = 2000;

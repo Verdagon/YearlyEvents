@@ -44,7 +44,6 @@ export async function analyze(
   let analysisStatus = null;
 
   try {
-    console.log("bork 1")
 
     await db.transaction(async (trx) => {
       const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
@@ -389,6 +388,7 @@ async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThr
       await searchThrottler.prioritized(throttlerPriority, async () => {
         console.log("Released for Google!", throttlerPriority)
         console.log("Expensive: Google:", googleQuery);
+        debugger;
         return await googleSearch(googleSearchApiKey, googleQuery);
       });
   console.log("Caching google result");
@@ -396,45 +396,23 @@ async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThr
   return {response: response};
 }
 
-async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
-  // This used to be wrapped in a transaction but I think it was causing the connection
-  // pool to get exhausted.
-
-    console.log("bork 2")
-  const cachedPageTextRow = await db.getPageText(url);
-    console.log("bork 2.4")
-  if (cachedPageTextRow) {
-    console.log("bork 2.5")
-    chromeCacheCounter.count++;
-    return cachedPageTextRow;
-  }
-
-    console.log("bork 3")
+async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
     console.log("Expensive: chromeFetcher:", url);
+    debugger;
     await chromeFetcher.send(url + " " + pdfOutputPath);
-    console.log("bork 4")
   } catch (err) {
     const error =
         "Bad fetch/browse for event " + eventName + " result " + url + ": " + 
         (err.status ?
             err.status + ": " + err.rest :
             err);
-    console.log(error)
-    // TODO: We should probably periodically retry every fetch, investigation, analysis, and
-    // submission that ended with errors.
-    await db.transaction(async (trx) => {
-     const cachedPageTextRow = await trx.getPageText(url);
-     if (!cachedPageTextRow) {
-       await trx.cachePageText({url, text: null, error});
-     }
-    });
+    console.log(error);
     return {text: null, error};
   }
 
-    console.log("bork 5")
   const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
   const commandArgs = ["./PdfToText/main.py", pdfOutputPath, txt_path];
   const pdftotextExitCode = await runCommandForStatus("python3", commandArgs)
@@ -442,14 +420,6 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   if (pdftotextExitCode !== 0) {
     const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdfOutputPath;
     console.log(error);
-    // Don't save errors
-    // await db.transaction(async (trx) => {
-    //  const cachedPageTextRow =
-    //      await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-    //  if (!cachedPageTextRow) {
-    //    await trx.cachePageText({url, text: null, error});
-    //  }
-    // });
     return {text: null, error};
   }
   steps.push(["Created text in", txt_path])
@@ -457,25 +427,28 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
   if (!text) {
     const error = "No result text found for " + eventName + ", args: " + commandArgs.join(" ");
     console.log(error);
-    // Don't save errors
-    // await db.transaction(async (trx) => {
-    //  const cachedPageTextRow =
-    //      await trx.getFromDb("PageTextCache", chromeCacheCounter, {"url": url});
-    //  if (!cachedPageTextRow) {
-    //    await trx.cachePageText({url, text: null, error});
-    //  }
-    // });
     return {text: null, error};
   }
 
-
-  await db.transaction(async (trx) => {
-    const cachedPageTextRow = await trx.getPageText(url);
-    if (!cachedPageTextRow) {
-      await trx.cachePageText({url, text, error: null});
-    }
-  });
   return {text, error: null};
+}
+
+async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url) {
+  // This used to be wrapped in a transaction but I think it was causing the connection
+  // pool to get exhausted.
+
+  const cachedPageTextRow = await db.getPageText(url);
+  if (cachedPageTextRow) {
+    chromeCacheCounter.count++;
+    return cachedPageTextRow;
+  }
+
+  const {text, error} =
+      await getPageTextInner(
+          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, steps, eventI, eventName, resultI, url);
+  // This automatically merges on conflict
+  await db.cachePageText({url, text, error});
+  return {text, error};
 }
 
 async function googleSearch(googleSearchApiKey, query) {
