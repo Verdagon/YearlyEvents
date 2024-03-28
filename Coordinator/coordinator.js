@@ -161,6 +161,10 @@ try {
           description: null
         });
       });
+    } else if (investigationRow.status == 'errors') {
+      await db.updateSubmissionStatus(submissionId, 'errors');
+    } else {
+      throw "Weird status from investigation: " + investigationRow.status;
     }
 	});
 

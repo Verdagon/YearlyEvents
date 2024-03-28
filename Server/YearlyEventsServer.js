@@ -145,8 +145,6 @@ export class YearlyEventsServer {
       } else {
         // Do nothing
       }
-
-      event.confirmations = await this.db.getEventConfirmations(event.id);
     });
     return events;
   }
@@ -196,9 +194,6 @@ export class YearlyEventsServer {
     }
 
     const event = await this.db.getSubmissionEvent(submissionId);
-    if (event) {
-      event.confirmations = await this.db.getEventConfirmations(event.id);
-    }
 
     const pageHtml = await this.getResource("submission.html");
 		const response = this.eta.renderString(pageHtml, { submission, event });
