@@ -196,3 +196,5 @@ process.on('SIGINT', async () => {
 });
 
 console.log("Done!");
+console.log(process._getActiveHandles());
+console.log(process._getActiveRequests());
