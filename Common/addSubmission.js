@@ -1,5 +1,5 @@
 
-import { normalizeName, normalizeState } from "./utils.js";
+import { normalizeName, normalizeState, normalizePlace } from "./utils.js";
 
 // export async function getSimilarSubmission(db, name, city, state) {
 // 	const normalizedName = normalizeName(name, city, state);
