@@ -165,6 +165,11 @@ export class LocalDb {
         .onConflict(['url', 'prompt_version', 'model']).merge();
 	}
 
+  async getCachedSummary(url, model, promptVersion) {
+    const result = await (this.target).from("SummarizeCache").select().where({url, model, prompt_version: promptVersion});
+    return (result && result[0]) || null;
+  }
+
 	async updateSubmissionStatus(submissionId, status) {
 		await (this.target)("Submissions")
         .where({'submission_id': submissionId})
@@ -320,7 +325,11 @@ export class LocalDb {
   }
 
   async getFailedNeedSubmissions() {
-    return await (this.target).select().from("Submissions").whereNot('need', 0).whereNot('status', "confirmed").whereNot('status', "created");
+    return await (this.target).select().from("Submissions")
+        .whereNot('need', 0)
+        .whereNot('status', "confirmed")
+        .whereNot('status', "created")
+        .whereNot('status', 'buried');
   }
 
   async getEventConfirmations(eventId) {

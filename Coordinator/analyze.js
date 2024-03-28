@@ -58,22 +58,6 @@ function getMonthOrNull(month_response) {
 }
 
 
-async function getCachedDescription(db, gptCacheCounter, url) {
-	const maybeRow =
-	    await db.getFromDb(
-					"SummarizeCache",
-					gptCacheCounter,
-					{
-						"url": url,
-						prompt_version: SUMMARIZE_PROMPT_VERSION
-					});
-	if (!maybeRow) {
-		return null;
-	}
-	const {response} = maybeRow;
-	return response;
-}
-
 // Returns:
 // - How closely it matches.
 //   - 0: not event.
@@ -101,8 +85,9 @@ export async function analyzePage(
     throw "Steps null wtf";
   }
 
-	let description =
-			await getCachedDescription(db, gptCacheCounter, url);
+  const maybeRow = await db.getCachedSummary(url, model, SUMMARIZE_PROMPT_VERSION);
+  const description = maybeRow && maybeRow.description;
+
 	if (description) {
     console.log("Using cached summary.");
   } else {
