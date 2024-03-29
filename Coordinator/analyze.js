@@ -142,9 +142,9 @@ export async function analyzePage(
     const questionRow =
         await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     if (questionRow) {
-      console.log("Resuming question row", questionRow.url, questionRow.question);
+      console.log(("Resuming question row" + questionRow.url + questionRow.question).slice(0, 80));
     } else {
-      console.log("Creating analysis question row.");
+      console.log(("Creating analysis question row:" + questionRow.question).slice(0, 80));
       await db.createAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     }
     if (questionRow && questionRow.answer) {

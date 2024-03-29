@@ -135,8 +135,12 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
 	    case "/askGpt.html": {
-	      res.write(await server.askGpt());
+	      res.write(await this.getResource("askGpt.html"));
 	    } break;
+
+      case "/submit.html": {
+        res.write(await this.getResource("submit.html"));
+      } break;
 
       case "/waiting.html": {
         const confirmedSubmissions = await server.confirmed();
@@ -178,6 +182,18 @@ const nodeServer = http.createServer(async function(req, res) {
 	        res.write("Event already exists.")
 	      }
 	    } break;
+
+      case "/submitted": {
+        const {url, action} = queryParams;
+        if (url == null) throw "Missing url!";
+        if (action == null) throw "Missing action!";
+
+        const status = action == 'approve' ? 'approved' : 'created';
+        const need = action == 'need' ? 1 : 0;
+
+        const id = await server.submitUrl(url, status, need);
+        res.writeHead(301, { 'Location': "/submission?submission_id=" + id });
+      } break;
 
 	    case "/publish": {
 	      const {event_id: eventId, best_url: bestUrl} = queryParams;

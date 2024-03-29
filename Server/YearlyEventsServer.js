@@ -173,13 +173,6 @@ export class YearlyEventsServer {
     return await this.db.numCreatedInvestigations();
   }
 
-	async askGpt() {
-		console.log("getting thing");
-		const x = await this.getResource("askGpt.html");
-		console.log("got thing");
-		return x;
-	}
-
 	async submission(submissionId) {
     const submission = await this.db.getSubmission(submissionId);
 
@@ -207,6 +200,10 @@ export class YearlyEventsServer {
 		const response = this.eta.renderString(pageHtml, { submission, event });
     console.log("Response:", response);
     return response;
+  }
+
+  async submitUrl(url, status, need) {
+    return await this.submit(status, null, null, null, null, url, null, need);
   }
 
   async submit(status, name, city, state, description, url, origin_query, need) {
