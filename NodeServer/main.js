@@ -144,7 +144,7 @@ const nodeServer = http.createServer(async function(req, res) {
         const failedNeedSubmissions = await server.failedNeedSubmissions();
         const numApprovedSubmissions = await server.numApprovedSubmissions();
         const pageHtml = await getResource("waiting.html");
-        const response = eta.renderString(pageHtml, { confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions });
+        const response = eta.renderString(pageHtml, { confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions });
         console.log("Response:", response);
         res.write(response);
       } break;
