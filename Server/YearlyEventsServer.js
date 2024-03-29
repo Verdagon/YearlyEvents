@@ -175,6 +175,9 @@ export class YearlyEventsServer {
 
 	async submission(submissionId) {
     const lead = await this.db.getLead(submissionId);
+    if (lead) {
+      lead.pageAnalyses = this.db.getPageAnalysesByUrl(lead.url);
+    }
 
     const submission = await this.db.getSubmission(submissionId);
     if (submission) {

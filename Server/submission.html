@@ -167,6 +167,11 @@
     <a href="<%= it.lead.url %>" target="_blank"><%= it.lead.url %></a>
   </div>
   <div>Future submission: <%= it.lead.future_submission_status %>, need: <%= it.lead.future_submission_need %></div>
+  <% if (it.lead.pageAnalyses) { %>
+    <% it.lead.pageAnalyses.forEach(function(analysis){ %>
+      <div>Analysis: <%= analysis %></div>
+    <% }) %>
+  <% } %>
 <% } else { %>
   <div>(No lead)</div>
 <% } %>

@@ -274,7 +274,7 @@ export class LocalDb {
             id,
             url,
             status,
-            steps,
+            steps: JSON.stringify(steps),
             future_submission_status,
             future_submission_need
           });
@@ -504,6 +504,17 @@ export class LocalDb {
       			row.analysis = JSON.parse(row.analysis);
       			return row;
       		});
+    });
+  }
+
+  async getPageAnalysesByUrl(submissionId, url) {
+    return await this.maybeThrottle(async () => {
+      return (await (this.target).select().from("PageAnalyses").where({submission_id: submissionId, url: url}))
+          .map((row) => {
+            row.steps = JSON.parse(row.steps);
+            row.analysis = JSON.parse(row.analysis);
+            return row;
+          });
     });
   }
 
