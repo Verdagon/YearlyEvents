@@ -135,12 +135,18 @@ export async function analyzePage(
 		LAST_DATE_QUESTION,
 		NEXT_DATE_QUESTION,
 		MONTH_QUESTION,
-		SUMMARY_QUESTION,
-		matchesCityQuestion,
-		matchesStateQuestion,
-		matchesAnywhereQuestion
+		SUMMARY_QUESTION
 	];
-
+  if (matchesCityQuestion) {
+    questions.push(matchesCityQuestion);
+  }
+  if (matchesStateQuestion) {
+    questions.push(matchesStateQuestion);
+  }
+  if (matchesAnywhereQuestion) {
+    questions.push(matchesAnywhereQuestion);
+  }
+  
 	const questionToMaybeCachedAnswer = {};
 	for (const question of questions) {
     const questionRow =
