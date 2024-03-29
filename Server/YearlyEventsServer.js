@@ -212,7 +212,7 @@ export class YearlyEventsServer {
         return maybeLead.id;
       }
       const id = crypto.randomUUID();
-      await trx.addLead({id, url, status, need});
+      await trx.addLead(id, url, status, need);
       return id;
     });
   }
