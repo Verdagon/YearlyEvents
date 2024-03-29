@@ -215,7 +215,7 @@ export class YearlyEventsServer {
       const steps = [];
       logs(steps)("Created lead", url, futureSubmissionStatus, "need:", futureSubmissionNeed);
       await trx.addLead(
-          id, url, status, steps, futureSubmissionStatus, futureSubmissionNeed);
+          id, url, 'created', steps, futureSubmissionStatus, futureSubmissionNeed);
       return id;
     });
   }
