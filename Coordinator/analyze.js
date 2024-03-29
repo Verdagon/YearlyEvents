@@ -232,7 +232,7 @@ export async function analyzePage(
             analysisResponse,
             line,
             answerParts,
-            numQuestions: "num Qs:", Object.keys(questionToGptAnswer).length
+            numQuestions: Object.keys(questionToGptAnswer).length
           };
 					logs(steps)(error);
           await db.finishAnalysisQuestion(
@@ -248,7 +248,7 @@ export async function analyzePage(
             analysisResponse,
             line,
             answerParts,
-            numQuestions: "num Qs:", Object.keys(questionToGptAnswer).length
+            numQuestions: Object.keys(questionToGptAnswer).length
           };
           await db.finishAnalysisQuestion(
             url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
