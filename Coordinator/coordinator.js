@@ -11,7 +11,7 @@ import { LocalDb } from '../LocalDB/localdb.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import fs from "fs/promises";
 import { logs, normalizeName, makeLineServerProcess } from "../Common/utils.js";
-import { investigate } from "./investigate.js";
+import { investigate, analyze } from "./investigate.js";
 import { Configuration, OpenAIApi } from "openai";
 import { Semaphore, parallelEachI, makeMsThrottler } from "../Common/parallel.js";
 import urlencode from 'urlencode';

@@ -12,6 +12,7 @@ import { parallelEachI } from "../Common/parallel.js";
 
 const execFileAsync = util.promisify(execFile);
 
+// Move this elsewhere, reconcile with analyzePage
 export async function analyze(
     openai,
     scratchDir,
