@@ -199,7 +199,7 @@ const nodeServer = http.createServer(async function(req, res) {
         const status = action == 'approve' ? 'approved' : 'created';
         const need = action == 'need' ? 1 : 0;
 
-        const id = await server.submitUrl(url, status, need);
+        const id = await server.submitLead(url, status, need);
         res.writeHead(301, { 'Location': "/submission?submission_id=" + id });
       } break;
 

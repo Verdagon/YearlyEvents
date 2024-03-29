@@ -264,6 +264,18 @@ export class LocalDb {
     });
   }
 
+  async addLead(id, url, status, need) {
+    return await this.maybeThrottle(async () => {
+      await (this.target).into("Leads")
+          .insert({
+            id,
+            url,
+            status,
+            need
+          });
+    });
+  }
+
   async startPageAnalysis(submissionId, url, model) {
     return await this.maybeThrottle(async () => {
       await (this.target).into("PageAnalyses")
