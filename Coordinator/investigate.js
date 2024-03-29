@@ -95,7 +95,7 @@ export async function analyze(
     } else if (analyzeInnerStatus == 'errors') {
       await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'success') {
-      if (!analysis || !analysis.name || !analysis.city || !analysis.state) {
+      if (analysis && (!analysis.name || !analysis.city || !analysis.state)) {
         logs(pageSteps, broadSteps)("No analysis or city or state or name, rejecting.");
         await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
         return;

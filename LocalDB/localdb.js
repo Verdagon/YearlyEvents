@@ -389,6 +389,13 @@ export class LocalDb {
     });
   }
 
+  async numApprovedSubmissions() {
+    return await this.maybeThrottle(async () => {
+      return await (this.target)("Submissions")
+          .count('status', "approved");
+    });
+  }
+
   async getEventConfirmations(eventId) {
     return await this.maybeThrottle(async () => {
       return await (this.target).select().from("EventConfirmations").where({event_id: eventId});
