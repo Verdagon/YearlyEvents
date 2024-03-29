@@ -74,6 +74,7 @@ try {
   const model = 'gpt-3.5-turbo';
 
   let unfinishedLeads = await db.getUnfinishedLeads();
+  console.log(unfinishedLeads, "unfinished leads.");
   await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
     let broadSteps = [];
     const [matchness, analysis, analyzeInnerStatus] =
