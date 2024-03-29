@@ -2,7 +2,6 @@ import { Configuration, OpenAIApi } from "openai";
 import { Eta } from "eta";
 import { logs, normalizeName } from "../Common/utils.js";
 import { gptListEvents, makeNewConversation, continuedConversation }  from '../Common/gptListEvents.js';
-import { normalizeName } from '../Common/utils.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { Semaphore, parallelEachI } from "../Common/parallel.js"
 import { normalizeState } from "../Common/utils.js"
