@@ -205,14 +205,17 @@ export class YearlyEventsServer {
     return response;
   }
 
-  async submitLead(url, status, need) {
+  async submitLead(url, futureSubmissionStatus, futureSubmissionNeed) {
     return this.db.transaction(async (trx) => {
       const maybeLead = await trx.getLeadByUrl(url);
       if (maybeLead) {
         return maybeLead.id;
       }
       const id = crypto.randomUUID();
-      await trx.addLead(id, url, status, need);
+      const steps = [];
+      logs(steps)("Created lead", url, futureSubmissionStatus, "need:", futureSubmissionNeed);
+      await trx.addLead(
+          id, url, status, steps, futureSubmissionStatus, futureSubmissionNeed);
       return id;
     });
   }

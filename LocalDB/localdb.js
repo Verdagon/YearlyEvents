@@ -145,7 +145,7 @@ export class LocalDb {
     });
   }
 
-	async getApprovedSubmissions(trx) {
+	async getApprovedSubmissions() {
     return await this.maybeThrottle(async () => {
   		return await (this.target).select().from("Submissions")
   	      .whereNotNull("name")
@@ -267,14 +267,43 @@ export class LocalDb {
     });
   }
 
-  async addLead(id, url, status, need) {
+  async addLead(id, url, status, steps, future_submission_status, future_submission_need) {
     return await this.maybeThrottle(async () => {
       await (this.target).into("Leads")
           .insert({
             id,
             url,
             status,
-            need
+            steps,
+            future_submission_status,
+            future_submission_need
+          });
+    });
+  }
+
+  async updateLead(id, status, steps) {
+    return await this.maybeThrottle(async () => {
+      await (this.target)("Leads")
+          .where({id})
+          .update({
+            status,
+            steps: JSON.stringify(steps),
+          });
+    });
+  }
+
+  async getCreatedLeads() {
+    return await this.maybeThrottle(async () => {
+      return (
+          await (this.target).select("Leads.*").from("Leads")
+              .where({status: 'created'})
+              .leftJoin('Submissions', 'Leads.id', 'Submissions.submission_id')
+              .whereNull('Submissions.submission_id'))
+          .map(row => {
+            if (row.steps) {
+              row.steps = JSON.parse(row.steps);
+            }
+            return row;
           });
     });
   }

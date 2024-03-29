@@ -76,7 +76,7 @@ try {
   let unfinishedLeads = await db.getUnfinishedLeads();
   console.log(unfinishedLeads, "unfinished leads.");
   await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
-    let broadSteps = [];
+    let broadSteps = lead.steps;
     const [matchness, analysis, analyzeInnerStatus] =
         await analyze(
             openai,
@@ -110,8 +110,8 @@ try {
       // Proceed
     } else if (pageAnalysisRow.status == 'confirmed') {
       lead.status = 'confirmed'; // because its used below
-      console.log("Lead url:", url, "confirmed, adding", lead.status, "submission.");
-      await db.updateLead('confirmed');
+      logs(broadSteps)("Lead url", url, "confirmed, adding", lead.status, "submission.");
+      await db.updateLead(lead.id, 'confirmed', broadSteps);
 
       await addSubmission(this.db, {
           submission_id: lead.id,
@@ -125,11 +125,11 @@ try {
           need: lead.need
       });
     } else if (pageAnalysisRow.status == 'errors') {
-      console.log("Analysis for", url, "had errors, marking lead.");
-      await db.updateLead('errors');
+      logs(broadSteps)("Analysis for", url, "had errors, marking lead.");
+      await db.updateLead(lead.id, 'errors', broadSteps);
     } else if (pageAnalysisRow.status == 'rejected') {
-      console.log("Analysis for", url, "rejected, marking lead.");
-      await db.updateLead('rejected');
+      logs(broadSteps)("Analysis for", url, "rejected, marking lead.");
+      await db.updateLead(lead.id, 'rejected', broadSteps);
       // Do nothing
     } else {
       throw "Weird status from analyze: " + pageAnalysisRow.status;
