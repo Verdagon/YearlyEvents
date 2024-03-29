@@ -77,29 +77,28 @@ try {
   console.log(unfinishedLeads.length, "unfinished leads.");
   await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
     let broadSteps = lead.steps;
-    const [matchness, analysis, analyzeInnerStatus] =
-        await analyze(
-            openai,
-            scratchDir,
-            db,
-            googleSearchApiKey,
-            fetchThrottler,
-            searchThrottler,
-            searchCacheCounter,
-            chromeFetcher,
-            chromeCacheCounter,
-            gptThrottler,
-            -leadIndex, // throttlerPriority
-            gptCacheCounter,
-            model,
-            "Lead" + leadIndex,
-            null,
-            null,
-            null,
-            lead.id,
-            broadSteps,
-            0, // search_result_i
-            lead.url);
+    await analyze(
+        openai,
+        scratchDir,
+        db,
+        googleSearchApiKey,
+        fetchThrottler,
+        searchThrottler,
+        searchCacheCounter,
+        chromeFetcher,
+        chromeCacheCounter,
+        gptThrottler,
+        -leadIndex, // throttlerPriority
+        gptCacheCounter,
+        model,
+        "Lead" + leadIndex,
+        null,
+        null,
+        null,
+        lead.id,
+        broadSteps,
+        0, // search_result_i
+        lead.url);
 
     const pageAnalysisRow =
         await db.getPageAnalysis(submissionId, url, model);
