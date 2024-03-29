@@ -184,7 +184,15 @@ const nodeServer = http.createServer(async function(req, res) {
 	    } break;
 
       case "/submitted": {
-        const {url, action} = queryParams;
+        const urlencodedBody = await readPostData(req);
+        if (!urlencodedBody) {
+          throw "Invalid, no POST body!";
+        }
+        const body = querystring.parse(urlencodedBody);
+        if (!body) {
+          throw "Invalid encoded body:" + urlencodedBody;
+        }
+        const {url, action} = body;
         if (url == null) throw "Missing url!";
         if (action == null) throw "Missing action!";
 
