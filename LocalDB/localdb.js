@@ -391,8 +391,10 @@ export class LocalDb {
 
   async numApprovedSubmissions() {
     return await this.maybeThrottle(async () => {
-      return await (this.target)("Submissions")
-          .count('status', "approved");
+      return (await (this.target)("Submissions")
+          .count('submission_id as count')
+          .where('status', 'approved'))
+          .count;
     });
   }
 
