@@ -146,7 +146,7 @@ export async function analyzePage(
     const questionRow =
         await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     if (questionRow) {
-      console.log(("Resuming question row" + questionRow.url + questionRow.question).slice(0, 80));
+      console.log(("Resuming question row " + questionRow.url + ": " + questionRow.question).slice(0, 80));
     } else {
       console.log(("Creating analysis question row:" + question).slice(0, 80));
       await db.createAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
@@ -195,16 +195,16 @@ export async function analyzePage(
         // console.log("bork b", submissionId, url);
 				// Since only one question, we're a little more lax, we're fine if the number isn't there.
 				if (!answerParts || !answerParts[2]) {
-					logs(steps)("Got invalid line: " + line);
+          const error = {
+            "": "Got invalid line: " + line,
+            analyzeQuestion,
+            analysisResponse,
+            line,
+            answerParts
+          };
+					logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
-            {
-              "": "Got invalid line: " + line,
-              analyzeQuestion,
-              analysisResponse,
-              line,
-              answerParts
-            });
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
 					continue;
 				}
 				const answer = answerParts[2];
@@ -226,31 +226,32 @@ export async function analyzePage(
 				const number = numberStr - 0;
         // console.log("bork f", submissionId, url);
 				if (number != numberStr) {
-					logs(steps)("Got line with invalid number: ", numberStr, " line: ", line);
+          const error = {
+            "": "Got line with invalid number: " + numberStr,
+            analyzeQuestion,
+            analysisResponse,
+            line,
+            answerParts,
+            numQuestions: "num Qs:", Object.keys(questionToGptAnswer).length
+          };
+					logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
-            {
-              "": "Got line with invalid number: " + numberStr,
-              analyzeQuestion,
-              analysisResponse,
-              line,
-              answerParts
-            });
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
 					continue;
 				}
         // console.log("bork g", submissionId, url);
 				const question = gptQuestionNumberToQuestion[number];
 				if (question == null) {
-					logs(steps)("Got line with unknown number:", number, "line:", line, "num Qs:", Object.keys(questionToGptAnswer).length);
+          const error = {
+            "": "Got line with unknown number: " + numberStr,
+            analyzeQuestion,
+            analysisResponse,
+            line,
+            answerParts,
+            numQuestions: "num Qs:", Object.keys(questionToGptAnswer).length
+          };
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null,
-            {
-              "": "Got line with unknown number: " + numberStr,
-              analyzeQuestion,
-              analysisResponse,
-              line,
-              answerParts
-            });
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
 					continue;
 				}
         // console.log("bork h", submissionId, url);
