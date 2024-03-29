@@ -101,7 +101,7 @@ try {
         lead.url);
 
     const pageAnalysisRow =
-        await db.getPageAnalysis(lead.id, url, model);
+        await db.getPageAnalysis(lead.id, lead.url, model);
 
     if (pageAnalysisRow.status == 'created') {
       console.log("Lead analysis row is status created, pausing investigation.");
@@ -109,7 +109,7 @@ try {
       // Proceed
     } else if (pageAnalysisRow.status == 'confirmed') {
       lead.status = 'confirmed'; // because its used below
-      logs(broadSteps)("Lead url", url, "confirmed, adding", lead.status, "submission.");
+      logs(broadSteps)("Lead url", lead.url, "confirmed, adding", lead.status, "submission.");
       await db.updateLead(lead.id, 'confirmed', broadSteps);
 
       await addSubmission(this.db, {
@@ -124,10 +124,10 @@ try {
           need: lead.need
       });
     } else if (pageAnalysisRow.status == 'errors') {
-      logs(broadSteps)("Analysis for", url, "had errors, marking lead.");
+      logs(broadSteps)("Analysis for", lead.url, "had errors, marking lead.");
       await db.updateLead(lead.id, 'errors', broadSteps);
     } else if (pageAnalysisRow.status == 'rejected') {
-      logs(broadSteps)("Analysis for", url, "rejected, marking lead.");
+      logs(broadSteps)("Analysis for", lead.url, "rejected, marking lead.");
       await db.updateLead(lead.id, 'rejected', broadSteps);
       // Do nothing
     } else {
