@@ -101,7 +101,7 @@ try {
         lead.url);
 
     const pageAnalysisRow =
-        await db.getPageAnalysis(submissionId, url, model);
+        await db.getPageAnalysis(lead.id, url, model);
 
     if (pageAnalysisRow.status == 'created') {
       console.log("Lead analysis row is status created, pausing investigation.");
