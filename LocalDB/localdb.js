@@ -395,8 +395,8 @@ export class LocalDb {
           await (this.target)("Submissions")
               .count('submission_id as count')
               .where('status', 'approved');
-      console.log("result:", result);
-      return result.count;
+      // console.log("result:", result);
+      return result && result[0] && result[0].count;
     });
   }
 
