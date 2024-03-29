@@ -6,162 +6,11 @@ import { execFile, spawn } from 'node:child_process'
 import fs from "fs/promises";
 import urlencode from 'urlencode';
 import { logs, normalizeName, normalizeState, distinct, VException } from "../Common/utils.js";
-import { analyzePage } from './analyze.js'
+import { analyze } from './analyze.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import { parallelEachI } from "../Common/parallel.js";
 
 const execFileAsync = util.promisify(execFile);
-
-// Move this elsewhere, reconcile with analyzePage
-export async function analyze(
-    openai,
-    scratchDir,
-    db,
-    googleSearchApiKey,
-    fetchThrottler,
-    searchThrottler,
-    searchCacheCounter,
-    chromeFetcher,
-    chromeCacheCounter,
-    gptThrottler,
-    throttlerPriority,
-    gptCacheCounter,
-    model,
-    event_i,
-    event_name,
-    event_city,
-    event_state,
-    submissionId,
-    broadSteps,
-    search_result_i,
-    url) {
-  // We declare these up here so that the try block's exception can include them.
-  let pageSteps = [];
-  let pageText = null;
-  let pageTextError = null;
-  let analysis = null;
-  let analysisStatus = null;
-
-  try {
-    await db.transaction(async (trx) => {
-      const maybePageAnalysisRow = await trx.getPageAnalysis(submissionId, url, model);
-      if (maybePageAnalysisRow) {
-        analysisStatus = maybePageAnalysisRow.status;
-        pageSteps = maybePageAnalysisRow.steps || [];
-      }
-      if (!analysisStatus) {
-        logs(pageSteps, broadSteps)("Starting analysis for page:", url);
-        await trx.startPageAnalysis(submissionId, url, model);
-        analysisStatus = 'created';
-      }
-    });
-
-    if (!await db.getPageAnalysis(submissionId, url, model)) {
-      throw logs(pageSteps)("No analysis to use?!");
-    }
-
-    if (analysisStatus == 'created') {
-      console.log("Resuming existing page analysis row for url:", url);
-      // Continue
-    } else {
-      console.log("Already finished page analysis for url:", url);
-
-      if (!await db.getPageAnalysis(submissionId, url, model)) {
-        throw logs(pageSteps)("No analysis to use?!");
-      }
-      return;
-    }
-
-    const {text: pageText_, error: pageTextError_} =
-        await getPageText(
-            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, pageSteps, event_i, event_name, search_result_i, url);
-    pageText = pageText_;
-    pageTextError = pageTextError_;
-
-    if (pageTextError) {
-      throw logs(pageSteps, broadSteps)("Bad pdf-to-text. Error:", pageTextError);
-    }
-    if (!pageText) {
-      // This actually shouldnt happen, there's a check in getPageText.
-      throw logs(pageSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
-    }
-
-    const [matchness, analysis, analyzeInnerStatus] =
-        await analyzePage(
-            db, gptCacheCounter, gptThrottler, throttlerPriority, pageSteps, openai, submissionId, model, url, pageText, event_name, event_city, event_state);
-    if (analyzeInnerStatus == 'created') {
-      await db.finishPageAnalysis(submissionId, url, model, 'created', pageSteps, analysis);
-    } else if (analyzeInnerStatus == 'errors') {
-      logs(pageSteps, broadSteps)("Inner analyze had errors, marking analysis errors.");
-      await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
-    } else if (analyzeInnerStatus == 'success') {
-      if (analysis && (!analysis.name || !analysis.city || !analysis.state)) {
-        logs(pageSteps, broadSteps)("No analysis or city or state or name, rejecting.");
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      }
-      if (matchness == 5) { // Multiple events
-        logs(pageSteps, broadSteps)("Multiple events, ignoring.");
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      } else if (matchness == 4) { // Same city, confirmed.
-        logs(broadSteps)(event_name, "confirmed by", url);
-
-        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = analysis;
-
-        await db.finishPageAnalysis(submissionId, url, model, 'confirmed', pageSteps, analysis);
-        return;
-      } else if (matchness == 3) { // Same state, not quite confirm, submit it to other events
-        logs(broadSteps)("Not same, but discovered similar:", analysis.name);
-        await addOtherEventSubmission(db, {
-          inspiration_submission_id: submissionId,
-          pageText,
-          analysis,
-          url
-        });
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      } else if (matchness == 2) { // Same event but not even in same state, submit it to other events
-        logs(broadSteps)("Not same, but discovered similar:", analysis.name);
-        await addOtherEventSubmission(db, {
-          inspiration_submission_id: submissionId,
-          pageText,
-          analysis,
-          url
-        });
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      } else if (matchness == 1) { // Not same event, ignore it.
-        logs(broadSteps)("Not same event at all, ignoring.");
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      } else if (matchness == 0) { // Not an event, skip
-        logs(broadSteps)("Not an event, skipping.")
-        await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
-        return;
-      } else {
-        logs(broadSteps)("Wat analyze response:", matchness, analysis, analyzeInnerStatus);
-        num_errors++;
-      }
-    } else {
-      throw logs(broadSteps)("Wat analyze response:", matchness, analysis, analyzeInnerStatus)
-    }
-  } catch (error) {
-    // Make sure the error's contents is put into the steps.
-    // (unless it's a VException, was already logged to the steps)
-    if (!(error instanceof VException)) {
-      logs(pageSteps, broadSteps)(error);
-    } else {
-      console.log("Already logged error:", error);
-    }
-    await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
-    return;
-  }
-
-  if (!await db.getPageAnalysis(submissionId, url, model)) {
-    throw logs(pageSteps)("No analysis to use?!");
-  }
-}
 
 export async function investigate(
     openai,
@@ -320,10 +169,10 @@ export async function investigate(
     let alreadyConfirmed = false;
     for (const [url_i, url] of urls.entries()) {
       if (alreadyConfirmed) {
-        await db.finishPageAnalysis(submissionId, url, model, 'moot', [], {});
+        await db.finishPageAnalysis(url, model, 'moot', [], {});
       } else {
         // This will update the rows in the database.
-        await analyze(
+        await analyzePageOuter(
             openai,
             scratchDir,
             db,
@@ -346,7 +195,7 @@ export async function investigate(
             url_i,
             url);
         const pageAnalysisRow =
-            await db.getPageAnalysis(submissionId, url, model);
+            await db.getPageAnalysis(url, model);
         if (pageAnalysisRow.status == 'created') {
           console.log("Analysis row is status created, pausing investigation.");
           // If it's still created status, then we're waiting on something external.
@@ -354,30 +203,78 @@ export async function investigate(
           await db.finishInvestigation(
               submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
           return;
-        } else if (pageAnalysisRow.status == 'confirmed') {
-          console.log("Counting confirmation from url:", url);
-          num_confirms++;
-          const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow;
-          if (month) {
-            months.push(month);
-          }
-          const promising = yearly || (nextDate != null)
-          if (promising) {
-            num_promising++;
-          }
-          if (num_confirms + num_promising >= 5) {
-            logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
-            alreadyConfirmed = true;
-            // continue on, we're going to mark the rest as moot
-          }
         } else if (pageAnalysisRow.status == 'errors') {
           console.log("Counting error from url:", url);
           num_errors++;
+          continue;
         } else if (pageAnalysisRow.status == 'rejected') {
           console.log("Counting reject from url:", url);
-          // Do nothing
+          continue;
+        } else if (pageAnalysisRow.status == 'confirmed') {
+          // Proceed
         } else {
           throw "Weird status from analyze: " + pageAnalysisRow.status;
+        }
+
+        // This will update the rows in the database.
+        await matchPageOuter(
+            openai,
+            scratchDir,
+            db,
+            googleSearchApiKey,
+            fetchThrottler,
+            searchThrottler,
+            searchCacheCounter,
+            chromeFetcher,
+            chromeCacheCounter,
+            gptThrottler,
+            throttlerPriority,
+            gptCacheCounter,
+            submissionId,
+            model,
+            event_i,
+            event_name,
+            event_city,
+            event_state,
+            broadSteps,
+            url_i,
+            url);
+        const matchAnalysisRow =
+            await db.getMatchAnalysis(url, model, event_name, event_city, event_state);
+        if (matchAnalysisRow.status == 'created') {
+          console.log("Analysis row is status created, pausing investigation.");
+          // If it's still created status, then we're waiting on something external.
+          // Update the steps at least and then return.
+          await db.finishInvestigation(
+              submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
+          return;
+        } else if (matchAnalysisRow.status == 'errors') {
+          console.log("Counting error from url:", url);
+          num_errors++;
+          continue;
+        } else if (matchAnalysisRow.status == 'rejected') {
+          console.log("Counting reject from url:", url);
+          continue;
+        } else if (matchAnalysisRow.status == 'confirmed') {
+          // Proceed
+        } else {
+          throw "Weird status from analyze: " + matchAnalysisRow.status;
+        }
+
+        console.log("Counting confirmation from url:", url);
+        num_confirms++;
+        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = matchAnalysisRow;
+        if (month) {
+          months.push(month);
+        }
+        const promising = yearly || (nextDate != null)
+        if (promising) {
+          num_promising++;
+        }
+        if (num_confirms + num_promising >= 5) {
+          logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
+          alreadyConfirmed = true;
+          // continue on, we're going to mark the rest as moot
         }
       }
     }
@@ -429,16 +326,16 @@ async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThr
   return {response: response};
 }
 
-async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url) {
+async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
-    console.log("Expensive", submissionId, "chromeFetcher:", url);
+    console.log("Expensive", maybeIdForLogging, "chromeFetcher:", url);
     // debugger;
     await chromeFetcher.send(url + " " + pdfOutputPath);
   } catch (err) {
     const error =
-        "Bad fetch/browse for event " + eventName + " result " + url + ": " + 
+        "Bad fetch/browse for url " + url + ": " + 
         (err.status ?
             err.status + ": " + err.rest :
             err);
@@ -451,14 +348,14 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   const pdftotextExitCode = await runCommandForStatus("python3", commandArgs)
   console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
   if (pdftotextExitCode !== 0) {
-    const error = "Bad PDF-to-text for event " + eventName + " at url " + url + " pdf path " + pdfOutputPath;
+    const error = "Bad PDF-to-text for url " + url + " pdf path " + pdfOutputPath;
     console.log(error);
     return {text: null, error};
   }
   steps.push(["Created text in", txt_path])
   const text = (await fs.readFile(txt_path, { encoding: 'utf8' })).trim();
   if (!text) {
-    const error = "No result text found for " + eventName + ", args: " + commandArgs.join(" ");
+    const error = "No result text found for url " + url + ", args: " + commandArgs.join(" ");
     console.log(error);
     return {text: null, error};
   }
@@ -466,7 +363,7 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   return {text, error: null};
 }
 
-async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url) {
+async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
   // This used to be wrapped in a transaction but I think it was causing the connection
   // pool to get exhausted.
 
@@ -478,7 +375,7 @@ async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, th
 
   const {text, error} =
       await getPageTextInner(
-          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, steps, eventI, eventName, resultI, url);
+          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url);
   // This automatically merges on conflict
   await db.cachePageText({url, text, error});
   return {text, error};

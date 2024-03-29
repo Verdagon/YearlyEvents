@@ -308,11 +308,11 @@ export class LocalDb {
     });
   }
 
-  async getPageAnalysis(submissionId, url, model) {
+  async getPageAnalysis(url, model) {
     return await this.maybeThrottle(async () => {
       const row =
           (await (this.target).select().from("PageAnalyses")
-              .where({submission_id: submissionId, url}))
+              .where({url, model}))
               .map(row => {
                 if (row.steps) {
                   row.steps = JSON.parse(row.steps);
@@ -323,23 +323,21 @@ export class LocalDb {
     });
   }
 
-  async startPageAnalysis(submissionId, url, model) {
+  async startPageAnalysis(url, model) {
     return await this.maybeThrottle(async () => {
       await (this.target).into("PageAnalyses")
           .insert({
-            submission_id: submissionId,
-            url: url,
+            url,
             model,
             status: 'created'
           });
     });
   }
 
-  async finishPageAnalysis(submissionId, url, model, status, steps, analysis) {
+  async finishPageAnalysis(url, model, status, steps, analysis) {
     return await this.maybeThrottle(async () => {
       await (this.target)("PageAnalyses")
           .where({
-            submission_id: submissionId,
             url: url,
             model: model
           })

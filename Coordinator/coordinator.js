@@ -77,7 +77,8 @@ try {
   console.log(unfinishedLeads.length, "unfinished leads.");
   await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
     let broadSteps = lead.steps;
-    await analyze(
+    await analyzePageOuter(
+      start here 
         openai,
         scratchDir,
         db,
@@ -101,16 +102,15 @@ try {
         lead.url);
 
     const pageAnalysisRow =
-        await db.getPageAnalysis(lead.id, lead.url, model);
-
+        await db.getPageAnalysis(lead.url, model);
     if (pageAnalysisRow.status == 'created') {
       console.log("Lead analysis row is status created, pausing investigation.");
       // If it's still created status, then we're waiting on something external.
       // Proceed
-    } else if (pageAnalysisRow.status == 'confirmed') {
-      lead.status = 'confirmed'; // because its used below
-      logs(broadSteps)("Lead url", lead.url, "confirmed, adding", lead.status, "submission.");
-      await db.updateLead(lead.id, 'confirmed', broadSteps);
+    } else if (pageAnalysisRow.status == 'success') {
+      lead.status = 'success'; // because its used below
+      logs(broadSteps)("Lead url", lead.url, "success, adding", lead.status, "submission.");
+      await db.updateLead(lead.id, 'success', broadSteps);
 
       await addSubmission(this.db, {
           submission_id: lead.id,
@@ -126,10 +126,11 @@ try {
     } else if (pageAnalysisRow.status == 'errors') {
       logs(broadSteps)("Analysis for", lead.url, "had errors, marking lead.");
       await db.updateLead(lead.id, 'errors', broadSteps);
+      continue;
     } else if (pageAnalysisRow.status == 'rejected') {
       logs(broadSteps)("Analysis for", lead.url, "rejected, marking lead.");
       await db.updateLead(lead.id, 'rejected', broadSteps);
-      // Do nothing
+      continue;
     } else {
       throw "Weird status from analyze: " + pageAnalysisRow.status;
     }

@@ -176,7 +176,7 @@ export class YearlyEventsServer {
 	async submission(submissionId) {
     const lead = await this.db.getLead(submissionId);
     if (lead) {
-      lead.pageAnalyses = await this.db.getPageAnalysesByUrl(submissionId, lead.url);
+      lead.pageAnalyses = await this.db.getPageAnalysisByUrl(lead.url);
     }
 
     const submission = await this.db.getSubmission(submissionId);
@@ -184,7 +184,7 @@ export class YearlyEventsServer {
       submission.investigations = [];
       for (const investigation of await this.db.getInvestigations(submissionId)) {
       	investigation.pageAnalyses =
-            await this.db.getPageAnalyses(submissionId, investigation.model);
+            await this.db.getInvestigationPageAnalyses(submissionId, investigation.model);
         await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
           const pageTextRow = await this.db.getPageText(analysis.url);
           analysis.pageText = pageTextRow && pageTextRow.text;
