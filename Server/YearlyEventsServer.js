@@ -176,7 +176,7 @@ export class YearlyEventsServer {
 	async submission(submissionId) {
     const lead = await this.db.getLead(submissionId);
     if (lead) {
-      lead.pageAnalyses = this.db.getPageAnalysesByUrl(lead.url);
+      lead.pageAnalyses = this.db.getPageAnalysesByUrl(submissionId, lead.url);
     }
 
     const submission = await this.db.getSubmission(submissionId);
