@@ -249,17 +249,11 @@ export class LocalDb {
     });
   }
 
-  async getPageAnalysis(submissionId, url, model) {
+  async getLead(url) {
     return await this.maybeThrottle(async () => {
       const row =
-          (await (this.target).select().from("PageAnalyses")
-              .where({submission_id: submissionId, url}))
-              .map(row => {
-                if (row.steps) {
-                  row.steps = JSON.parse(row.steps);
-                }
-                return row;
-              });
+          await (this.target).select().from("Leads")
+              .where({url});
       return row && row[0] || null;
     });
   }
@@ -273,6 +267,21 @@ export class LocalDb {
             status,
             need
           });
+    });
+  }
+
+  async getPageAnalysis(submissionId, url, model) {
+    return await this.maybeThrottle(async () => {
+      const row =
+          (await (this.target).select().from("PageAnalyses")
+              .where({submission_id: submissionId, url}))
+              .map(row => {
+                if (row.steps) {
+                  row.steps = JSON.parse(row.steps);
+                }
+                return row;
+              });
+      return row && row[0] || null;
     });
   }
 
