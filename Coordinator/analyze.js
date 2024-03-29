@@ -23,6 +23,7 @@ const MONTH_QUESTION = "what month does the event happen on? say \"unknown\" if 
 const SUMMARY_QUESTION = "what's a one-sentence description of the event?";
 const UNUSUAL_QUESTION = "is there anything particularly unique or unusual about the event?";
 const MULTIPLE_EVENTS_QUESTION = "does the description describe multiple different events?";
+  // Maybe change different to unrelated?
 
 function startsWithUnknown(line) {
 	return /unknown/i.test(line);
@@ -315,10 +316,10 @@ export async function analyzePage(
 		description: description
 	};
 
-	const multipleEventsAnswer =  questionToAnswer[MULTIPLE_EVENTS_QUESTION];
+	const multipleEventsAnswer = questionToAnswer[MULTIPLE_EVENTS_QUESTION];
 	if (getStartBoolOrNull(multipleEventsAnswer) !== false) {
-		// multiple events
-		return [5, null, "success"];
+    logs(steps)("Multiple events, rejecting.");
+		return [5, null, "rejected"];
 	}
 
 	const cityAnswer = questionToAnswer[CITY_QUESTION];
@@ -389,5 +390,6 @@ export async function analyzePage(
     }
   }
 
+  logs(steps)("Analysis complete, matchness", matchness);
 	return [matchness, analysis, "success"];
 }
