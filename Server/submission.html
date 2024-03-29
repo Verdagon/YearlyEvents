@@ -164,9 +164,9 @@
 <% if (it.lead) { %>
   <div>Lead:</div>
   <div>
-    <a href="<%= lead.url %>" target="_blank"><%= lead.url %></a>
+    <a href="<%= it.lead.url %>" target="_blank"><%= it.lead.url %></a>
   </div>
-  <div><%= lead.status %>, need: <%= lead.need %></div>
+  <div><%= it.lead.status %>, need: <%= it.lead.need %></div>
 <% } else { %>
   <div>(No lead)</div>
 <% } %>
