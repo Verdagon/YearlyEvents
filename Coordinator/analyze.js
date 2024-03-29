@@ -288,8 +288,16 @@ export async function analyzePage(
     if (questionRow.status == 'success') {
       // continue
     } else if (questionRow.status == 'created') {
+      console.log("Question is status created, returning.");
       return [0, null, "created"];
     } else if (questionRow.status == 'error') {
+      const error = {
+        "": "Question row had error:",
+        analyzeQuestion,
+        analysisResponse,
+        questionRow
+      };
+      logs(steps)(error);
       return [0, null, "errors"];
     } else {
       throw logs(steps)("Wat response from analyze question:", questionRow.status);
@@ -316,6 +324,8 @@ export async function analyzePage(
 		matches: matches, // We could remove this to make the analysis query agnostic
 		description: description
 	};
+
+  logs(steps)("Considering answers...");
 
 	const multipleEventsAnswer = questionToAnswer[MULTIPLE_EVENTS_QUESTION];
 	if (getStartBoolOrNull(multipleEventsAnswer) !== false) {

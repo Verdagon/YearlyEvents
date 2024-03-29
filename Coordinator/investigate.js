@@ -92,6 +92,7 @@ export async function analyze(
     if (analyzeInnerStatus == 'created') {
       await db.finishPageAnalysis(submissionId, url, model, 'created', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'errors') {
+      logs(pageSteps, broadSteps)("Inner analyze had errors, marking analysis errors.");
       await db.finishPageAnalysis(submissionId, url, model, 'errors', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'success') {
       if (analysis && (!analysis.name || !analysis.city || !analysis.state)) {
