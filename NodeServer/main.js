@@ -112,7 +112,7 @@ const nodeServer = http.createServer(async function(req, res) {
 
 	    case "/unconsidered.html": {
 	      const submissions = await server.unconsidered();
-        const pageHtml = await this.getResource("unconsidered.html");
+        const pageHtml = await getResource("unconsidered.html");
         const response = eta.renderString(pageHtml, { submissions: submissions });
 	      console.log("Response:", response);
 	      res.write(response);
@@ -128,18 +128,18 @@ const nodeServer = http.createServer(async function(req, res) {
 
 	    case "/failed.html": {
 	      const submissions = await server.allFailed();
-        const pageHtml = await this.getResource("failed.html");
+        const pageHtml = await getResource("failed.html");
         const response = eta.renderString(pageHtml, { submissions: submissions });
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;
 
 	    case "/askGpt.html": {
-	      res.write(await this.getResource("askGpt.html"));
+	      res.write(await getResource("askGpt.html"));
 	    } break;
 
       case "/submit.html": {
-        res.write(await this.getResource("submit.html"));
+        res.write(await getResource("submit.html"));
       } break;
 
       case "/waiting.html": {
