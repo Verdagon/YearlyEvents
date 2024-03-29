@@ -165,6 +165,10 @@ export class YearlyEventsServer {
     return submissions;
   }
 
+  async numApprovedSubmissions() {
+    return await this.db.numApprovedSubmissions();
+  }
+
 	async askGpt() {
 		console.log("getting thing");
 		const x = await this.getResource("askGpt.html");
