@@ -296,7 +296,7 @@ export class LocalDb {
     return await this.maybeThrottle(async () => {
       return (
           await (this.target).select("Leads.*").from("Leads")
-              .where({status: 'created'})
+              .where({"Leads.status": 'created'})
               .leftJoin('Submissions', 'Leads.id', 'Submissions.submission_id')
               .whereNull('Submissions.submission_id'))
           .map(row => {
