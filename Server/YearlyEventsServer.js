@@ -174,30 +174,33 @@ export class YearlyEventsServer {
   }
 
 	async submission(submissionId) {
-    const submission = await this.db.getSubmission(submissionId);
+    const lead = await this.db.getLead(submissionId);
 
-    submission.investigations = [];
-    for (const investigation of await this.db.getInvestigations(submissionId)) {
-    	investigation.pageAnalyses =
-          await this.db.getPageAnalyses(submissionId, investigation.model);
-      await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
-        const pageTextRow = await this.db.getPageText(analysis.url);
-        analysis.pageText = pageTextRow && pageTextRow.text;
-        analysis.pageTextError = pageTextRow && pageTextRow.error;
-        return pageTextRow;
-      });
-      investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
-      if (!Array.isArray(investigation.steps)) {
-        console.log("investigation steps isnt array?", JSON.stringify(investigation.steps));
-        investigation.steps = [];
+    const submission = await this.db.getSubmission(submissionId);
+    if (submission) {
+      submission.investigations = [];
+      for (const investigation of await this.db.getInvestigations(submissionId)) {
+      	investigation.pageAnalyses =
+            await this.db.getPageAnalyses(submissionId, investigation.model);
+        await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
+          const pageTextRow = await this.db.getPageText(analysis.url);
+          analysis.pageText = pageTextRow && pageTextRow.text;
+          analysis.pageTextError = pageTextRow && pageTextRow.error;
+          return pageTextRow;
+        });
+        investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
+        if (!Array.isArray(investigation.steps)) {
+          console.log("investigation steps isnt array?", JSON.stringify(investigation.steps));
+          investigation.steps = [];
+        }
+      	submission.investigations.push(investigation);
       }
-    	submission.investigations.push(investigation);
     }
 
     const event = await this.db.getSubmissionEvent(submissionId);
 
     const pageHtml = await this.getResource("submission.html");
-		const response = this.eta.renderString(pageHtml, { submission, event });
+		const response = this.eta.renderString(pageHtml, { lead, submission, event });
     console.log("Response:", response);
     return response;
   }
