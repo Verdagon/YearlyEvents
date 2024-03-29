@@ -162,11 +162,11 @@
 <% } %>
 
 <% if (it.lead) { %>
-  <div>Lead:</div>
   <div>
+    <%= it.lead %> lead:
     <a href="<%= it.lead.url %>" target="_blank"><%= it.lead.url %></a>
   </div>
-  <div><%= it.lead.status %>, need: <%= it.lead.need %></div>
+  <div>Future submission: <%= it.lead.future_submission_status %>, need: <%= it.lead.future_submission_need %></div>
 <% } else { %>
   <div>(No lead)</div>
 <% } %>
