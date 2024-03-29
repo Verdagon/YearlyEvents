@@ -79,9 +79,9 @@ export async function analyzePage(
     model,
     url,
     page_text,
-    event_name,
-    event_city,
-    event_state) {
+    matchName,
+    matchCity,
+    matchState) {
 
   if (steps == null) {
     throw "Steps null wtf";
@@ -117,9 +117,12 @@ export async function analyzePage(
 	}
 
 
-	const matchesCityQuestion = "is it primarily referring to or describing or talking about the " + event_name + " event in " + event_city + ", " + event_state + "? start your answer with \"yes\" or \"no\", if no then say why.";
-	const matchesStateQuestion = "is it primarily referring to or describing or talking about the " + event_name + " event in " + event_state + "? start your answer with \"yes\" or \"no\", if no then say why.";
-	const matchesAnywhereQuestion = "is it primarily referring to or describing or talking about the " + event_name + " event? start your answer with \"yes\" or \"no\", if no then say why.";
+	const matchesCityQuestion =
+      matchName && matchCity && matchState && ("is it primarily referring to or describing or talking about the " + matchName + " event in " + matchCity + ", " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.");
+	const matchesStateQuestion =
+      matchState == null ? null : "is it primarily referring to or describing or talking about the " + matchName + " event in " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.";
+	const matchesAnywhereQuestion =
+      matchCity == null ? null : "is it primarily referring to or describing or talking about the " + matchName + " event? start your answer with \"yes\" or \"no\", if no then say why.";
 
 	const questions = [
 		MULTIPLE_EVENTS_QUESTION,
@@ -318,17 +321,38 @@ export async function analyzePage(
 		return [5, null, "success"];
 	}
 
-	const yearAnswer = questionToAnswer[YEAR_QUESTION];
-	analysis.yearly = getStartBoolOrNull(yearAnswer);
-
-	const nameAnswer = questionToAnswer[NAME_QUESTION];
-	analysis.name = isKnownTrueOrNull(nameAnswer) && normalizeName(nameAnswer, event_city, event_state);
-
 	const cityAnswer = questionToAnswer[CITY_QUESTION];
 	analysis.city = isKnownTrueOrNull(cityAnswer) && cityAnswer;
+  if (!analysis.city) {
+    logs(steps)("Couldn't find city from page, rejecting.");
+    return [0, analysis, "rejected"];
+  }
 
 	const stateAnswer = questionToAnswer[STATE_QUESTION];
 	analysis.state = isKnownTrueOrNull(stateAnswer) && stateAnswer;
+  if (!analysis.state) {
+    logs(steps)("Couldn't find state from page, rejecting.");
+    return [0, analysis, "rejected"];
+  }
+
+  const nameAnswer = questionToAnswer[NAME_QUESTION];
+  analysis.name =
+      isKnownTrueOrNull(nameAnswer) &&
+      normalizeName(nameAnswer, analysis.city, analysis.state);
+  if (!analysis.name) {
+    logs(steps)("Couldn't find name from page, rejecting.");
+    return [0, analysis, "rejected"];
+  }
+
+  const summaryAnswer = questionToAnswer[SUMMARY_QUESTION];
+  analysis.summary = isKnownTrueOrNull(summaryAnswer) && summaryAnswer;
+  if (!analysis.summary || analysis.summary.length < 20) {
+    logs(steps)("Error, summary missing or too short:", summaryAnswer);
+    return [0, analysis, "errors"];
+  }
+
+  const yearAnswer = questionToAnswer[YEAR_QUESTION];
+  analysis.yearly = getStartBoolOrNull(yearAnswer);
 
 	const firstDateAnswer = questionToAnswer[FIRST_DATE_QUESTION];
 	analysis.firstDate = isKnownTrueOrNull(firstDateAnswer) && firstDateAnswer;
@@ -342,25 +366,28 @@ export async function analyzePage(
 	const monthAnswer = questionToAnswer[MONTH_QUESTION];
 	analysis.month = isKnownTrueOrNull(monthAnswer) && getMonthOrNull(monthAnswer);
 
-	const summaryAnswer = questionToAnswer[SUMMARY_QUESTION];
-	analysis.summary = isKnownTrueOrNull(summaryAnswer) && summaryAnswer;
+  let matchness = 1;
+  if (matchesAnywhereQuestion) {
+    const matchesAnywhereAnswer = questionToAnswer[matchesAnywhereQuestion];
+    const matchesAnywhere = getStartBoolOrNull(matchesAnywhereAnswer);
+    if (matchesAnywhere) {
+      matchness = 2;
+    }
+  }
+  if (matchesStateQuestion) {
+    const matchesStateAnswer = questionToAnswer[matchesStateQuestion];
+    const matchesState = getStartBoolOrNull(matchesStateAnswer);
+    if (matchesState) {
+      matchness = 3;
+    }
+  }
+  if (matchesCityQuestion) {
+  	const matchesCityAnswer = questionToAnswer[matchesCityQuestion];
+  	const matchesCity = getStartBoolOrNull(matchesCityAnswer);
+    if (matchesCity) {
+      matchness = 4;
+    }
+  }
 
-	const matchesCityAnswer =  questionToAnswer[matchesCityQuestion];
-	matches.city = getStartBoolOrNull(matchesCityAnswer);
-
-	const matchesStateAnswer = questionToAnswer[matchesStateQuestion];
-	matches.state = getStartBoolOrNull(matchesStateAnswer);
-
-	const matchesAnywhereAnswer = questionToAnswer[matchesAnywhereQuestion];
-	matches.anywhere = getStartBoolOrNull(matchesAnywhereAnswer);
-
-	if (matches.city) {
-		return [4, analysis, "success"];
-	} else if (matches.state) {
-		return [3, analysis, "success"];
-	} else if (matches.anywhere) {
-		return [2, analysis, "success"];
-	} else {
-		return [1, analysis, "success"];
-	}
+	return [matchness, analysis, "success"];
 }

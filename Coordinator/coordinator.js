@@ -71,8 +71,73 @@ try {
 	const searchCacheCounter = { count: 0 };
 	const gptCacheCounter = { count: 0 };
 
+  const model = 'gpt-3.5-turbo';
 
-	const otherEvents = [];
+  let unfinishedLeads = await db.getUnfinishedLeads();
+  await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
+    let broadSteps = [];
+    const [matchness, analysis, analyzeInnerStatus] =
+        await analyze(
+            openai,
+            scratchDir,
+            db,
+            googleSearchApiKey,
+            fetchThrottler,
+            searchThrottler,
+            searchCacheCounter,
+            chromeFetcher,
+            chromeCacheCounter,
+            gptThrottler,
+            -leadIndex, // throttlerPriority
+            gptCacheCounter,
+            model,
+            "Lead" + leadIndex,
+            null,
+            null,
+            null,
+            lead.id,
+            broadSteps,
+            0, // search_result_i
+            lead.url);
+
+    const pageAnalysisRow =
+        await db.getPageAnalysis(submissionId, url, model);
+
+    if (pageAnalysisRow.status == 'created') {
+      console.log("Lead analysis row is status created, pausing investigation.");
+      // If it's still created status, then we're waiting on something external.
+      // Proceed
+    } else if (pageAnalysisRow.status == 'confirmed') {
+      lead.status = 'confirmed'; // because its used below
+      console.log("Lead url:", url, "confirmed, adding", lead.status, "submission.");
+      await db.updateLead('confirmed');
+
+      await addSubmission(this.db, {
+          submission_id: lead.id,
+          status: lead.status == 'approved' ? 'approved' : 'created',
+          name: pageAnalysisRow.analysis.name,
+          city: pageAnalysisRow.analysis.city,
+          state: pageAnalysisRow.analysis.state,
+          description: pageAnalysisRow.analysis.description,
+          url: lead.url,
+          origin_query: null,
+          need: lead.need
+      });
+    } else if (pageAnalysisRow.status == 'errors') {
+      console.log("Analysis for", url, "had errors, marking lead.");
+      await db.updateLead('errors');
+    } else if (pageAnalysisRow.status == 'rejected') {
+      console.log("Analysis for", url, "rejected, marking lead.");
+      await db.updateLead('rejected');
+      // Do nothing
+    } else {
+      throw "Weird status from analyze: " + pageAnalysisRow.status;
+    }
+  });
+
+
+
+
 	let approvedSubmissions = (await db.getApprovedSubmissions());
   if (filterSubmissionId - 0 == filterSubmissionId) {
     approvedSubmissions = approvedSubmissions.slice(0, filterSubmissionId - 0);
@@ -110,8 +175,6 @@ try {
 
 		console.log("Starting doublecheck:", eventName, "in", eventCity, eventState, submissionId);
 
-    const model = 'gpt-3.5-turbo';
-
     // This will update things in the database
 		await investigate(
         openai,
@@ -126,7 +189,6 @@ try {
 				gptThrottler,
 				throttlerPriority,
 				gptCacheCounter,
-				otherEvents,
 				submissionIndex,
 				eventName,
 				eventCity,

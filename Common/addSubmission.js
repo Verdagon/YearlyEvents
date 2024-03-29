@@ -9,13 +9,13 @@ import { normalizeName, normalizeState, normalizePlace } from "./utils.js";
 export async function addSubmission(db, givenSubmission) {
 	const {status, name, city, state, description, url, origin_query, need} = givenSubmission;
   const normalizedName = normalizeName(name, city, state);
+  const submission_id = givenSubmission.submission_id || crypto.randomUUID();
 
 	return await db.transaction(async (trx) => {
     const existing = await trx.getExistingSubmission(normalizedName, city, state);
     if (existing) {
     	return null;
     }
-		const submission_id = crypto.randomUUID();
 		const row = {
 			name: normalizedName,
 			state: state && normalizeState(state),

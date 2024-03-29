@@ -25,13 +25,11 @@ export async function analyze(
     gptThrottler,
     throttlerPriority,
     gptCacheCounter,
-    otherEvents,
     model,
     event_i,
     event_name,
     event_city,
     event_state,
-    maybeUrl,
     submissionId,
     broadSteps,
     search_result_i,
@@ -111,7 +109,7 @@ export async function analyze(
 
         await db.finishPageAnalysis(submissionId, url, model, 'confirmed', pageSteps, analysis);
         return;
-      } else if (matchness == 3) { // Same state, not quite confirm, submit it to otherEvents
+      } else if (matchness == 3) { // Same state, not quite confirm, submit it to other events
         logs(broadSteps)("Not same, but discovered similar:", analysis.name);
         await addOtherEventSubmission(db, {
           inspiration_submission_id: submissionId,
@@ -121,7 +119,7 @@ export async function analyze(
         });
         await db.finishPageAnalysis(submissionId, url, model, 'rejected', pageSteps, analysis);
         return;
-      } else if (matchness == 2) { // Same event but not even in same state, submit it to otherEvents
+      } else if (matchness == 2) { // Same event but not even in same state, submit it to other events
         logs(broadSteps)("Not same, but discovered similar:", analysis.name);
         await addOtherEventSubmission(db, {
           inspiration_submission_id: submissionId,
@@ -176,7 +174,6 @@ export async function investigate(
     gptThrottler,
     throttlerPriority,
     gptCacheCounter,
-    otherEvents,
     event_i,
     event_name,
     event_city,
@@ -337,13 +334,11 @@ export async function investigate(
             gptThrottler,
             throttlerPriority,
             gptCacheCounter,
-            otherEvents,
             model,
             event_i,
             event_name,
             event_city,
             event_state,
-            maybeUrl,
             submissionId,
             broadSteps,
             url_i,
