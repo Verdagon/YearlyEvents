@@ -292,7 +292,7 @@ export class LocalDb {
     });
   }
 
-  async getCreatedLeads() {
+  async getUnfinishedLeads() {
     return await this.maybeThrottle(async () => {
       return (
           await (this.target).select("Leads.*").from("Leads")
