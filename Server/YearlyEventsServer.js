@@ -168,6 +168,10 @@ export class YearlyEventsServer {
   async numApprovedSubmissions() {
     return await this.db.numApprovedSubmissions();
   }
+  
+  async numCreatedInvestigations() {
+    return await this.db.numCreatedInvestigations();
+  }
 
 	async askGpt() {
 		console.log("getting thing");

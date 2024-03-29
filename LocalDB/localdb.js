@@ -400,6 +400,17 @@ export class LocalDb {
     });
   }
 
+  async numCreatedInvestigations() {
+    return await this.maybeThrottle(async () => {
+      const result =
+          await (this.target)("Investigations")
+              .count('submission_id as count')
+              .where('status', 'created');
+      // console.log("result:", result);
+      return result && result[0] && result[0].count;
+    });
+  }
+
   async getEventConfirmations(eventId) {
     return await this.maybeThrottle(async () => {
       return await (this.target).select().from("EventConfirmations").where({event_id: eventId});
