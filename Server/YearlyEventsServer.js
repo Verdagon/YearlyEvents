@@ -207,7 +207,7 @@ export class YearlyEventsServer {
 
   async submitLead(url, status, need) {
     return this.db.transaction(async (trx) => {
-      const maybeLead = await trx.getLead(url);
+      const maybeLead = await trx.getLeadByUrl(url);
       if (maybeLead) {
         return maybeLead.id;
       }

@@ -249,11 +249,20 @@ export class LocalDb {
     });
   }
 
-  async getLead(url) {
+  async getLeadByUrl(url) {
     return await this.maybeThrottle(async () => {
       const row =
           await (this.target).select().from("Leads")
               .where({url});
+      return row && row[0] || null;
+    });
+  }
+
+  async getLead(id) {
+    return await this.maybeThrottle(async () => {
+      const row =
+          await (this.target).select().from("Leads")
+              .where({id});
       return row && row[0] || null;
     });
   }
