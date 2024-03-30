@@ -209,7 +209,7 @@ const nodeServer = http.createServer(async function(req, res) {
           need = 1;
           break;
         case 'need':
-          status = 'approved':
+          status = 'approved';
           need = 2;
           break;
         }
