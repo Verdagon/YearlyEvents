@@ -109,7 +109,7 @@ export async function analyzePageOuter(
       } else if (pageAnalysisStatus == 'created') {
         console.log("Resuming existing page analysis row for:", url);
       } else {
-        console.log("Page analysis already finished for url:", url, "but proceeding in case match needed.");
+        console.log("Page analysis already finished for url:", url, "but proceeding.");
       }
     });
 
@@ -154,7 +154,7 @@ export async function analyzePageOuter(
       throw logs(pageSteps, broadSteps)("Bad status wtf:", describeStatus, description, describeError);
     }
 
-    const [analysis, analyzeInnerStatus] =
+    const {status: analyzeInnerStatus, analysis} =
         await analyzePageInner(
             db,
             gptCacheCounter,
@@ -163,6 +163,7 @@ export async function analyzePageOuter(
             pageSteps,
             openai,
             model,
+            maybeIdForLogging,
             url,
             pageText,
             matchName ? makeMatchQuestions(matchName, matchCity, matchState) : []);
@@ -241,13 +242,13 @@ export async function analyzeMatchOuter(
         matchSteps = matchRow.steps || [];
       }
       if (matchStatus == null) {
-        logs(matchSteps, broadSteps)("Starting analysis for page:", url);
+        logs(matchSteps, broadSteps)("Starting analysis for match:", url, matchName, matchCity, matchState);
         await trx.startMatchAnalysis(submissionId, url, model);
         matchStatus = 'created';
       } else if (matchStatus == 'created') {
-        console.log("Resuming existing page analysis row for:", url);
+        console.log("Resuming existing page analysis row for:", url, matchName, matchCity, matchState);
       } else {
-        console.log("Page analysis already finished for url:", url, "but proceeding in case match needed.");
+        console.log("Match analysis already finished for url:", url, matchName, matchCity, matchState, "but proceeding.");
       }
     });
 
@@ -279,6 +280,7 @@ export async function analyzeMatchOuter(
             matchSteps,
             openai,
             model,
+            submissionId,
             url,
             pageText,
             matchName,
@@ -337,6 +339,7 @@ export async function analyzePageInner(
     steps,
     openai,
     model,
+    maybeIdForLogging,
     url,
     description,
     extraStowawayQuestions) {
@@ -369,6 +372,7 @@ export async function analyzePageInner(
           steps,
           openai,
           model,
+          maybeIdForLogging,
           url,
           description,
           questions);
@@ -391,21 +395,21 @@ export async function analyzePageInner(
 	const multipleEventsAnswer = questionToAnswer[MULTIPLE_EVENTS_QUESTION];
 	if (getStartBoolOrNull(multipleEventsAnswer) !== false) {
     logs(steps)("Multiple events, rejecting.");
-		return [null, null, "rejected"];
+    return {status: "rejected", analysis: null};
 	}
 
 	const cityAnswer = questionToAnswer[CITY_QUESTION];
 	analysis.city = isKnownTrueOrNull(cityAnswer) && cityAnswer;
   if (!analysis.city) {
     logs(steps)("Couldn't find city from page, rejecting.");
-    return [null, analysis, "rejected"];
+    return {status: "rejected", analysis};
   }
 
 	const stateAnswer = questionToAnswer[STATE_QUESTION];
 	analysis.state = isKnownTrueOrNull(stateAnswer) && stateAnswer;
   if (!analysis.state) {
     logs(steps)("Couldn't find state from page, rejecting.");
-    return [null, analysis, "rejected"];
+    return {status: "rejected", analysis};
   }
 
   const nameAnswer = questionToAnswer[NAME_QUESTION];
@@ -414,14 +418,14 @@ export async function analyzePageInner(
       normalizeName(nameAnswer, analysis.city, analysis.state);
   if (!analysis.name) {
     logs(steps)("Couldn't find name from page, rejecting.");
-    return [null, analysis, "rejected"];
+    return {status: "rejected", analysis};
   }
 
   const summaryAnswer = questionToAnswer[SUMMARY_QUESTION];
   analysis.summary = isKnownTrueOrNull(summaryAnswer) && summaryAnswer;
   if (!analysis.summary || analysis.summary.length < 20) {
     logs(steps)("Error, summary missing or too short:", summaryAnswer);
-    return [null, analysis, "errors"];
+    return {status: "errors", analysis};
   }
 
   const yearAnswer = questionToAnswer[YEAR_QUESTION];
@@ -439,8 +443,8 @@ export async function analyzePageInner(
 	const monthAnswer = questionToAnswer[MONTH_QUESTION];
 	analysis.month = isKnownTrueOrNull(monthAnswer) && getMonthOrNull(monthAnswer);
 
-  logs(steps)("Analysis complete:", analysis);
-	return [analysis, "success"];
+  logs(steps)("Analysis complete:", analysis.name, analysis.city, analysis.state, analysis.summary);
+	return {status: "success", analysis};
 }
 
 function makeMatchQuestions(matchName, matchCity, matchState) {
@@ -469,6 +473,7 @@ export async function analyzeMatchInner(
     steps,
     openai,
     model,
+    submissionId,
     url,
     description,
     matchName,
@@ -490,6 +495,7 @@ export async function analyzeMatchInner(
           steps,
           openai,
           model,
+          submissionId,
           url,
           description,
           questions);
@@ -538,6 +544,7 @@ export async function describePage(
 
   if (description) {
     console.log("Using cached summary.");
+    gptCacheCounter.count++;
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
     description =
@@ -595,6 +602,7 @@ export async function askQuestionsForPage(
     steps,
     openai,
     model,
+    maybeIdForLogging,
     url,
     description,
     questions) {
@@ -639,6 +647,7 @@ export async function askQuestionsForPage(
   if (nextGptQuestionNumber == 1) {
     // Then don't ask, itll just get confused.
     logs(steps)("No questions, skipping...");
+    gptCacheCounter.count++;
   } else {
     logs(steps)("Asking GPT to analyze...");
     // console.log("bork 0", submissionId, url);

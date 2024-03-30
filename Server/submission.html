@@ -23,21 +23,14 @@
 
 <% if (it.event) { %>
 	<div>Event:</div>
-	<div><%= it.event.name %> in <%= it.event.city %>, <%= it.event.state %></div>
-
-	<% it.event.confirmations.forEach(function(confirmation, confirmationI){ %>
-		<div>
-			<a href="<%= confirmation.url %>" target="_blank"><%= confirmation.url %></a>:
-			<%= confirmation.event_short_summary %>
-		</div>
-	<% }) %>
+	<div><%= it.event.name %> in <%= it.event.city %>, <%= it.event.state %> (<%= it.event.status %>)</div>
 <% } else { %>
   <div>(No event)</div>
 <% } %>
 
 <% if (it.submission) { %>
   <div>Submission:</div>
-  <div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %></div>
+  <div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %> (<%= it.submission.status %>)</div>
   <div>month: <%= it.submission.investigation && it.submission.investigation.month %></div>
   <div>num_errors: <%= it.submission.investigation && it.submission.investigation.num_errors %></div>
   <div>num_promising: <%= it.submission.investigation && it.submission.investigation.num_promising %></div>
@@ -167,6 +160,11 @@
     <a href="<%= it.lead.url %>" target="_blank"><%= it.lead.url %></a>
   </div>
   <div>Future submission: <%= it.lead.future_submission_status %>, need: <%= it.lead.future_submission_need %></div>
+  <% if (it.lead.steps) { %>
+    <% it.lead.steps && it.lead.steps.forEach(function(step) { %>
+      <div><%= JSON.stringify(step) %></div>
+    <% }) %>
+  <% } %>
   <% if (it.lead.pageAnalyses) { %>
     <% it.lead.pageAnalyses.forEach(function(analysis){ %>
       <div>Analysis: <%= JSON.stringify(analysis) %></div>

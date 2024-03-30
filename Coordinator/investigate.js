@@ -152,7 +152,6 @@ export async function investigate(
     }
 
     let months = [];
-    let num_errors = 0;
 
     // We dont parallelize this loop because we want it to early-exit if it finds
     // enough to confirm.
@@ -271,7 +270,7 @@ export async function investigate(
         }
       }
     }
-    if (alreadyConfirmed) {
+    if (num_confirms) {
       months = distinct(months);
       unanimousMonth = months.length == 1 ? months[0] : "";
       logs(broadSteps)("Unanimous month?:", unanimousMonth);

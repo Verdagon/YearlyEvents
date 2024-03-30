@@ -14,7 +14,7 @@ export async function addSubmission(db, givenSubmission) {
 	return await db.transaction(async (trx) => {
     const existing = await trx.getExistingSubmission(normalizedName, city, state);
     if (existing) {
-    	return null;
+    	return existing.submission_id;
     }
 		const row = {
 			name: normalizedName,

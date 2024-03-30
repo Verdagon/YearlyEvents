@@ -121,21 +121,26 @@ try {
       throw "Weird status from analyze: " + pageAnalysisRow.status;
     }
 
-    lead.status = 'success'; // because its used below
     logs(broadSteps)("Lead url", lead.url, "success, adding", lead.status, "submission.");
-    await db.updateLead(lead.id, 'success', broadSteps);
 
-    await addSubmission(this.db, {
-        submission_id: lead.id,
-        status: lead.status == 'approved' ? 'approved' : 'created',
-        name: pageAnalysisRow.analysis.name,
-        city: pageAnalysisRow.analysis.city,
-        state: pageAnalysisRow.analysis.state,
-        description: pageAnalysisRow.analysis.description,
-        url: lead.url,
-        origin_query: null,
-        need: lead.need
-    });
+    const existingId =
+        await addSubmission(db, {
+            submission_id: lead.id,
+            status: lead.future_submission_status == 'approved' ? 'approved' : 'created',
+            name: pageAnalysisRow.analysis.name,
+            city: pageAnalysisRow.analysis.city,
+            state: pageAnalysisRow.analysis.state,
+            description: pageAnalysisRow.analysis.summary,
+            url: lead.url,
+            origin_query: null,
+            need: lead.future_submission_need
+        });
+    if (existingId != lead.id) {
+      logs(broadSteps)("Lead already has a submission:", existingId);
+    }
+
+    lead.status = 'success'; // because its used below
+    await db.updateLead(lead.id, 'success', broadSteps);
   });
 
 

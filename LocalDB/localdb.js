@@ -240,7 +240,7 @@ export class LocalDb {
     return await this.maybeThrottle(async () => {
       return (
           await (this.target)
-            .select("m.*")
+            .select()
             .from("MatchAnalyses as m")
             .where({"m.submission_id": submissionId, "m.model": model})
             .join("PageAnalyses as p", function() {
@@ -250,6 +250,7 @@ export class LocalDb {
           .map(row => {
             if (row.steps) {
               row.steps = JSON.parse(row.steps);
+              row.analysis = JSON.parse(row.analysis);
             }
             return row;
           });
@@ -258,19 +259,31 @@ export class LocalDb {
 
   async getLeadByUrl(url) {
     return await this.maybeThrottle(async () => {
-      const row =
-          await (this.target).select().from("Leads")
-              .where({url});
-      return row && row[0] || null;
+      const rows =
+          (await (this.target).select().from("Leads")
+              .where({url}))
+          .map(row => {
+            if (row.steps) {
+              row.steps = JSON.parse(row.steps);
+            }
+            return row;
+          });
+      return rows && rows[0] || null;
     });
   }
 
   async getLead(id) {
     return await this.maybeThrottle(async () => {
-      const row =
-          await (this.target).select().from("Leads")
-              .where({id});
-      return row && row[0] || null;
+      const rows =
+          (await (this.target).select().from("Leads")
+              .where({id}))
+            .map(row => {
+              if (row.steps) {
+                row.steps = JSON.parse(row.steps);
+              }
+              return row;
+            });
+      return rows && rows[0] || null;
     });
   }
 
@@ -315,6 +328,21 @@ export class LocalDb {
     });
   }
 
+  async getPageAnalysesByUrl(url) {
+    return await this.maybeThrottle(async () => {
+      return (
+            await (this.target).select().from("PageAnalyses")
+                .where({url}))
+          .map(row => {
+              if (row.steps) {
+                row.steps = JSON.parse(row.steps);
+                row.analysis = JSON.parse(row.analysis);
+              }
+              return row;
+            });
+    });
+  }
+
   async getPageAnalysis(url, model) {
     return await this.maybeThrottle(async () => {
       const row =
@@ -323,6 +351,7 @@ export class LocalDb {
               .map(row => {
                 if (row.steps) {
                   row.steps = JSON.parse(row.steps);
+                  row.analysis = JSON.parse(row.analysis);
                 }
                 return row;
               });
@@ -420,9 +449,9 @@ export class LocalDb {
     });
 	}
 
-	async getAnalyzedEvents() {
+	async getCreatedEvents() {
     return await this.maybeThrottle(async () => {
-      return await (this.target).select().from("ConfirmedEvents").where({status: "analyzed"});
+      return await (this.target).select().from("ConfirmedEvents").where({status: "created"});
     });
   }
 

@@ -103,10 +103,10 @@ async function burySubmissionClicked(index) {
 </p>
 
 <h3>
-Confirmed submissions:
+Created events:
 </h3>
 
-<% it.confirmedSubmissions.forEach(function(event){ %>
+<% it.createdEvents.forEach(function(event){ %>
   <div
       class="idea"
       id="submission<%= event.submission_id %>"
@@ -124,17 +124,17 @@ Confirmed submissions:
       </div>
     </div>
     <div><%= event.notes %></div>
-    <% event.confirmations.forEach(function(confirmation, confirmationI){ %>
+    <% event.confirmations.forEach(function(analysis, analysisI){ %>
       <div style="display: flex; align-items: center;">
         <div style="flex-grow: 1">
-          <a href="<%~ confirmation.url %>" target="_blank"><%~ confirmation.url %></a>:
+          <a href="<%~ analysis.url %>" target="_blank"><%~ analysis.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishConfirmedSubmission('<%= event.submission_id %>', '<%~ confirmation.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission('<%= event.submission_id %>', '<%~ analysis.url %>')">Publish</button>
         </div>
       </div>
       <div>
-        <%= confirmation.event_short_summary %>
+        <%= analysis.analysis.summary %>
       </div>
     <% }) %>
   </div>

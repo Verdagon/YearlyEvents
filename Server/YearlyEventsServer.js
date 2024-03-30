@@ -127,10 +127,13 @@ export class YearlyEventsServer {
     return submissions;
   }
 
-  async confirmed() {
-    const events = await this.db.getAnalyzedEvents();
+  async createdEvents() {
+    const events = await this.db.getCreatedEvents();
     await parallelEachI(events, async (eventI, event) => {
       event.notes = "";
+
+      const analyses = await this.db.getInvestigationAnalyses(event.submission_id, 'gpt-3.5-turbo');
+      event.confirmations = analyses;
 
       const maybeSimilarEvent = await this.db.getSimilarPublishedEventById(event.id);
       if (maybeSimilarEvent) {
@@ -176,7 +179,7 @@ export class YearlyEventsServer {
 	async submission(submissionId) {
     const lead = await this.db.getLead(submissionId);
     if (lead) {
-      lead.pageAnalyses = await this.db.getPageAnalysisByUrl(lead.url);
+      lead.pageAnalyses = await this.db.getPageAnalysesByUrl(lead.url);
     }
 
     const submission = await this.db.getSubmission(submissionId);

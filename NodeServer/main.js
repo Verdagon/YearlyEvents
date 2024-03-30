@@ -143,13 +143,13 @@ const nodeServer = http.createServer(async function(req, res) {
       } break;
 
       case "/waiting.html": {
-        const confirmedSubmissions = await server.confirmed();
+        const createdEvents = await server.createdEvents();
         const unconsideredSubmissions = await server.unconsidered();
         const failedNeedSubmissions = await server.failedNeedSubmissions();
         const numApprovedSubmissions = await server.numApprovedSubmissions();
         const numCreatedInvestigations = await server.numCreatedInvestigations();
         const pageHtml = await getResource("waiting.html");
-        const response = eta.renderString(pageHtml, { confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations });
+        const response = eta.renderString(pageHtml, { createdEvents, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations });
         console.log("Response:", response);
         res.write(response);
       } break;
@@ -159,6 +159,7 @@ const nodeServer = http.createServer(async function(req, res) {
 	      if (submissionId == null) throw "Missing submission_id!";
 	      const response = await server.submission(submissionId);
 	      console.log("Response:", response);
+        res.writeHead(200, {'Content-Type': 'text/html'});
 	      res.write(response);
 	    } break;
 
