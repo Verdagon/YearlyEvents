@@ -13,22 +13,21 @@ body {
 }
 </style>
 <script>
-async function publishConfirmedSubmission(index, bestUrl) {
+async function publishConfirmedSubmission(index, bestName, bestUrl) {
   const div = document.getElementById("submission" + index);
-  const name = div.dataset.name;
   const submissionId = div.dataset.submissionId;
-  div.innerHTML = "<div>Publishing: " + name + "</div>...";
+  div.innerHTML = "<div>Publishing: " + bestName + "</div>...";
   try {
     const response =
-        await fetch("/publish?submission_id=" + encodeURIComponent(submissionId) + "&best_url=" + bestUrl);
+        await fetch("/publish?submission_id=" + encodeURIComponent(submissionId) + "&best_name=" + bestName + "&best_url=" + bestUrl);
     const responseText = await response.text();
     if (response.status != "200") {
       throw responseText;
     }
-    div.innerHTML = "<div>Published: " + name + "</div>" + responseText;
+    div.innerHTML = "<div>Published: " + bestName + "</div>" + responseText;
   } catch (e) {
     console.log(e);
-    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+    div.innerHTML = "<div>Error: " + bestName + "</div>" + e;
   }
 }
 async function buryConfirmedSubmission(index) {
@@ -145,11 +144,11 @@ Confirmed submissions:
           <a href="<%~ analysis.url %>" target="_blank"><%~ analysis.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishConfirmedSubmission('<%= submission.submission_id %>', '<%~ analysis.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission('<%= submission.submission_id %>', '<%= analysis.analysis.name %>', '<%~ analysis.url %>')">Publish</button>
         </div>
       </div>
       <div>
-        <%= analysis.analysis.summary %>
+        <%= analysis.analysis.name %>: <%= analysis.analysis.summary %>
       </div>
     <% }) %>
   </div>

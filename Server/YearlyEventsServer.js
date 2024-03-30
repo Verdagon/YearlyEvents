@@ -212,8 +212,8 @@ export class YearlyEventsServer {
     return await addSubmission(this.db, {status, name, city, state, description, url, origin_query, need});
   }
 
-  async publish(eventId, bestUrl) {
-    await this.db.publishSubmission(eventId, bestUrl);
+  async publish(eventId, bestName, bestUrl) {
+    await this.db.publishSubmission(eventId, bestName, bestUrl);
   }
 
   // async rejectEvent(eventId) {

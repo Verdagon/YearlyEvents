@@ -219,11 +219,12 @@ const nodeServer = http.createServer(async function(req, res) {
       } break;
 
 	    case "/publish": {
-	      const {submission_id: submissionId, best_url: bestUrl} = queryParams;
+	      const {submission_id: submissionId, best_name: bestName, best_url: bestUrl} = queryParams;
         if (submissionId == null) throw "Missing submission_id!";
         if (bestUrl == null) throw "Missing best_url!";
+        if (bestName == null) throw "Missing best_name!";
 
-	      await server.publish(submissionId, bestUrl);
+	      await server.publish(submissionId, bestName, bestUrl);
         res.writeHead(200);
         res.write(submissionId)
 	    } break;

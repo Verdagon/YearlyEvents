@@ -573,10 +573,12 @@ export class LocalDb {
     });
   }
 
-  async publishSubmission(submissionId, bestUrl) {
+  async publishSubmission(submissionId, bestName, bestUrl) {
     return await this.maybeThrottle(async () => {
+      // This *could* fail if there's already a submission with that name...
   	  await (this.target)("Submissions").where({'submission_id': submissionId}).update({
   			'status': 'published',
+        'name': bestName,
         'url': bestUrl
   		});
     });
