@@ -56,6 +56,12 @@ export class LocalDb {
     });
 	}
 
+  async getSimilarSubmissionsByName(name) {
+    return await this.maybeThrottle(async () => {
+      return await (this.target).select().from("Submissions").where({name: name});
+    });
+  }
+
 	async getSimilarSubmissionById(id) {
     if (!id) {
       throw "getSimilarSubmissionById no ID";

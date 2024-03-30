@@ -151,6 +151,23 @@ Confirmed submissions:
         <%= analysis.analysis.name %>: <%= analysis.analysis.summary %>
       </div>
     <% }) %>
+    <% if (submission.similars.length) { %>
+      <div>
+        Similars:
+        <ul>
+          <% submission.similars.forEach(function(similar){ %>
+            <li>
+              <a href="/submission?submission_id=<%= submission.submission_id %>">
+                <%= similar.name %>
+              </a>
+              in <%= similar.city %>, <%= similar.state %> (<%= similar.status %>) 
+              <button onclick="mergeSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Dupe</button>
+              <button onclick="mergeSubmission('<%= similar.submission_id %>', '<%= submission.submission_id %>')">Is Better</button>
+            </li>
+          <% }) %>
+        </ul>
+      </ul>
+    <% } %>
   </div>
 <% }) %>
 

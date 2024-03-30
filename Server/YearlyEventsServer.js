@@ -1,6 +1,6 @@
 import { Configuration, OpenAIApi } from "openai";
 import { Eta } from "eta";
-import { logs, normalizeName } from "../Common/utils.js";
+import { logs, normalizeName, distinct } from "../Common/utils.js";
 import { gptListEvents, makeNewConversation, continuedConversation }  from '../Common/gptListEvents.js';
 import { addSubmission } from '../Common/addSubmission.js'
 import { Semaphore, parallelEachI } from "../Common/parallel.js"
@@ -104,26 +104,20 @@ export class YearlyEventsServer {
 
   async confirmedSubmissions() {
     const events = await this.db.getConfirmedSubmissions();
+
     await parallelEachI(events, async (eventI, submission) => {
       submission.notes = "";
 
       const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
       submission.confirmations = analyses;
 
-      const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id, 'published');
-      if (maybeSimilarSubmission) {
-        const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-            maybeSimilarSubmission;
-        if (submission.city == similarSubmissionCity &&
-            normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
-          submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-        } else {
-          submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
-        }
-      } else {
-        // Do nothing
+      const similars = [];
+      for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
+        similars = similars.concat(await db.getSimilarSubmissionsByName(otherName));
       }
+      submission.similars = similars;
     });
+
     return events;
   }
 
