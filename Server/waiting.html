@@ -157,10 +157,11 @@ Confirmed submissions:
         <ul>
           <% submission.similars.forEach(function(similar){ %>
             <li>
+              <b><%= similar.status %></b>:
               <a href="/submission?submission_id=<%= submission.submission_id %>">
                 <%= similar.name %>
               </a>
-              in <%= similar.city %>, <%= similar.state %> (<%= similar.status %>) 
+              in <%= similar.city %>, <%= similar.state %> 
               <button onclick="mergeSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Dupe</button>
               <button onclick="mergeSubmission('<%= similar.submission_id %>', '<%= submission.submission_id %>')">Is Better</button>
             </li>
