@@ -14,7 +14,7 @@ body {
 </style>
 <script>
 async function markDuplicateSubmission(submissionId, intoSubmissionId) {
-  const div = document.getElementById("submission" + index);
+  const div = document.getElementById("submission" + submissionId);
   const name = div.dataset.name;
   div.innerHTML = "<div>Marking duplicate: " + name + "</div>...";
   try {
