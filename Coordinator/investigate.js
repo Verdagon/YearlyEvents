@@ -51,17 +51,8 @@ export async function investigate(
             db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery);
     if (searcherResult == null) {
       logs(broadSteps)("Bad search for event ", event_name);
-      const result = {
-        pageAnalyses: [],
-        month: "",
-        numErrors: 1,
-        numPromising: 0,
-        name: event_name,
-        city: event_city,
-        state: event_state,
-        broadSteps: broadSteps
-      };
-      return result;
+      await db.finishInvestigation(submissionId, model, 'errors', null, broadSteps);
+      return;
     }
     const unfilteredResponseUrls = searcherResult.response;
 
@@ -279,9 +270,6 @@ export async function investigate(
         num_confirms++;
         // Since we know it matches, we can trust and use this information from the page analysis.
         const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow.analysis;
-        if (!name) {
-          throw "wat";
-        }
 
         if (month) {
           months.push(month);
