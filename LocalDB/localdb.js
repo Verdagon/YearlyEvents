@@ -298,12 +298,16 @@ export class LocalDb {
 
   async updateLead(id, status, steps) {
     return await this.maybeThrottle(async () => {
-      await (this.target)("Leads")
-          .where({id})
-          .update({
-            status,
-            steps: JSON.stringify(steps),
-          });
+      const updated =
+          await (this.target)("Leads")
+              .where({id})
+              .update({
+                status,
+                steps: JSON.stringify(steps),
+              });
+      if (!updated) {
+        throw "No rows updated by updateLead(" + id + ", " + status + ", ...)";
+      }
     });
   }
 
