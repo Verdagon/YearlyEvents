@@ -251,11 +251,38 @@ export async function investigate(
           throw "Weird status from analyze: " + matchAnalysisRow.status;
         }
 
+        if (matchAnalysisRow.matchness == 4) { // matches city
+          // Good, proceed
+        } else if (matchAnalysisRow.matchness == 2 || matchAnalysisRow.matchness == 3) {
+          logs(broadSteps)(
+              "Adding unrelated event:",
+              pageAnalysisRow.analysis.name,
+              pageAnalysisRow.analysis.city,
+              pageAnalysisRow.analysis.state,
+              pageAnalysisRow.analysis.summary);
+          await addOtherEventSubmission(
+              db,
+              url,
+              pageAnalysisRow.analysis.name,
+              pageAnalysisRow.analysis.city,
+              pageAnalysisRow.analysis.state,
+              pageAnalysisRow.analysis.summary);
+        } else if (matchAnalysisRow.matchness == 1) { // Doesnt match anywhere
+          logs(broadSteps)("Doesn't match anywhere, bailing.");
+          continue;
+        } else {
+          throw logs(broadSteps)("Wat response from match analysis:", matchAnalysisRow);
+        }
+
         // If we get here, this page matches.
         console.log("Counting confirmation from url:", url);
         num_confirms++;
         // Since we know it matches, we can trust and use this information from the page analysis.
-        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow;
+        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow.analysis;
+        if (!name) {
+          throw "wat";
+        }
+
         if (month) {
           months.push(month);
         }
@@ -297,10 +324,7 @@ export async function investigate(
   }
 }
 
-async function addOtherEventSubmission(db, otherEvent) {
-  const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
-  console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
-
+async function addOtherEventSubmission(db, url, name, city, state, summary) {
   await db.insertSubmission({
     submission_id: crypto.randomUUID(),
     name,
