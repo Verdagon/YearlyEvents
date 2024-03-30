@@ -16,7 +16,7 @@ export async function addSubmission(db, givenSubmission) {
     if (existing) {
     	return existing.submission_id;
     }
-    console.log("Adding submission");
+    // console.log("Adding submission");
 		const row = {
 			name: normalizedName,
 			state: state && normalizeState(state),
@@ -29,7 +29,7 @@ export async function addSubmission(db, givenSubmission) {
       need
 		};
 		await trx.insertSubmission(row);
-    console.log("Added submission");
+    // console.log("Added submission");
 		return submission_id;
 	});
 }

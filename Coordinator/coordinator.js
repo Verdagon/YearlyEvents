@@ -139,10 +139,8 @@ try {
       logs(broadSteps)("Lead already has a submission:", existingId);
     }
 
-    console.log("Marking success");
     lead.status = 'success'; // because its used below
     await db.updateLead(lead.id, 'success', broadSteps);
-    console.log("Marked success");
   });
 
 

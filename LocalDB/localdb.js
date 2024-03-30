@@ -305,7 +305,7 @@ export class LocalDb {
                 status,
                 steps: JSON.stringify(steps),
               });
-      console.log(updated + " rows updated by updateLead(" + id + ", " + status + ", ...)");
+      // console.log(updated + " rows updated by updateLead(" + id + ", " + status + ", ...)");
       if (!updated) {
         throw "No rows updated by updateLead(" + id + ", " + status + ", ...)";
       }
