@@ -213,7 +213,7 @@ export class YearlyEventsServer {
   }
 
   async publish(eventId, bestUrl) {
-    await this.db.publishEvent(eventId, bestUrl);
+    await this.db.publishSubmission(eventId, bestUrl);
   }
 
   // async rejectEvent(eventId) {
