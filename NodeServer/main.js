@@ -224,6 +224,8 @@ const nodeServer = http.createServer(async function(req, res) {
         if (bestUrl == null) throw "Missing best_url!";
 
 	      await server.publish(submissionId, bestUrl);
+        res.writeHead(200);
+        res.write(submissionId)
 	    } break;
 
 	    // case "/rejectEvent": {
