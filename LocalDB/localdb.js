@@ -242,6 +242,7 @@ export class LocalDb {
             .select()
             .from("MatchAnalyses as m")
             .where({"m.submission_id": submissionId, "m.model": model})
+            .where('matchness', '>=', 4)
             .join("PageAnalyses as p", function() {
                 this.on("p.url", "=", "m.url")
                     .andOn("p.model", "=", "m.model");
