@@ -111,7 +111,7 @@ export class YearlyEventsServer {
       const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
       submission.confirmations = analyses;
 
-      const similars = [];
+      let similars = [];
       for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
         similars = similars.concat(await this.db.getSimilarSubmissionsByName(otherName));
       }
