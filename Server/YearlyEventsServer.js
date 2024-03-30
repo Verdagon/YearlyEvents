@@ -110,7 +110,7 @@ export class YearlyEventsServer {
       const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
       submission.confirmations = analyses;
 
-      const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.id, 'published');
+      const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id, 'published');
       if (maybeSimilarSubmission) {
         const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
             maybeSimilarSubmission;
