@@ -223,7 +223,9 @@ export class YearlyEventsServer {
   }
 
   async markDuplicate(duplicateSubmissionId, mainSubmissionId) {
-    await this.db.markDuplicate(duplicateSubmissionId, mainSubmissionId);
+    return this.db.transaction(async (trx) => {
+      await trx.markDuplicate(duplicateSubmissionId, mainSubmissionId);
+    });
   }
 
   async reject(submissionId) {
