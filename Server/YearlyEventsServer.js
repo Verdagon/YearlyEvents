@@ -40,34 +40,21 @@ export class YearlyEventsServer {
 
 			idea.notes = "";
 
-	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
+  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
+    	if (maybeSimilarSubmission) {
+    		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+    				maybeSimilarSubmission;
+  		  if (idea.city == similarSubmissionCity &&
+  		  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
+  		  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
+  		  } else {
+  	  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+  	  	}
+  	  } else {
+  	  	// Do nothing
+  	  }
+    });
 
-	  	if (maybeSimilarEvent) {
-	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
-	  				maybeSimilarEvent;
-			  if (idea.city == similarEventCity &&
-			  		normalizeState(idea.state) == normalizeState(similarEventState)) {
-			  	idea.notes = "(Already known " + maybeSimilarEvent.status + " event)";
-			  } else {
-		  		idea.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
-		  	}
-		  } else {
-	  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
-		  	if (maybeSimilarSubmission) {
-		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-		  				maybeSimilarSubmission;
-				  if (idea.city == similarSubmissionCity &&
-				  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
-				  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-				  } else {
-			  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
-			  	}
-			  } else {
-			  	// Do nothing
-			  }
-		  }
-
-		});
 		ideas.sort((a, b) => {
 			if (a.notes.length != b.notes.length) {
 				return a.notes.length - b.notes.length;
@@ -78,7 +65,10 @@ export class YearlyEventsServer {
 		const conversationJsonStr = JSON.stringify(conversation);
 
     const pageHtml = await this.getResource("eventsFromGpt.html");
-    const response = this.eta.renderString(pageHtml, { ideas, query, conversation: conversationJsonStr, seedState });
+    const response =
+        this.eta.renderString(
+            pageHtml,
+            { ideas, query, conversation: conversationJsonStr, seedState });
     return response;
   }
 
@@ -91,31 +81,16 @@ export class YearlyEventsServer {
 			submission.normalizedName = normalizedName;
 			submission.notes = "";
 			console.log("looking for similars to ", submission);
-	  	const maybeSimilarEvent = await this.db.getSimilarNonRejectedEvent(normalizedName);
-	  	console.log("submission:", submission, "maybe similar:", maybeSimilarEvent);
-	  	if (maybeSimilarEvent) {
-	  		const {name: similarEventName, city: similarEventCity, state: similarEventState} =
-	  				maybeSimilarEvent;
-			  if (submission.city == similarEventCity &&
-			  		normalizeState(submission.state) == normalizeState(similarEventState)) {
-			  	submission.notes = "(Already known " + maybeSimilarEvent.status + " event)";
-			  } else {
-		  		submission.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
-		  	}
-		  } else {
-	  		const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id);
-		  	if (maybeSimilarSubmission) {
-		  		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-		  				maybeSimilarSubmission;
-				  if (submission.city == similarSubmissionCity &&
-				  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
-				  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-				  } else {
-			  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
-			  	}
-			  } else {
-			  	// Do nothing
-			  }
+  		const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id);
+    	if (maybeSimilarSubmission) {
+    		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+    				maybeSimilarSubmission;
+  		  if (submission.city == similarSubmissionCity &&
+  		  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
+  		  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
+  		  } else {
+  	  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+  	  	}
 		  }
 		});
 		submissions.sort((a, b) => {
@@ -127,23 +102,23 @@ export class YearlyEventsServer {
     return submissions;
   }
 
-  async createdEvents() {
-    const events = await this.db.getCreatedEvents();
-    await parallelEachI(events, async (eventI, event) => {
-      event.notes = "";
+  async confirmedSubmissions() {
+    const events = await this.db.getConfirmedSubmissions();
+    await parallelEachI(events, async (eventI, submission) => {
+      submission.notes = "";
 
-      const analyses = await this.db.getInvestigationAnalyses(event.submission_id, 'gpt-3.5-turbo');
-      event.confirmations = analyses;
+      const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
+      submission.confirmations = analyses;
 
-      const maybeSimilarEvent = await this.db.getSimilarPublishedEventById(event.id);
-      if (maybeSimilarEvent) {
-        const {name: similarEventName, city: similarEventCity, state: similarEventState} =
-            maybeSimilarEvent;
-        if (event.city == similarEventCity &&
-            normalizeState(event.state) == normalizeState(similarEventState)) {
-          event.notes = "(Already known " + maybeSimilarEvent.status + " event)";
+      const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.id, 'published');
+      if (maybeSimilarSubmission) {
+        const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
+            maybeSimilarSubmission;
+        if (submission.city == similarSubmissionCity &&
+            normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
+          submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
         } else {
-          event.notes = "(Similar known " + maybeSimilarEvent.status + " event: " + similarEventName + " in " + similarEventCity + ", " + similarEventState + ")";
+          submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
         }
       } else {
         // Do nothing
@@ -203,10 +178,8 @@ export class YearlyEventsServer {
       }
     }
 
-    const event = await this.db.getSubmissionEvent(submissionId);
-
     const pageHtml = await this.getResource("submission.html");
-		const response = this.eta.renderString(pageHtml, { lead, submission, event });
+		const response = this.eta.renderString(pageHtml, { lead, submission });
     console.log("Response:", response);
     return response;
   }

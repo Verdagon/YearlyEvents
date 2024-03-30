@@ -28,16 +28,16 @@ async function publishConfirmedSubmission(index, bestUrl) {
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
   }
 }
-async function rejectConfirmedSubmission(index) {
+async function buryConfirmedSubmission(index) {
   const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
   const eventId = div.dataset.eventId;
-  div.innerHTML = "<div>Rejecting: " + name + "</div>...";
+  div.innerHTML = "<div>Burying: " + name + "</div>...";
   try {
     const response =
-        await fetch("/rejectEvent?event_id=" + encodeURIComponent(eventId));
+        await fetch("/bury?event_id=" + encodeURIComponent(eventId));
     await response.text();
-    div.innerHTML = "<div>Rejected: " + name + "</div>" + eventId;
+    div.innerHTML = "<div>Buried: " + name + "</div>" + eventId;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -103,10 +103,10 @@ async function burySubmissionClicked(index) {
 </p>
 
 <h3>
-Created events:
+Confirmed submissions:
 </h3>
 
-<% it.createdEvents.forEach(function(event){ %>
+<% it.confirmedSubmissions.forEach(function(event){ %>
   <div
       class="idea"
       id="submission<%= event.submission_id %>"
@@ -120,7 +120,7 @@ Created events:
         <a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="rejectConfirmedSubmission('<%= event.submission_id %>')">Reject</button>
+        <button onclick="buryConfirmedSubmission('<%= event.submission_id %>')">Reject</button>
       </div>
     </div>
     <div><%= event.notes %></div>

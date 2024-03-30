@@ -17,9 +17,9 @@ export async function investigate(
     throttlerPriority,
     gptCacheCounter,
     event_i,
-    event_name,
-    event_city,
-    event_state,
+    matchName,
+    matchCity,
+    matchState,
     maybeUrl,
     submissionId,
     model) {
@@ -44,13 +44,13 @@ export async function investigate(
   });
 
   try {
-    const googleQuery = event_name + " " + event_city + " " + event_state;
+    const googleQuery = matchName + " " + matchCity + " " + matchState;
     logs(broadSteps)("Googling:", googleQuery);
     const searcherResult =
         await getSearchResult(
             db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery);
     if (searcherResult == null) {
-      logs(broadSteps)("Bad search for event ", event_name);
+      logs(broadSteps)("Bad search for event ", matchName);
       await db.finishInvestigation(submissionId, model, 'errors', null, broadSteps);
       return;
     }
@@ -168,9 +168,9 @@ export async function investigate(
             gptCacheCounter,
             model,
             event_i,
-            event_name,
-            event_city,
-            event_state,
+            matchName,
+            matchCity,
+            matchState,
             submissionId,
             broadSteps,
             url_i,
@@ -214,9 +214,9 @@ export async function investigate(
             submissionId,
             model,
             event_i,
-            event_name,
-            event_city,
-            event_state,
+            matchName,
+            matchCity,
+            matchState,
             broadSteps,
             url_i,
             url);
@@ -279,7 +279,7 @@ export async function investigate(
           num_promising++;
         }
         if (num_confirms + num_promising >= 5) {
-          logs(broadSteps)("Found enough confirming " + event_name + ", stopping!");
+          logs(broadSteps)("Found enough confirming " + matchName + ", stopping!");
           alreadyConfirmed = true;
           // continue on, we're going to mark the rest as moot
         }
@@ -294,7 +294,7 @@ export async function investigate(
       return;
     }
     if (num_errors == 0) {
-      logs(broadSteps)("Didn't find enough confirming " + event_name + ", concluding failed.");
+      logs(broadSteps)("Didn't find enough confirming " + matchName + ", concluding failed.");
       // If we get here, then things are final and we don't have enough confirms.
       await db.finishInvestigation(submissionId, model, 'failed', {month: unanimousMonth}, broadSteps);
     } else {

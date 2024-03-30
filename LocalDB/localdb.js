@@ -47,17 +47,6 @@ export class LocalDb {
     }
   }
 
-	async getSimilarNonRejectedEvent(normalizedName) {
-    return await this.maybeThrottle(async () => {
-  		const results =
-  				await (this.target).select().from("ConfirmedEvents")
-  				// ConfirmedEvents name is always normalized
-  	    			.where({name: normalizedName})
-  	    			.whereNot({status: 'rejected'});
-  	  return results[0] || null;
-    });
-	}
-
 	async getSimilarSubmission(normalizedName) {
     return await this.maybeThrottle(async () => {
   		const results =
@@ -82,15 +71,15 @@ export class LocalDb {
     });
 	}
 
-	async getSimilarPublishedEventById(id) {
+	async getSimilarSubmissionByIdAndStatus(id, status) {
     return await this.maybeThrottle(async () => {
   		const results =
   				await (this.target)
-  						.from("ConfirmedEvents as e1")
+  						.from("Submissions as e1")
   						.select("e2.*")
   						.where("e1.id", id)
-  						.where("e2.status", "published")
-  				    .join("ConfirmedEvents as e2", function() {
+  						.where("e2.status", status)
+  				    .join("Submissions as e2", function() {
   				        this.on("e1.name", "=", "e2.name")
   				            .andOn("e1.id", "!=", "e2.id");
   				    });
@@ -110,9 +99,15 @@ export class LocalDb {
 
 	async insertSubmission(row) {
     return await this.maybeThrottle(async () => {
-      console.assert(row.name == normalizeName(row.name, row.city, row.state));
-      console.assert(row.state == normalizeState(row.state));
-      console.assert(row.city == normalizePlace(row.city));
+      if (row.name != normalizeName(row.name, row.city, row.state)) {
+        throw "Name isnt normalized";
+      }
+      if (row.state != normalizeState(row.state)) {
+        throw "State isnt normalized";
+      }
+      if (row.city != normalizePlace(row.city)) {
+        throw "City isnt normalized";
+      }
   		await (this.target).into("Submissions")
           .insert(row)
           .onConflict(['name', 'state', 'city']).ignore();;
@@ -426,16 +421,6 @@ export class LocalDb {
     });
   }
 
-	async insertEvent(row) {
-    return await this.maybeThrottle(async () => {
-      console.assert(row.name == normalizeName(row.name, row.city, row.state));
-      console.assert(row.state == normalizeState(row.state));
-      console.assert(row.city == normalizePlace(row.city));
-  		await (this.target).into("ConfirmedEvents")
-          .insert(row);
-    });
-	}
-
 	async insertConfirmation(row) {
     return await this.maybeThrottle(async () => {
   		await (this.target).into("EventConfirmations")
@@ -448,12 +433,6 @@ export class LocalDb {
   		return await (this.target).select().from("Submissions").where({status: "created"});
     });
 	}
-
-	async getCreatedEvents() {
-    return await this.maybeThrottle(async () => {
-      return await (this.target).select().from("ConfirmedEvents").where({status: "created"});
-    });
-  }
 
   async getAnalysisQuestion(url, question, model, summarizePromptVersion) {
     return await this.maybeThrottle(async () => {
@@ -503,6 +482,12 @@ export class LocalDb {
             status,
             error: JSON.stringify(errorText)
           });
+    });
+  }
+
+  async getConfirmedSubmissions() {
+    return await this.maybeThrottle(async () => {
+      return await (this.target).select().from("Submissions").where({status: "confirmed"});
     });
   }
 
@@ -579,30 +564,14 @@ export class LocalDb {
     });
   }
 
-  async getSubmissionEvent(submissionId) {
+  async publishSubmission(submissionId, bestUrl) {
     return await this.maybeThrottle(async () => {
-      const rows =
-          await (this.target).select().from("ConfirmedEvents").where({submission_id: submissionId});
-      return rows && rows[0] || null;
-    });
-  }
-
-  async publishEvent(eventId, bestUrl) {
-    return await this.maybeThrottle(async () => {
-  	  await (this.target)("ConfirmedEvents").where({'id': eventId}).update({
+  	  await (this.target)("Submissions").where({'submission_id': submissionId}).update({
   			'status': 'published',
-        'best_url': bestUrl
+        'url': bestUrl
   		});
     });
 	}
-
-	async rejectEvent(eventId) {
-    return await this.maybeThrottle(async () => {
-      await (this.target)("ConfirmedEvents").where({'id': eventId}).update({
-  			'status': 'rejected'
-  		});
-    });
-  }
 
 	async cacheGoogleResult({query, response}) {
     return await this.maybeThrottle(async () => {

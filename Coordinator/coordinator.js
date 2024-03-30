@@ -221,19 +221,6 @@ try {
 
       await db.transaction(async (trx) => {
         await trx.updateSubmissionStatus(submissionId, 'confirmed');
-
-        const eventId = crypto.randomUUID();
-        await trx.insertEvent({
-          id: eventId,
-          submission_id: submissionId,
-          name: eventName,
-          city: eventCity,
-          state: eventState,
-          month_number: investigationRow.investigation.month,
-          status: "created",
-          best_url: null,
-          description: null
-        });
       });
     } else if (investigationRow.status == 'errors') {
       await db.updateSubmissionStatus(submissionId, 'errors');

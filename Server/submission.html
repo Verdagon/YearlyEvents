@@ -21,13 +21,6 @@
 </div>
 
 
-<% if (it.event) { %>
-	<div>Event:</div>
-	<div><%= it.event.name %> in <%= it.event.city %>, <%= it.event.state %> (<%= it.event.status %>)</div>
-<% } else { %>
-  <div>(No event)</div>
-<% } %>
-
 <% if (it.submission) { %>
   <div>Submission:</div>
   <div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %> (<%= it.submission.status %>)</div>
