@@ -222,6 +222,10 @@ export class YearlyEventsServer {
     await this.db.approveSubmission(submissionId, need);
   }
 
+  async markDuplicate(submissionId, intoSubmissionId) {
+    await this.db.markDuplicate(submissionId, intoSubmissionId);
+  }
+
   async reject(submissionId) {
     await this.db.rejectSubmission(submissionId);
   }

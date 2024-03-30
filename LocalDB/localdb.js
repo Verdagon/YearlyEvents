@@ -133,6 +133,15 @@ export class LocalDb {
     });
 	}
 
+  async markDuplicate(submissionId, mainSubmissionId) {
+    return await this.maybeThrottle(async () => {
+      await (this.target)("Submissions").where({'submission_id': submissionId}).update({
+        'status': 'duplicate',
+        'better_submission_id': mainSubmissionId
+      });
+    });
+  }
+
 	async rejectSubmission(submissionId) {
     return await this.maybeThrottle(async () => {
   		await (this.target)("Submissions").where({'submission_id': submissionId}).update({

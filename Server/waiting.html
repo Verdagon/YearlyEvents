@@ -13,6 +13,23 @@ body {
 }
 </style>
 <script>
+async function markDupeSubmission(submissionId, intoSubmissionId) {
+  const div = document.getElementById("submission" + index);
+  const name = div.dataset.name;
+  div.innerHTML = "<div>Marking duplicate: " + name + "</div>...";
+  try {
+    const response =
+        await fetch("/markDuplicate?submission_id=" + encodeURIComponent(submissionId) + "&into_submission_id=" + encodeURIComponent(intoSubmissionId));
+    const responseText = await response.text();
+    if (response.status != "200") {
+      throw responseText;
+    }
+    div.innerHTML = "<div>Marked duplicate: " + name + "</div>" + responseText;
+  } catch (e) {
+    console.log(e);
+    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+  }
+}
 async function publishConfirmedSubmission(index, bestName, bestUrl) {
   const div = document.getElementById("submission" + index);
   const submissionId = div.dataset.submissionId;
@@ -158,12 +175,9 @@ Confirmed submissions:
           <% submission.similars.forEach(function(similar){ %>
             <li>
               <%= similar.status %>:
-              <a href="/submission?submission_id=<%= similar.submission_id %>">
-                <%= similar.name %>
-              </a>
+              <a href="/submission?submission_id=<%= similar.submission_id %>"><%= similar.name %></a>
               in <%= similar.city %>, <%= similar.state %> 
-              <button onclick="mergeSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Dupe</button>
-              <button onclick="mergeSubmission('<%= similar.submission_id %>', '<%= submission.submission_id %>')">Is Better</button>
+              <button onclick="markDuplicateSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Better</button>
             </li>
           <% }) %>
         </ul>

@@ -244,11 +244,18 @@ const nodeServer = http.createServer(async function(req, res) {
 	      await server.approve(submissionId, need);
 	    } break;
 
-	    case "/reject": {
-	      const {submission_id: submissionId} = queryParams;
-	      if (submissionId == null) throw "Missing submission_id!";
-	      await server.reject(submissionId);
-	    } break;
+      case "/reject": {
+        const {submission_id: submissionId} = queryParams;
+        if (submissionId == null) throw "Missing submission_id!";
+        await server.reject(submissionId);
+      } break;
+
+      case "/markDuplicate": {
+        const {main_submission_id: mainSubmissionId, duplicate_submission_id: duplicateSubmissionId} = queryParams;
+        if (duplicateSubmissionId == null) throw "Missing duplicate_submission_id!";
+        if (mainSubmissionId == null) throw "Missing main_submission_id!";
+        await server.markDuplicate(submissionId, mainSubmissionId);
+      } break;
 
       case "/bury": {
         const {submission_id: submissionId} = queryParams;
