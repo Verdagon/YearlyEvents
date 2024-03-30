@@ -135,10 +135,49 @@ export class LocalDb {
 
   async markDuplicate(submissionId, mainSubmissionId) {
     return await this.maybeThrottle(async () => {
+      const submission = await this.getSubmission(submissionId);
+      if (!submission) {
+        throw "No submission for id: " + submissionId;
+      }
+      const mainSubmission = await this.getSubmission(mainSubmissionId);
+      if (!mainSubmission) {
+        throw "No submission for id: " + mainSubmission;
+      }
+
+      const oldStatus = submission.status;
+
+      console.log("Marking duplicate submission as duplicate.");
       await (this.target)("Submissions").where({'submission_id': submissionId}).update({
         'status': 'duplicate',
         'better_submission_id': mainSubmissionId
       });
+
+      for (const matchAnalysisRow of await this.getMatchAnalysesForSubmission(submissionId)) {
+        const {submission_id, url, model, status, steps, matchness} = matchAnalysisRow;
+
+        const matchAnalysisRowForMainSubmission =
+            await this.getMatchAnalysis(mainSubmissionId, url, model);
+        if (matchAnalysisRowForMainSubmission) {
+          // Do nothing, trust what's already there
+          console.log("Match analysis already exists for", submission_id, model, url);
+        } else {
+          // Make a new analysis for the main submission
+          console.log("Making new", status, "match analysis for", submission_id, model, url);
+          await this.startMatchAnalysis(mainSubmissionId, url, model);
+          await this.finishMatchAnalysis(mainSubmissionId, url, model, status, steps, matchness);
+        }
+      }
+
+      if (oldStatus == 'confirmed') {
+        switch (mainSubmission.status) {
+        case 'created':
+        case 'failed':
+        case 'approved':
+          console.log("Updating main submission to confirmed.");
+          await this.updateSubmissionStatus(mainSubmissionId, 'confirmed');
+          break;
+        }
+      }
     });
   }
 
@@ -417,6 +456,20 @@ export class LocalDb {
                 return row;
               });
       return row && row[0] || null;
+    });
+  }
+
+  async getMatchAnalysesForSubmission(submissionId) {
+    return await this.maybeThrottle(async () => {
+      return (
+            await (this.target).select().from("MatchAnalyses")
+                .where({submission_id: submissionId}))
+          .map(row => {
+            if (row.steps) {
+              row.steps = JSON.parse(row.steps);
+            }
+            return row;
+          });
     });
   }
 
