@@ -216,9 +216,9 @@ export class YearlyEventsServer {
     await this.db.publishEvent(eventId, bestUrl);
   }
 
-  async rejectEvent(eventId) {
-    await this.db.rejectEvent(eventId);
-  }
+  // async rejectEvent(eventId) {
+  //   await this.db.rejectEvent(eventId);
+  // }
 
   async approve(submissionId, need) {
     await this.db.approveSubmission(submissionId, need);

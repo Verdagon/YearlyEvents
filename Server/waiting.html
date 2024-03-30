@@ -16,13 +16,13 @@ body {
 async function publishConfirmedSubmission(index, bestUrl) {
   const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
-  const eventId = div.dataset.eventId;
+  const submissionId = div.dataset.submissionId;
   div.innerHTML = "<div>Publishing: " + name + "</div>...";
   try {
     const response =
-        await fetch("/publish?event_id=" + encodeURIComponent(eventId) + "&best_url=" + bestUrl);
+        await fetch("/publish?submission_id=" + encodeURIComponent(submissionId) + "&best_url=" + bestUrl);
     await response.text();
-    div.innerHTML = "<div>Published: " + name + "</div>" + eventId;
+    div.innerHTML = "<div>Published: " + name + "</div>" + submissionId;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -31,13 +31,13 @@ async function publishConfirmedSubmission(index, bestUrl) {
 async function buryConfirmedSubmission(index) {
   const div = document.getElementById("submission" + index);
   const name = div.dataset.name;
-  const eventId = div.dataset.eventId;
+  const submissionId = div.dataset.submissionId;
   div.innerHTML = "<div>Burying: " + name + "</div>...";
   try {
     const response =
-        await fetch("/bury?event_id=" + encodeURIComponent(eventId));
+        await fetch("/bury?submission_id=" + encodeURIComponent(submissionId));
     await response.text();
-    div.innerHTML = "<div>Buried: " + name + "</div>" + eventId;
+    div.innerHTML = "<div>Buried: " + name + "</div>" + submissionId;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -106,31 +106,31 @@ async function burySubmissionClicked(index) {
 Confirmed submissions:
 </h3>
 
-<% it.confirmedSubmissions.forEach(function(event){ %>
+<% it.confirmedSubmissions.forEach(function(submission){ %>
   <div
       class="idea"
-      id="submission<%= event.submission_id %>"
-      data-name="<%= event.name %>"
-      data-event-id="<%= event.id %>">
+      id="submission<%= submission.submission_id %>"
+      data-name="<%= submission.name %>"
+      data-submission-id="<%= submission.submission_id %>">
     <div style="display: flex; align-items: center;">
       <div style="flex-grow: 1">
-        <b><%= event.name %></b> in <%= event.city %>, <%= event.state %>:
+        <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
       </div>
       <div style="flex-shrink: 0; margin-right: 0.5em">
-        <a href="/submission?submission_id=<%= event.submission_id %>">Submission</a>
+        <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="buryConfirmedSubmission('<%= event.submission_id %>')">Reject</button>
+        <button onclick="buryConfirmedSubmission('<%= submission.submission_id %>')">Reject</button>
       </div>
     </div>
-    <div><%= event.notes %></div>
-    <% event.confirmations.forEach(function(analysis, analysisI){ %>
+    <div><%= submission.notes %></div>
+    <% submission.confirmations.forEach(function(analysis, analysisI){ %>
       <div style="display: flex; align-items: center;">
         <div style="flex-grow: 1">
           <a href="<%~ analysis.url %>" target="_blank"><%~ analysis.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishConfirmedSubmission('<%= event.submission_id %>', '<%~ analysis.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission('<%= submission.submission_id %>', '<%~ analysis.url %>')">Publish</button>
         </div>
       </div>
       <div>

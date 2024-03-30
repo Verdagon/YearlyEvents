@@ -219,19 +219,19 @@ const nodeServer = http.createServer(async function(req, res) {
       } break;
 
 	    case "/publish": {
-	      const {event_id: eventId, best_url: bestUrl} = queryParams;
-        if (eventId == null) throw "Missing event_id!";
+	      const {submission_id: submissionId, best_url: bestUrl} = queryParams;
+        if (submissionId == null) throw "Missing submission_id!";
         if (bestUrl == null) throw "Missing best_url!";
 
-	      await server.publish(eventId, bestUrl);
+	      await server.publish(submissionId, bestUrl);
 	    } break;
 
-	    case "/rejectEvent": {
-	      const {event_id: eventId} = queryParams;
-	      if (eventId == null) throw "Missing event_id!";
+	    // case "/rejectEvent": {
+	    //   const {submission_id: submissionId} = queryParams;
+	    //   if (submissionId == null) throw "Missing submission_id!";
 
-	      await server.rejectEvent(eventId);
-	    } break;
+	    //   await server.rejectEvent(submissionId);
+	    // } break;
 
 	    case "/approve": {
 	      const {submission_id: submissionId, need} = queryParams;
