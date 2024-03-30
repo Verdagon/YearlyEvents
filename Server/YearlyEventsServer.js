@@ -114,7 +114,7 @@ export class YearlyEventsServer {
       const similars = [];
       for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
         for (const similar of await this.db.getSimilarSubmissionsByName(otherName)) {
-          if (similar.submission_id != submission.id) {
+          if (similar.submission_id != submission.submission_id) {
             similars.push(similar);
           }
         }
