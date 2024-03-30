@@ -158,7 +158,7 @@ Confirmed submissions:
           <% submission.similars.forEach(function(similar){ %>
             <li>
               <%= similar.status %>:
-              <a href="/submission?submission_id=<%= submission.submission_id %>">
+              <a href="/submission?submission_id=<%= similar.submission_id %>">
                 <%= similar.name %>
               </a>
               in <%= similar.city %>, <%= similar.state %> 
