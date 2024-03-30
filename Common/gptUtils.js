@@ -1,6 +1,6 @@
 
-export async function askTruncated(gptThrottler, throttlerPriority, openai, submissionId, query, numAttempts) {
-  console.log("Expensive", submissionId, "ChatGPT:", query.slice(0, 100));
+export async function askTruncated(gptThrottler, throttlerPriority, openai, maybeIdForLogging, query, numAttempts) {
+  console.log("Expensive", maybeIdForLogging, "ChatGPT:", query.slice(0, 100));
   // debugger;
 	numAttempts = (numAttempts || 0);
 	if (typeof query != 'string') {
@@ -25,7 +25,7 @@ export async function askTruncated(gptThrottler, throttlerPriority, openai, subm
 	  	console.log(error);
 	    if (numAttempts < 3) {
 	    	console.log("Was an error, trying again...");
-	    	return await askTruncated(gptThrottler, throttlerPriority, openai, submissionId, query, numAttempts + 1);
+	    	return await askTruncated(gptThrottler, throttlerPriority, openai, maybeIdForLogging, query, numAttempts + 1);
 	    } else {
 	    	console.log("Too many attempts, stopping.");
 		    if (typeof error.json === "function") {

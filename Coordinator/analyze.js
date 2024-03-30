@@ -1,8 +1,9 @@
 import { Configuration, OpenAIApi } from "openai";
 // import { dbCachedZ, getFromDb } from '../db.js'
 import { delay } from "../Common/parallel.js";
-import { logs, normalizeName } from "../Common/utils.js";
+import { logs, normalizeName, VException } from "../Common/utils.js";
 import { askTruncated } from "../Common/gptUtils.js";
+import { getPageText } from "./getpagetext.js";
 import fs from "fs/promises";
 
 // These key numbers are stored in the database.
@@ -131,6 +132,28 @@ export async function analyzePageOuter(
       throw logs(pageSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
     }
 
+    const {status: describeStatus, description, error: describeError} =
+        await describePage(
+            db,
+            gptCacheCounter,
+            gptThrottler,
+            throttlerPriority,
+            pageSteps,
+            openai,
+            model,
+            maybeIdForLogging,
+            url,
+            pageText);
+    if (describeStatus == 'error') {
+      logs(pageSteps, broadSteps)("Describe had errors, marking analysis errors.");
+      await db.finishPageAnalysis(url, model, 'errors', pageSteps, null);
+      return;
+    } else if (describeStatus == 'success') {
+      // Proceed
+    } else {
+      throw logs(pageSteps, broadSteps)("Bad status wtf:", describeStatus, description, describeError);
+    }
+
     const [analysis, analyzeInnerStatus] =
         await analyzePageInner(
             db,
@@ -177,7 +200,7 @@ export async function analyzePageOuter(
   }
 }
 
-export async function matchPageOuter(
+export async function analyzeMatchOuter(
     openai,
     scratchDir,
     db,
@@ -190,7 +213,7 @@ export async function matchPageOuter(
     gptThrottler,
     throttlerPriority,
     gptCacheCounter,
-    maybeIdForLogging,
+    submissionId,
     model,
     event_i,
     matchName,
@@ -200,7 +223,6 @@ export async function matchPageOuter(
     search_result_i,
     url) {
   // We declare these up here so that the try block's exception can include them.
-  let matchSteps = [];
   let matchSteps = [];
   let pageText = null;
   let pageTextError = null;
@@ -213,14 +235,14 @@ export async function matchPageOuter(
 
   try {
     await db.transaction(async (trx) => {
-      const matchRow = await trx.getMatchAnalysis(url, model);
+      const matchRow = await trx.getMatchAnalysis(submissionId, url, model);
       if (matchRow) {
         matchStatus = matchRow.status;
         matchSteps = matchRow.steps || [];
       }
       if (matchStatus == null) {
         logs(matchSteps, broadSteps)("Starting analysis for page:", url);
-        await trx.startPageAnalysis(url, model);
+        await trx.startMatchAnalysis(submissionId, url, model);
         matchStatus = 'created';
       } else if (matchStatus == 'created') {
         console.log("Resuming existing page analysis row for:", url);
@@ -230,13 +252,13 @@ export async function matchPageOuter(
     });
 
     // Sanity check
-    if (!await db.getMatchAnalysis(url, model)) {
+    if (!await db.getMatchAnalysis(submissionId, url, model)) {
       throw logs(matchSteps)("No analysis to use?!");
     }
 
     const {text: pageText_, error: pageTextError_} =
         await getPageText(
-            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, matchSteps, event_i, search_result_i, url);
+            scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, submissionId, matchSteps, event_i, search_result_i, url);
     pageText = pageText_;
     pageTextError = pageTextError_;
 
@@ -248,39 +270,41 @@ export async function matchPageOuter(
       throw logs(matchSteps, broadSteps)("Seemingly successful pdf-to-text, but no page text and no error!");
     }
 
-    const [matchness, matchInnerStatus] =
-        await matchPageInner(
+    const matchness =
+        await analyzeMatchInner(
             db,
             gptCacheCounter,
             gptThrottler,
             throttlerPriority,
-            steps,
+            matchSteps,
             openai,
             model,
             url,
-            page_text,
+            pageText,
             matchName,
             matchCity,
             matchState);
 
-    if (matchInnerStatus == 'created') {
-      console.log("Inner analyze status created, marking match analysis created.");
-      await db.finishMatchAnalysis(url, model, 'created', matchSteps, matchness);
-    } else if (matchInnerStatus == 'errors') {
-      logs(matchSteps, broadSteps)("Inner analyze had errors, marking analysis errors.");
-      await db.finishMatchAnalysis(url, model, 'errors', matchSteps, matchness);
-    } else if (matchInnerStatus == 'rejected') {
-      logs(matchSteps, broadSteps)("Inner analyze rejected, wasn't an event, rejecting analyses.");
-      await db.finishMatchAnalysis(url, model, 'errors', matchSteps, matchness);
-    } else if (matchInnerStatus == 'success') {
-      console.log("Inner analyze status created, marking match analysis success.");
-      await db.finishMatchAnalysis(url, model, 'success', matchSteps, matchness);
-    } else {
-      throw logs(broadSteps)("Wat analyze response:", matchness, matchInnerStatus)
-    }
+    // if (matchInnerStatus == 'created') {
+    //   console.log("Inner analyze status created, marking match analysis created.");
+    //   await db.finishMatchAnalysis(submissionId, url, model, 'created', matchSteps, matchness);
+    // } else if (matchInnerStatus == 'errors') {
+    //   logs(matchSteps, broadSteps)("Inner analyze had errors, marking analysis errors.");
+    //   await db.finishMatchAnalysis(submissionId, url, model, 'errors', matchSteps, matchness);
+    // } else if (matchInnerStatus == 'rejected') {
+    //   logs(matchSteps, broadSteps)("Inner analyze rejected, wasn't an event, rejecting analyses.");
+    //   await db.finishMatchAnalysis(submissionId, url, model, 'errors', matchSteps, matchness);
+    // } else if (matchInnerStatus == 'success') {
+    //   console.log("Inner analyze status created, marking match analysis success.");
+    //   // Proceed
+    // } else {
+    //   throw logs(broadSteps)("Wat analyze response:", matchness, matchInnerStatus)
+    // }
+
+    await db.finishMatchAnalysis(submissionId, url, model, 'success', matchSteps, matchness);
 
     // sanity check
-    if (!await db.getMatchAnalysis(url, model)) {
+    if (!await db.getMatchAnalysis(submissionId, url, model)) {
       throw logs(matchSteps)("No match analysis to use?!");
     }
   } catch (error) {
@@ -291,7 +315,7 @@ export async function matchPageOuter(
     } else {
       console.log("Already logged error:", error);
     }
-    await db.finishMatchAnalysis(url, model, 'errors', matchSteps, matchness);
+    await db.finishMatchAnalysis(submissionId, url, model, 'errors', matchSteps, matchness);
   }
 }
 
@@ -314,7 +338,7 @@ export async function analyzePageInner(
     openai,
     model,
     url,
-    page_text,
+    description,
     extraStowawayQuestions) {
   if (steps == null) {
     throw "Steps null wtf";
@@ -346,7 +370,7 @@ export async function analyzePageInner(
           openai,
           model,
           url,
-          page_text,
+          description,
           questions);
 
 	const analysis = {
@@ -415,7 +439,7 @@ export async function analyzePageInner(
 	const monthAnswer = questionToAnswer[MONTH_QUESTION];
 	analysis.month = isKnownTrueOrNull(monthAnswer) && getMonthOrNull(monthAnswer);
 
-  logs(steps)("Analysis complete, matchness", matchness);
+  logs(steps)("Analysis complete:", analysis);
 	return [analysis, "success"];
 }
 
@@ -437,7 +461,7 @@ function makeMatchQuestions(matchName, matchCity, matchState) {
 //.  - 5: multiple events.
 // - information about the event, or null if not an event.
 // - status: created if paused, errors if any errors, success if success
-export async function matchPageInner(
+export async function analyzeMatchInner(
     db,
     gptCacheCounter,
     gptThrottler,
@@ -446,7 +470,7 @@ export async function matchPageInner(
     openai,
     model,
     url,
-    page_text,
+    description,
     matchName,
     matchCity,
     matchState) {
@@ -455,6 +479,7 @@ export async function matchPageInner(
   }
 
   const questions = makeMatchQuestions(matchName, matchCity, matchState);
+  const [matchesCityQuestion, matchesStateQuestion, matchesAnywhereQuestion] = questions;
 
   const questionToAnswer =
       await askQuestionsForPage(
@@ -466,7 +491,7 @@ export async function matchPageInner(
           openai,
           model,
           url,
-          page_text,
+          description,
           questions);
 
   logs(steps)("Considering answers...");
@@ -491,8 +516,8 @@ export async function matchPageInner(
   return matchness;
 }
 
-// Returns a map of question to answer.
-export async function askQuestionsForPage(
+// Returns a {status, description, error}
+export async function describePage(
     db,
     gptCacheCounter,
     gptThrottler,
@@ -500,9 +525,9 @@ export async function askQuestionsForPage(
     steps,
     openai,
     model,
+    maybeIdForLogging,
     url,
-    page_text,
-    questions) {
+    page_text) {
 
   if (steps == null) {
     throw "Steps null wtf";
@@ -516,8 +541,16 @@ export async function askQuestionsForPage(
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
     description =
-        await askTruncated(gptThrottler, throttlerPriority, openai, submissionId, SUMMARIZE_PROMPT + "\n------\n" + page_text);
-    await db.cachePageSummary({url, model, response: description, prompt_version: SUMMARIZE_PROMPT_VERSION});
+        await askTruncated(
+            gptThrottler, throttlerPriority, openai, maybeIdForLogging,
+            SUMMARIZE_PROMPT + "\n------\n" + page_text);
+    await db.cachePageSummary({
+      url,
+      model,
+      prompt_version: SUMMARIZE_PROMPT_VERSION,
+      status: 'success',
+      response: description,
+    });
     logs(steps)({ "": "GPT response:", "details": description });
   }
 
@@ -525,16 +558,48 @@ export async function askQuestionsForPage(
   // console.log(description);
 
   if (description.trim().toLowerCase().startsWith("nothing")) {
-    logs(steps)("Not an event, skipping.");
-    return [0, null, "success"];
+    const error = {
+      "": "Not an event, skipping.",
+      description
+    };
+    logs(steps)(error);
+    return {status: "error", description, error};
   }
   if (description.trim().toLowerCase().startsWith("multiple")) {
-    logs(steps)("Multiple events, skipping.");
-    return [5, null, "success"];
+    const error = {
+      "": "Multiple events, skipping.",
+      description
+    };
+    logs(steps)(error);
+    return {status: "error", description, error};
   }
   if (description.trim().length < 20) {
-    logs(steps)("Too short, probably bad, skipping.");
-    return [0, null, "success"];
+    const error = {
+      "": "Too short, probably bad, skipping.",
+      description
+    };
+    logs(steps)(error);
+    return {status: "error", description, error};
+  }
+
+  return {status: "success", description, error: null};
+}
+
+// Returns a map of question to answer.
+// Might throw.
+export async function askQuestionsForPage(
+    db,
+    gptCacheCounter,
+    gptThrottler,
+    throttlerPriority,
+    steps,
+    openai,
+    model,
+    url,
+    description,
+    questions) {
+  if (steps == null) {
+    throw "Steps null wtf";
   }
 
   const questionToMaybeCachedAnswer = {};
@@ -578,7 +643,9 @@ export async function askQuestionsForPage(
     logs(steps)("Asking GPT to analyze...");
     // console.log("bork 0", submissionId, url);
     analysisResponse =
-      await askTruncated(gptThrottler, throttlerPriority, openai, submissionId, analyzeQuestion + "\n------\n" + description);
+      await askTruncated(
+          gptThrottler, throttlerPriority, openai, maybeIdForLogging,
+          analyzeQuestion + "\n------\n" + description);
     // console.log("GPT:")
     // console.log(analysisResponse);
     // steps.push(analysisResponse);

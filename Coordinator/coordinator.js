@@ -11,7 +11,8 @@ import { LocalDb } from '../LocalDB/localdb.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import fs from "fs/promises";
 import { logs, normalizeName, makeLineServerProcess } from "../Common/utils.js";
-import { investigate, analyze } from "./investigate.js";
+import { investigate } from "./investigate.js";
+import { analyzePageOuter, analyzeMatchOuter } from './analyze.js'
 import { Configuration, OpenAIApi } from "openai";
 import { Semaphore, parallelEachI, makeMsThrottler } from "../Common/parallel.js";
 import urlencode from 'urlencode';
@@ -78,7 +79,6 @@ try {
   await parallelEachI(unfinishedLeads, async (leadIndex, lead) => {
     let broadSteps = lead.steps;
     await analyzePageOuter(
-      start here 
         openai,
         scratchDir,
         db,
@@ -106,34 +106,36 @@ try {
     if (pageAnalysisRow.status == 'created') {
       console.log("Lead analysis row is status created, pausing investigation.");
       // If it's still created status, then we're waiting on something external.
-      // Proceed
+      return;
     } else if (pageAnalysisRow.status == 'success') {
-      lead.status = 'success'; // because its used below
-      logs(broadSteps)("Lead url", lead.url, "success, adding", lead.status, "submission.");
-      await db.updateLead(lead.id, 'success', broadSteps);
-
-      await addSubmission(this.db, {
-          submission_id: lead.id,
-          status: lead.status == 'approved' ? 'approved' : 'created',
-          name: pageAnalysisRow.analysis.name,
-          city: pageAnalysisRow.analysis.city,
-          state: pageAnalysisRow.analysis.state,
-          description: pageAnalysisRow.analysis.description,
-          url: lead.url,
-          origin_query: null,
-          need: lead.need
-      });
+      // proceed
     } else if (pageAnalysisRow.status == 'errors') {
       logs(broadSteps)("Analysis for", lead.url, "had errors, marking lead.");
       await db.updateLead(lead.id, 'errors', broadSteps);
-      continue;
+      return;
     } else if (pageAnalysisRow.status == 'rejected') {
       logs(broadSteps)("Analysis for", lead.url, "rejected, marking lead.");
       await db.updateLead(lead.id, 'rejected', broadSteps);
-      continue;
+      return;
     } else {
       throw "Weird status from analyze: " + pageAnalysisRow.status;
     }
+
+    lead.status = 'success'; // because its used below
+    logs(broadSteps)("Lead url", lead.url, "success, adding", lead.status, "submission.");
+    await db.updateLead(lead.id, 'success', broadSteps);
+
+    await addSubmission(this.db, {
+        submission_id: lead.id,
+        status: lead.status == 'approved' ? 'approved' : 'created',
+        name: pageAnalysisRow.analysis.name,
+        city: pageAnalysisRow.analysis.city,
+        state: pageAnalysisRow.analysis.state,
+        description: pageAnalysisRow.analysis.description,
+        url: lead.url,
+        origin_query: null,
+        need: lead.need
+    });
   });
 
 
@@ -199,7 +201,7 @@ try {
         model)
 		
     const investigationRow = await db.getInvestigation(submissionId, model);
-    const pageAnalysesRows = await db.getInvestigationPageAnalyses(submissionId, model);
+    // const pageAnalysesRows = await db.getInvestigationPageAnalyses(submissionId, model);
 
     if (investigationRow.status == 'created') {
       // Continue on, this one's paused on some external thing.

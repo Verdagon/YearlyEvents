@@ -1,16 +1,7 @@
 
-import https from "https";
-import syncFs from "fs";
-import util from 'node:util';
-import { execFile, spawn } from 'node:child_process'
-import fs from "fs/promises";
-import urlencode from 'urlencode';
-import { logs, normalizeName, normalizeState, distinct, VException } from "../Common/utils.js";
-import { analyze } from './analyze.js'
-import { addSubmission } from '../Common/addSubmission.js'
-import { parallelEachI } from "../Common/parallel.js";
-
-const execFileAsync = util.promisify(execFile);
+import { logs, normalizeState, distinct, VException } from "../Common/utils.js";
+import { analyzePageOuter, analyzeMatchOuter } from './analyze.js'
+import { getSearchResult } from './search.js'
 
 export async function investigate(
     openai,
@@ -87,11 +78,10 @@ export async function investigate(
     logs(broadSteps)("Google result URLs:", unfilteredResponseUrls);
 
     // Make sure we don't overwrite any existing page analyses
-    let existingAnalysesUrls =
-        (await db.getInvestigationPageAnalyses(submissionId, model))
+    const urls = 
+        (await db.getInvestigationAnalyses(submissionId, model))
         .map(row => row.url);
     // Add new rows for new URLs
-    const urls = [];
     // We don't parallelize because we want to short-circuit once we hit 7
     for (const url of unfilteredResponseUrls) {
       if (urls.length >= 7) {
@@ -169,6 +159,7 @@ export async function investigate(
     let alreadyConfirmed = false;
     for (const [url_i, url] of urls.entries()) {
       if (alreadyConfirmed) {
+        await db.finishMatchAnalysis(submissionId, url, model, 'moot', [], {});
         await db.finishPageAnalysis(url, model, 'moot', [], {});
       } else {
         // This will update the rows in the database.
@@ -210,14 +201,14 @@ export async function investigate(
         } else if (pageAnalysisRow.status == 'rejected') {
           console.log("Counting reject from url:", url);
           continue;
-        } else if (pageAnalysisRow.status == 'confirmed') {
+        } else if (pageAnalysisRow.status == 'success') {
           // Proceed
         } else {
           throw "Weird status from analyze: " + pageAnalysisRow.status;
         }
 
         // This will update the rows in the database.
-        await matchPageOuter(
+        await analyzeMatchOuter(
             openai,
             scratchDir,
             db,
@@ -240,7 +231,7 @@ export async function investigate(
             url_i,
             url);
         const matchAnalysisRow =
-            await db.getMatchAnalysis(url, model, event_name, event_city, event_state);
+            await db.getMatchAnalysis(submissionId, url, model);
         if (matchAnalysisRow.status == 'created') {
           console.log("Analysis row is status created, pausing investigation.");
           // If it's still created status, then we're waiting on something external.
@@ -255,15 +246,17 @@ export async function investigate(
         } else if (matchAnalysisRow.status == 'rejected') {
           console.log("Counting reject from url:", url);
           continue;
-        } else if (matchAnalysisRow.status == 'confirmed') {
+        } else if (matchAnalysisRow.status == 'success') {
           // Proceed
         } else {
           throw "Weird status from analyze: " + matchAnalysisRow.status;
         }
 
+        // If we get here, this page matches.
         console.log("Counting confirmation from url:", url);
         num_confirms++;
-        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = matchAnalysisRow;
+        // Since we know it matches, we can trust and use this information from the page analysis.
+        const {yearly, name, city, state, firstDate, lastDate, nextDate, summary, month} = pageAnalysisRow;
         if (month) {
           months.push(month);
         }
@@ -305,113 +298,6 @@ export async function investigate(
   }
 }
 
-async function getSearchResult(db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery) {
-  const maybeSearcherResult =
-      await db.getCachedGoogleResult(googleQuery);
-  if (maybeSearcherResult) {
-    const {response} = maybeSearcherResult;
-    console.log("Using cached google query");
-    searchCacheCounter.count++;
-    return {response};
-  }
-  const response =
-      await searchThrottler.prioritized(throttlerPriority, async () => {
-        console.log("Released for Google!", throttlerPriority)
-        console.log("Expensive", submissionId, "google:", googleQuery);
-        // debugger;
-        return await googleSearch(googleSearchApiKey, googleQuery);
-      });
-  console.log("Caching google result");
-  await db.cacheGoogleResult({query: googleQuery, response: response});
-  return {response: response};
-}
-
-async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
-  const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
-  console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
-  try {
-    console.log("Expensive", maybeIdForLogging, "chromeFetcher:", url);
-    // debugger;
-    await chromeFetcher.send(url + " " + pdfOutputPath);
-  } catch (err) {
-    const error =
-        "Bad fetch/browse for url " + url + ": " + 
-        (err.status ?
-            err.status + ": " + err.rest :
-            err);
-    console.log(error);
-    return {text: null, error};
-  }
-
-  const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
-  const commandArgs = ["./PdfToText/main.py", pdfOutputPath, txt_path];
-  const pdftotextExitCode = await runCommandForStatus("python3", commandArgs)
-  console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
-  if (pdftotextExitCode !== 0) {
-    const error = "Bad PDF-to-text for url " + url + " pdf path " + pdfOutputPath;
-    console.log(error);
-    return {text: null, error};
-  }
-  steps.push(["Created text in", txt_path])
-  const text = (await fs.readFile(txt_path, { encoding: 'utf8' })).trim();
-  if (!text) {
-    const error = "No result text found for url " + url + ", args: " + commandArgs.join(" ");
-    console.log(error);
-    return {text: null, error};
-  }
-
-  return {text, error: null};
-}
-
-async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
-  // This used to be wrapped in a transaction but I think it was causing the connection
-  // pool to get exhausted.
-
-  const cachedPageTextRow = await db.getPageText(url);
-  if (cachedPageTextRow) {
-    chromeCacheCounter.count++;
-    return cachedPageTextRow;
-  }
-
-  const {text, error} =
-      await getPageTextInner(
-          scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url);
-  // This automatically merges on conflict
-  await db.cachePageText({url, text, error});
-  return {text, error};
-}
-
-async function googleSearch(googleSearchApiKey, query) {
-  try {
-    const url =
-        "https://www.googleapis.com/customsearch/v1?key=" + googleSearchApiKey +
-        "&cx=8710d4180bdfd4ba9&q=" + urlencode(query);
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw "!response.ok from google: " + JSON.stringify(response);
-    }
-    const body = await response.json();
-    if (body.spelling && body.spelling.correctedQuery) {
-      console.log("Searching google suggested corrected query:", query);
-      return await googleSearch(googleSearchApiKey, body.spelling.correctedQuery);
-    }
-    if (body.items == null) {
-      throw "Bad response error, no items: " + JSON.stringify(body);
-    }
-    if (body.items.length == null) {
-      throw "Bad response error, items empty: " + JSON.stringify(body);
-    }
-    return body.items.map(x => x.link);
-  } catch (error) {
-    if (typeof error.json === "function") {
-      const jsonError = await error.json();
-      throw jsonError;
-    } else {
-      throw "Generic error from API: " + error + ": " + JSON.stringify(error);
-    }
-  }
-}
-
 async function addOtherEventSubmission(db, otherEvent) {
   const {url, analysis: {name, city, state, yearly, summary}} = otherEvent;
   console.log("Other event: " + name + " in " + city + ", " + state + ", " + (yearly ? "yearly" : "(unsure if yearly)") + " summary: " + summary);
@@ -428,50 +314,3 @@ async function addOtherEventSubmission(db, otherEvent) {
     need: 0
   });
 }
-
-async function runCommandForStatus(program, args) {
-  try {
-    // Seems to return an object with just two fields, like:
-    // { stdout: 'Success!\n', stderr: '' }
-    await execFileAsync(program, args);
-    return 0;
-  } catch (e) {
-    if (e.exitCode !== undefined || e.stdout !== undefined || e.stderr !== undefined) {
-      console.log("Command failed: ", program, args);
-      console.log("exitCode:\n" + e.exitCode);
-      console.log("stdout:\n" + e.stdout);
-      console.log("stderr:\n" + e.stderr);
-      return e.exitCode;
-    } else {
-      console.log("Command failed: ", program, args, "Error:", e);
-      throw e;
-    }
-  }
-}
-
-// // Function to fetch PDF from URL and save it to a file
-// function fetchPDF(url, filePath) {
-//     return new Promise((resolve, reject) => {
-//         const file = syncFs.createWriteStream(filePath);
-
-//         if (url.startsWith("https://")) {
-//           https.get(url, response => {
-//               response.pipe(file);
-//               file.on('finish', () => {
-//                   file.close(resolve);
-//               });
-//           }).on('error', error => {
-//               fs.unlink(filePath, () => reject(error));
-//           });
-//       } else {
-//         http.get(url, response => {
-//               response.pipe(file);
-//               file.on('finish', () => {
-//                   file.close(resolve);
-//               });
-//           }).on('error', error => {
-//               fs.unlink(filePath, () => reject(error));
-//           });
-//       }
-//     });
-// }

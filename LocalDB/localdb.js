@@ -236,10 +236,17 @@ export class LocalDb {
     });
   }
 
-  async getInvestigationPageAnalyses(submissionId, model) {
+  async getInvestigationAnalyses(submissionId, model) {
     return await this.maybeThrottle(async () => {
-      return (await (this.target).select().from("PageAnalyses")
-          .where({submission_id: submissionId, model}))
+      return (
+          await (this.target)
+            .select("m.*")
+            .from("MatchAnalyses as m")
+            .where({"m.submission_id": submissionId, "m.model": model})
+            .join("PageAnalyses as p", function() {
+                this.on("p.url", "=", "m.url")
+                    .andOn("p.model", "=", "m.model");
+            }))
           .map(row => {
             if (row.steps) {
               row.steps = JSON.parse(row.steps);
@@ -345,6 +352,47 @@ export class LocalDb {
             status: status,
             steps: JSON.stringify(steps),
             analysis: JSON.stringify(analysis)
+          });
+    });
+  }
+
+  async getMatchAnalysis(submissionId, url, model) {
+    return await this.maybeThrottle(async () => {
+      const row =
+          (await (this.target).select().from("MatchAnalyses")
+              .where({submission_id: submissionId, url, model}))
+              .map(row => {
+                if (row.steps) {
+                  row.steps = JSON.parse(row.steps);
+                }
+                return row;
+              });
+      return row && row[0] || null;
+    });
+  }
+
+  async startMatchAnalysis(submissionId, url, model) {
+    return await this.maybeThrottle(async () => {
+      await (this.target).into("MatchAnalyses")
+          .insert({
+            submission_id: submissionId,
+            url,
+            model,
+            steps: JSON.stringify([]),
+            status: 'created',
+            matchness: null
+          });
+    });
+  }
+
+  async finishMatchAnalysis(submissionId, url, model, status, steps, matchness) {
+    return await this.maybeThrottle(async () => {
+      await (this.target)("MatchAnalyses")
+          .where({ submission_id: submissionId, url, model })
+          .update({
+            status: status,
+            steps: JSON.stringify(steps),
+            matchness: matchness
           });
     });
   }
@@ -489,28 +537,6 @@ export class LocalDb {
             if (row.steps) {
               row.steps = JSON.parse(row.steps);
             }
-            return row;
-          });
-    });
-  }
-
-  async getPageAnalyses(submissionId, model) {
-    return await this.maybeThrottle(async () => {
-      return (await (this.target).select().from("PageAnalyses").where({submission_id: submissionId, model: model}))
-      		.map((row) => {
-      			row.steps = JSON.parse(row.steps);
-      			row.analysis = JSON.parse(row.analysis);
-      			return row;
-      		});
-    });
-  }
-
-  async getPageAnalysesByUrl(submissionId, url) {
-    return await this.maybeThrottle(async () => {
-      return (await (this.target).select().from("PageAnalyses").where({submission_id: submissionId, url: url}))
-          .map((row) => {
-            row.steps = JSON.parse(row.steps);
-            row.analysis = JSON.parse(row.analysis);
             return row;
           });
     });

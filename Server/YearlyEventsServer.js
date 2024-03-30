@@ -184,7 +184,7 @@ export class YearlyEventsServer {
       submission.investigations = [];
       for (const investigation of await this.db.getInvestigations(submissionId)) {
       	investigation.pageAnalyses =
-            await this.db.getInvestigationPageAnalyses(submissionId, investigation.model);
+            await this.db.getInvestigationAnalyses(submissionId, investigation.model);
         await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
           const pageTextRow = await this.db.getPageText(analysis.url);
           analysis.pageText = pageTextRow && pageTextRow.text;
