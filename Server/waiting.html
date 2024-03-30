@@ -156,7 +156,8 @@ Unconsidered submissions:
         <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
       </div>
       <div style="flex-shrink: 0">
-        <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">NEED</button>
+        <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 2)">NEED</button>
+        <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Want</button>
         <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 0)">Approve</button>
         <button onclick="rejectSubmissionClicked('<%= submission.submission_id %>')">Reject</button>
       </div>

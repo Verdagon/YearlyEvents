@@ -197,8 +197,22 @@ const nodeServer = http.createServer(async function(req, res) {
         if (url == null) throw "Missing url!";
         if (action == null) throw "Missing action!";
 
-        const status = action == 'approve' ? 'approved' : 'created';
-        const need = action == 'need' ? 1 : 0;
+        let status = 'created';
+        let need = 0;
+        switch (action) {
+        case 'created': break;
+        case 'approved':
+          status = 'approved';
+          break;
+        case 'want':
+          status = 'approved';
+          need = 1;
+          break;
+        case 'need':
+          status = 'approved':
+          need = 2;
+          break;
+        }
 
         const id = await server.submitLead(url, status, need);
         res.writeHead(301, { 'Location': "/submission?submission_id=" + id });
