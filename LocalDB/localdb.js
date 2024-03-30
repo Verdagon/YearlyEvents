@@ -57,6 +57,9 @@ export class LocalDb {
 	}
 
 	async getSimilarSubmissionById(id) {
+    if (!id) {
+      throw "getSimilarSubmissionById no ID";
+    }
     return await this.maybeThrottle(async () => {
   		const results =
   				await (this.target)
