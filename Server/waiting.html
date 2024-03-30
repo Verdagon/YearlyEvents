@@ -13,13 +13,13 @@ body {
 }
 </style>
 <script>
-async function markDuplicateSubmission(submissionId, intoSubmissionId) {
+async function markDuplicateSubmission(submissionId, mainSubmissionId) {
   const div = document.getElementById("submission" + submissionId);
   const name = div.dataset.name;
   div.innerHTML = "<div>Marking duplicate: " + name + "</div>...";
   try {
     const response =
-        await fetch("/markDuplicate?submission_id=" + encodeURIComponent(submissionId) + "&into_submission_id=" + encodeURIComponent(intoSubmissionId));
+        await fetch("/markDuplicate?duplicate_submission_id=" + encodeURIComponent(submissionId) + "&main_submission_id=" + encodeURIComponent(mainSubmissionId));
     const responseText = await response.text();
     if (response.status != "200") {
       throw responseText;

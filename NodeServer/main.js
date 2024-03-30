@@ -254,7 +254,7 @@ const nodeServer = http.createServer(async function(req, res) {
         const {main_submission_id: mainSubmissionId, duplicate_submission_id: duplicateSubmissionId} = queryParams;
         if (duplicateSubmissionId == null) throw "Missing duplicate_submission_id!";
         if (mainSubmissionId == null) throw "Missing main_submission_id!";
-        await server.markDuplicate(submissionId, mainSubmissionId);
+        await server.markDuplicate(duplicateSubmissionId, mainSubmissionId);
       } break;
 
       case "/bury": {
