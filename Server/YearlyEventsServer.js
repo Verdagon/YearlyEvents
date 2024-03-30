@@ -113,7 +113,7 @@ export class YearlyEventsServer {
 
       const similars = [];
       for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
-        similars = similars.concat(await db.getSimilarSubmissionsByName(otherName));
+        similars = similars.concat(await this.db.getSimilarSubmissionsByName(otherName));
       }
       submission.similars = similars;
     });
