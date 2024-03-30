@@ -21,8 +21,8 @@ async function publishConfirmedSubmission(index, bestUrl) {
   try {
     const response =
         await fetch("/publish?submission_id=" + encodeURIComponent(submissionId) + "&best_url=" + bestUrl);
-    await response.text();
-    div.innerHTML = "<div>Published: " + name + "</div>" + submissionId;
+    const response = await response.text();
+    div.innerHTML = "<div>Published: " + name + "</div>" + response;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -36,8 +36,8 @@ async function buryConfirmedSubmission(index) {
   try {
     const response =
         await fetch("/bury?submission_id=" + encodeURIComponent(submissionId));
-    await response.text();
-    div.innerHTML = "<div>Buried: " + name + "</div>" + submissionId;
+    const response = await response.text();
+    div.innerHTML = "<div>Buried: " + name + "</div>" + response;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -52,8 +52,8 @@ async function approveSubmissionClicked(index, need) {
   try {
     const response =
         await fetch("/approve?submission_id=" + encodeURIComponent(submissionId) + "&need=" + need);
-    await response.text();
-    div.innerHTML = "<div>Approved: " + name + "</div>" + submissionId;
+    const response = await response.text();
+    div.innerHTML = "<div>Approved: " + name + "</div>" + response;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -67,8 +67,8 @@ async function rejectSubmissionClicked(index) {
   try {
     const response =
         await fetch("/reject?submission_id=" + encodeURIComponent(submissionId));
-    await response.text();
-    div.innerHTML = "<div>Rejected: " + name + "</div>" + submissionId;
+    const response = await response.text();
+    div.innerHTML = "<div>Rejected: " + name + "</div>" + response;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
@@ -82,8 +82,8 @@ async function burySubmissionClicked(index) {
   try {
     const response =
         await fetch("/bury?submission_id=" + encodeURIComponent(submissionId));
-    await response.text();
-    div.innerHTML = "<div>Buried: " + name + "</div>" + submissionId;
+    const response = await response.text();
+    div.innerHTML = "<div>Buried: " + name + "</div>" + response;
   } catch (e) {
     console.log(e);
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
