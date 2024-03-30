@@ -146,7 +146,7 @@ try {
 
 
 
-	let approvedSubmissions = (await db.getApprovedSubmissions());
+	let approvedSubmissions = (await db.getApprovedSubmissionsOfNeed(2));
   if (filterSubmissionId - 0 == filterSubmissionId) {
     approvedSubmissions = approvedSubmissions.slice(0, filterSubmissionId - 0);
   } else if (filterSubmissionId) {

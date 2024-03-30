@@ -143,13 +143,14 @@ export class LocalDb {
     });
   }
 
-	async getApprovedSubmissions() {
+	async getApprovedSubmissionsOfNeed(need) {
     return await this.maybeThrottle(async () => {
   		return await (this.target).select().from("Submissions")
   	      .whereNotNull("name")
   	      .whereNotNull("state")
   	      .whereNotNull("city")
-  	      .where({status: 'approved'});
+  	      .where({status: 'approved'})
+          .where('need', '>=', need);
     });
 	}
 
