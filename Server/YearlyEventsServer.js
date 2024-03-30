@@ -183,7 +183,7 @@ export class YearlyEventsServer {
   }
 
   async submitLead(url, futureSubmissionStatus, futureSubmissionNeed) {
-    return this.db.transaction(async (trx) => {
+    return await this.db.transaction(async (trx) => {
       const maybeLead = await trx.getLeadByUrl(url);
       if (maybeLead) {
         return maybeLead.id;
@@ -223,7 +223,7 @@ export class YearlyEventsServer {
   }
 
   async markDuplicate(duplicateSubmissionId, mainSubmissionId) {
-    return this.db.transaction(async (trx) => {
+    return await this.db.transaction(async (trx) => {
       await trx.markDuplicate(duplicateSubmissionId, mainSubmissionId);
     });
   }
