@@ -178,7 +178,7 @@ export async function analyzePageOuter(
       logs(pageSteps, broadSteps)("Inner analyze rejected, wasn't an event, rejecting analyses.");
       await db.finishPageAnalysis(url, model, 'errors', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'success') {
-      console.log("Inner analyze status created, marking page analysis success.");
+      console.log("Inner analyze status success, marking page analysis success.");
       await db.finishPageAnalysis(url, model, 'success', pageSteps, analysis);
     } else {
       throw logs(broadSteps)("Wat analyze response:", analysis, analyzeInnerStatus)

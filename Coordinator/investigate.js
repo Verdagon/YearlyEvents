@@ -317,7 +317,7 @@ async function addOtherEventSubmission(db, url, name, city, state, summary) {
     submission_id: crypto.randomUUID(),
     name,
     state: state && normalizeState(state),
-    city,
+    city: normalizePlace(city),
     description: summary,
     status: 'created',
     url,
