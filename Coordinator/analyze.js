@@ -2,7 +2,6 @@ import { Configuration, OpenAIApi } from "openai";
 // import { dbCachedZ, getFromDb } from '../db.js'
 import { delay } from "../Common/parallel.js";
 import { logs, normalizeName, VException } from "../Common/utils.js";
-import { askTruncated } from "../Common/gptUtils.js";
 import { getPageText } from "./getpagetext.js";
 import fs from "fs/promises";
 
@@ -12,6 +11,7 @@ import fs from "fs/promises";
 const SUMMARIZE_PROMPT_VERSION = 1;
 const SUMMARIZE_PROMPT =
 		"Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, and the year it ended.";
+  //"Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
 
 const YEAR_QUESTION = "does the event happen every year? say \"yes\", \"no\", or if not known then \"unknown\".";
 const NAME_QUESTION = "what's the event's name?";
@@ -69,7 +69,7 @@ export async function analyzePageOuter(
     searchCacheCounter,
     chromeFetcher,
     chromeCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     gptCacheCounter,
     model,
@@ -136,7 +136,7 @@ export async function analyzePageOuter(
         await describePage(
             db,
             gptCacheCounter,
-            gptThrottler,
+            llmRequester,
             throttlerPriority,
             pageSteps,
             openai,
@@ -158,7 +158,7 @@ export async function analyzePageOuter(
         await analyzePageInner(
             db,
             gptCacheCounter,
-            gptThrottler,
+            llmRequester,
             throttlerPriority,
             pageSteps,
             openai,
@@ -211,7 +211,7 @@ export async function analyzeMatchOuter(
     searchCacheCounter,
     chromeFetcher,
     chromeCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     gptCacheCounter,
     submissionId,
@@ -275,7 +275,7 @@ export async function analyzeMatchOuter(
         await analyzeMatchInner(
             db,
             gptCacheCounter,
-            gptThrottler,
+            llmRequester,
             throttlerPriority,
             matchSteps,
             openai,
@@ -334,7 +334,7 @@ export async function analyzeMatchOuter(
 export async function analyzePageInner(
     db,
     gptCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     steps,
     openai,
@@ -367,7 +367,7 @@ export async function analyzePageInner(
       await askQuestionsForPage(
           db,
           gptCacheCounter,
-          gptThrottler,
+          llmRequester,
           throttlerPriority,
           steps,
           openai,
@@ -468,7 +468,7 @@ function makeMatchQuestions(matchName, matchCity, matchState) {
 export async function analyzeMatchInner(
     db,
     gptCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     steps,
     openai,
@@ -490,7 +490,7 @@ export async function analyzeMatchInner(
       await askQuestionsForPage(
           db,
           gptCacheCounter,
-          gptThrottler,
+          llmRequester,
           throttlerPriority,
           steps,
           openai,
@@ -526,7 +526,7 @@ export async function analyzeMatchInner(
 export async function describePage(
     db,
     gptCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     steps,
     openai,
@@ -548,9 +548,10 @@ export async function describePage(
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
     description =
-        await askTruncated(
-            gptThrottler, throttlerPriority, openai, maybeIdForLogging,
-            SUMMARIZE_PROMPT + "\n------\n" + page_text);
+        await llmRequester.request(
+            SUMMARIZE_PROMPT + "\n------\n" + page_text,
+            throttlerPriority,
+            maybeIdForLogging);
     await db.cachePageSummary({
       url,
       model,
@@ -597,7 +598,7 @@ export async function describePage(
 export async function askQuestionsForPage(
     db,
     gptCacheCounter,
-    gptThrottler,
+    llmRequester,
     throttlerPriority,
     steps,
     openai,
@@ -652,9 +653,10 @@ export async function askQuestionsForPage(
     logs(steps)("Asking GPT to analyze...");
     // console.log("bork 0", submissionId, url);
     analysisResponse =
-      await askTruncated(
-          gptThrottler, throttlerPriority, openai, maybeIdForLogging,
-          analyzeQuestion + "\n------\n" + description);
+      await llmRequester.request(
+          analyzeQuestion + "\n------\n" + description,
+          throttlerPriority,
+          maybeIdForLogging);
     // console.log("GPT:")
     // console.log(analysisResponse);
     // steps.push(analysisResponse);

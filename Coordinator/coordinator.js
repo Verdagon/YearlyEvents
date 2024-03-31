@@ -4,6 +4,7 @@ import syncFs from "fs";
 import http from "http";
 import https from "https";
 import util from 'node:util';
+import { ChatGPTRequester } from "../Common/chatgptrequester.js";
 import { execFile, spawn } from 'node:child_process'
 import { delay } from "../Common/parallel.js";
 import { LocalDb } from '../LocalDB/localdb.js'
@@ -57,9 +58,10 @@ const configuration =
 const openai = new OpenAIApi(configuration);
 
 const fetchThrottler = new Semaphore(10, null);
-const gptThrottler = new Semaphore(null, 120);
 const searchThrottler = new Semaphore(10, null);
 const dbThrottler = new Semaphore(1, null);
+
+const llmRequester = new ChatGPTRequester(openai);
 
 const db = new LocalDb(dbThrottler, null, "./db.sqlite");
 
@@ -88,7 +90,7 @@ try {
         searchCacheCounter,
         chromeFetcher,
         chromeCacheCounter,
-        gptThrottler,
+        llmRequester,
         -leadIndex, // throttlerPriority
         gptCacheCounter,
         model,
@@ -194,7 +196,7 @@ try {
 				searchCacheCounter,
 				chromeFetcher,
 				chromeCacheCounter,
-				gptThrottler,
+				llmRequester,
 				throttlerPriority,
 				gptCacheCounter,
 				submissionIndex,

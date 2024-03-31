@@ -9,6 +9,7 @@
   "author": "Evan Ovadia",
   "license": "Apache-2.0",
   "dependencies": {
+    "@google/generative-ai": "^0.3.1",
     "knex": "^2.5.1",
     "openai": "^3.3.0",
     "sqlite3": "^5.1.6",

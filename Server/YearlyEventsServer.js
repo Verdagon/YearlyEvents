@@ -23,7 +23,7 @@ export class YearlyEventsServer {
 		    });
 		this.openai = new OpenAIApi(configuration);
 
-		this.gptThrottler = new Semaphore(null, 120);
+		this.llmRequester = new Semaphore(null, 120);
 	}
 
 	async eventsFromGpt(db, pastConversation, seedState, query) {
@@ -32,7 +32,7 @@ export class YearlyEventsServer {
 				pastConversation == null ?
 						await makeNewConversation(db, query, seedState) :
 						continuedConversation(pastConversation);
-    const ideas = await gptListEvents(this.openai, this.gptThrottler, conversation);
+    const ideas = await gptListEvents(this.openai, this.llmRequester, conversation);
 		await parallelEachI(ideas, async (ideaIndex, idea) => {
 			const {name, city, state} = idea;
 			const normalizedName = normalizeName(name, city, state);
