@@ -28,7 +28,7 @@ export class ChatGPTRequester {
   			const slicedQuery = query.slice(0, sliceTo);
   			// console.log("Asking GPT:", slicedQuery);
   			const chatCompletion =
-  					await openai.createChatCompletion({
+  					await this.openai.createChatCompletion({
   					  model: "gpt-3.5-turbo",
   					  messages: [{role: "user", content: slicedQuery}],
   					});
