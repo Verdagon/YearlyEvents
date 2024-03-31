@@ -170,6 +170,8 @@ try {
 		console.log("    ", originalEventName, eventCity, eventState);
 	}
 
+  const outcomes = [];
+
 	await parallelEachI(approvedSubmissions, async (submissionIndex, submission) => {
 		const {
 			submission_id: submissionId,
@@ -212,24 +214,30 @@ try {
 
     if (investigationRow.status == 'created') {
       // Continue on, this one's paused on some external thing.
-      logs()("Concluded nothing yet for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+      logs(outcomes)("Concluded nothing yet for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
       return;
     } else if (investigationRow.status == 'failed') {
       await db.updateSubmissionStatus(submissionId, 'failed');
-      logs()("Concluded failed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+      logs(outcomes)("Concluded failed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
 
     } else if (investigationRow.status == 'confirmed') {
-      logs()("Concluded confirmed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
+      logs(outcomes)("Concluded confirmed for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
 
       await db.transaction(async (trx) => {
         await trx.updateSubmissionStatus(submissionId, 'confirmed');
       });
     } else if (investigationRow.status == 'errors') {
+      logs(outcomes)("Concluded errors for", eventName, "in", eventCity, eventState, "(" + submissionIndex + ")");
       await db.updateSubmissionStatus(submissionId, 'errors');
     } else {
       throw "Weird status from investigation: " + investigationRow.status;
     }
 	});
+
+  console.log("Outcomes:");
+  for (const outcome in outcomes) {
+    console.log("  " + outcome);
+  }
 
 	console.log("");
 	console.log(searchCacheCounter.count + " search cache hits.");
