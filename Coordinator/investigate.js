@@ -206,6 +206,7 @@ export async function investigate(
           // However, if the page analysis came up with a name,city,state on its own,
           // let's add that as an other-event. If we're lucky, it's what the lead originally was
           // referring to.
+          // Note that the page analysis might itself not know the city or state.
           logs(broadSteps)(
               "No matchCity/matchState, so adding unrelated event:",
               pageAnalysisRow.analysis.name,
@@ -343,7 +344,7 @@ async function addOtherEventSubmission(db, url, name, city, state, summary) {
     submission_id: crypto.randomUUID(),
     name,
     state: state && normalizeState(state),
-    city: normalizePlace(city),
+    city: city && normalizePlace(city),
     description: summary,
     status: 'created',
     url,
