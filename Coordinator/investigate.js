@@ -197,6 +197,17 @@ export async function investigate(
           throw "Weird status from analyze: " + pageAnalysisRow.status;
         }
 
+        if (!matchName) {
+          throw "No match name wtf";
+        }
+        if (!matchState || !matchCity) {
+          // This can happen if someone submits a lead and we can't figure out the city or state from it.
+          // We'll just jump straight to the rejected conclusion here.
+          // However, it was still useful to send it through the pipeline up til now, because
+          // the analyze-page step might have generated a useful other-event from it.
+          continue;
+        }
+
         // This will update the rows in the database.
         await analyzeMatchOuter(
             openai,

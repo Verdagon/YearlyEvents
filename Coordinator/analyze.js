@@ -227,9 +227,8 @@ export async function analyzeMatchOuter(
   let pageTextError = null;
   let matchStatus = null;
 
-  // We should only have all three or none
-  if (!!matchName != !!matchCity || !!matchName != !!matchState) {
-    throw logs(broadSteps)("Must have all or none of matchName, matchCity, matchState");
+  if (!matchName || !matchCity || !matchState) {
+    throw logs(broadSteps)("Must have all of matchName, matchCity, and matchState.");
   }
 
   try {
