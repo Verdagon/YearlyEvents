@@ -144,6 +144,9 @@ export class VException {
 export function deloggify(...args) {
 	return args.map(arg => typeof arg == 'object' ? JSON.stringify(arg) : arg + "").join(" ");
 }
+export function deloggifyEntry(args) {
+  return deloggify(...args);
+}
 
 export function logs(...destinations) {
 	const funcs = [];

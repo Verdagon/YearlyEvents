@@ -404,17 +404,9 @@ export async function analyzePageInner(
 
 	const cityAnswer = questionToAnswer[CITY_QUESTION];
 	analysis.city = isKnownTrueOrNull(cityAnswer) && cityAnswer;
-  if (!analysis.city) {
-    logs(steps)("Couldn't find city from page, rejecting.");
-    return {status: "rejected", analysis};
-  }
-
+  
 	const stateAnswer = questionToAnswer[STATE_QUESTION];
 	analysis.state = isKnownTrueOrNull(stateAnswer) && stateAnswer;
-  if (!analysis.state) {
-    logs(steps)("Couldn't find state from page, rejecting.");
-    return {status: "rejected", analysis};
-  }
 
   const nameAnswer = questionToAnswer[NAME_QUESTION];
   analysis.name =

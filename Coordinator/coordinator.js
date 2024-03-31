@@ -11,7 +11,7 @@ import { LocalDb } from '../LocalDB/localdb.js'
 // import { getUnanalyzedSubmissions } from '../getUnanalyzedSubmissions.js'
 import { addSubmission } from '../Common/addSubmission.js'
 import fs from "fs/promises";
-import { logs, deloggify, normalizeName, makeLineServerProcess } from "../Common/utils.js";
+import { logs, deloggify, deloggifyEntry, normalizeName, makeLineServerProcess } from "../Common/utils.js";
 import { investigate } from "./investigate.js";
 import { analyzePageOuter, analyzeMatchOuter } from './analyze.js'
 import { Configuration, OpenAIApi } from "openai";
@@ -236,7 +236,7 @@ try {
 
   console.log("Outcomes:");
   for (const outcome of outcomes) {
-    console.log("  " + deloggify(outcome));
+    console.log("  " + deloggifyEntry(outcome));
   }
 
 	console.log("");
