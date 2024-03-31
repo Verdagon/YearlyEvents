@@ -203,8 +203,22 @@ export async function investigate(
         if (!matchState || !matchCity) {
           // This can happen if someone submits a lead and we can't figure out the city or state from it.
           // We'll just jump straight to the rejected conclusion here.
-          // However, it was still useful to send it through the pipeline up til now, because
-          // the analyze-page step might have generated a useful other-event from it.
+          // However, if the page analysis came up with a name,city,state on its own,
+          // let's add that as an other-event. If we're lucky, it's what the lead originally was
+          // referring to.
+          logs(broadSteps)(
+              "No matchCity/matchState, so adding unrelated event:",
+              pageAnalysisRow.analysis.name,
+              pageAnalysisRow.analysis.city,
+              pageAnalysisRow.analysis.state,
+              pageAnalysisRow.analysis.summary);
+          await addOtherEventSubmission(
+              db,
+              url,
+              pageAnalysisRow.analysis.name,
+              pageAnalysisRow.analysis.city,
+              pageAnalysisRow.analysis.state,
+              pageAnalysisRow.analysis.summary);
           continue;
         }
 
