@@ -193,7 +193,9 @@ const nodeServer = http.createServer(async function(req, res) {
         if (!body) {
           throw "Invalid encoded body:" + urlencodedBody;
         }
-        const {url, action} = body;
+        let {url, action} = body;
+        url = url.trim();
+        action = action.trim();
         if (url == null) throw "Missing url!";
         if (action == null) throw "Missing action!";
 

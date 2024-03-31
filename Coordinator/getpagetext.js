@@ -32,7 +32,7 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   try {
     console.log("Expensive", maybeIdForLogging, "chromeFetcher:", url);
     // debugger;
-    await chromeFetcher.send(url + " " + pdfOutputPath);
+    await chromeFetcher.send(url.trim() + " " + pdfOutputPath.trim());
   } catch (err) {
     const error =
         "Bad fetch/browse for url " + url + ": " + 

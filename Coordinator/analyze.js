@@ -543,6 +543,18 @@ export async function describePage(
 
   const maybeRow = await db.getCachedSummary(url, model, SUMMARIZE_PROMPT_VERSION);
   let description = maybeRow && maybeRow.response;
+  // Fourth Annual Treasure Hunt
+  // This year $25,000 is up for grabs to the first person or group to correctly use the
+  // clues within the poem to find the chest hidden somewhere in Utah. Every Friday we
+  // will email out a hint so make sure you are subscribed below . We will also be
+  // dropping random hints on Instagram so make you follow both Dave & John. We
+  // will label the hints so you won’t have to second guess every story we share. We
+  // hope everyone has a great hunt and can’t wait to follow along. Good luck!
+  // A few things t o remember:
+  // 1. We will never hide the chest on private property or in a state or national park.
+  // 2. You will never have to purchase anything to solve the clues in the poem.
+  // 3. We will never hide the chest at a ski resort.
+  // 4. When someone finds the chest, we will announce it as soon as we can. So you can assume if we haven’t announced that it's been found, then the chest is still at large.
 
   if (description) {
     console.log("Using cached summary.");
@@ -551,9 +563,11 @@ export async function describePage(
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
     description =
         await llmRequester.request(
-            SUMMARIZE_PROMPT + "\n------\n" + page_text,
+            SUMMARIZE_PROMPT + "\n------\n" + description,
             throttlerPriority,
             maybeIdForLogging);
+    console.log("question:", SUMMARIZE_PROMPT + "\n------\n" + page_text);
+    console.log("answer:", description);
     await db.cachePageSummary({
       url,
       model,
