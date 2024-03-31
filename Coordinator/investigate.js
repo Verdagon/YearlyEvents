@@ -258,6 +258,7 @@ export async function investigate(
               pageAnalysisRow.analysis.city,
               pageAnalysisRow.analysis.state,
               pageAnalysisRow.analysis.summary);
+          continue;
         } else if (matchAnalysisRow.matchness == 1) { // Doesnt match anywhere
           logs(broadSteps)("Doesn't match anywhere, bailing.");
           continue;
