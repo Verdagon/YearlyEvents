@@ -12,6 +12,7 @@ body {
   font-family: Verdana;
 }
 </style>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script>
 async function markDuplicateSubmission(submissionId, mainSubmissionId) {
   const div = document.getElementById("submission" + submissionId);
@@ -123,6 +124,48 @@ async function burySubmissionClicked(index) {
 </script>
 </head>
 <body>
+
+<template x-component="steppieces"><span>
+  <template x-for="piece in step"><span>
+    <template x-if="typeof piece == 'object'">
+      <span x-text="JSON.stringify(piece)"></span>
+    </template>
+    <template x-if="typeof piece != 'object'">
+      <span x-text="piece"></span>
+    </template>
+  </span></template>
+</span></template>
+
+<template x-component="borkdown">
+  <div x-data="{ ...$el.parentElement.data() }">
+    <template x-if="content.length">
+      <ul>
+        <template x-for="step in content">
+          <li>
+            <template x-if="Array.isArray(step)"><div>
+              <x-steppieces content="step"></x-steppieces>
+            </div></template>
+            <template x-if="typeof step == 'object' && !Array.isArray(step)"><div>
+              <template x-if="step[''] === undefined">
+                <span x-text="JSON.stringify(step)"></span>
+              </template>
+              <template x-if="step[''] !== undefined"><span>
+                <span x-text="step['']"></span>
+                <span>(todo: deets)</span>
+              </span></template>
+            </div></template>
+            <template x-if="typeof step != 'object' && !Array.isArray(step)">
+              <div x-text="step"></div>
+            </template>
+          </li>
+        </template>
+      </ul>
+    </template>
+  </div>
+</template>
+
+<x-borkdown json-content='["Step 1", { "": "Step 2 details", "pageTextUrl": "http://example.com", "details": "Some details" }, ["Step 3a", "Step 3b"] ]'></x-borkdown>
+
 <div>
   <a href="/askGpt.html">Ask</a> |
   <a href="/submit.html">Submit</a> |
@@ -246,5 +289,59 @@ Failed NEED-level submissions:
   </div>
 <% }) %>
 
+
+<template x-component="dropdown">
+  <div x-data="{ ...dropdown(), ...$el.parentElement.data() }">
+    <button x-on:click="open">Open</button>
+    <div x-show="isOpen()" x-on:click.away="close" x-text="content"></div>
+  </div>
+</template>
+
+<x-dropdown content="Content for my first dropdown"></x-dropdown>
+
+<div> Random stuff... </div>
+
+<x-dropdown content="Content for my second dropdown"></x-dropdown>
+
+<x-dropdown></x-dropdown>
+
+
+<script>
+    function dropdown() {
+        return {
+            show: false,
+            open() { this.show = true },
+            close() { this.show = false },
+            isOpen() { return this.show === true },
+            content: 'Default content'
+        }
+    }
+
+    // The pure client-side code
+    document.querySelectorAll('[x-component]').forEach(component => {
+        const componentName = `x-${component.getAttribute('x-component')}`
+        class Component extends HTMLElement {
+            connectedCallback() {
+                this.append(component.content.cloneNode(true))
+            }
+ 
+            data() {
+                const attrNames = this.getAttributeNames()
+                const data = {}
+                attrNames.forEach(attrName => {
+                  let attrVal = this.getAttribute(attrName);
+                  if (attrName.startsWith('json-')) {
+                    attrName = attrName.slice('json-'.length);
+                    console.log("Json parsing:", attrVal);
+                    attrVal = JSON.parse(attrVal);
+                  }
+                  data[attrName] = attrVal;
+                })
+                return data
+            }
+        }
+        customElements.define(componentName, Component)
+    })
+</script>
 </body>
 </html>

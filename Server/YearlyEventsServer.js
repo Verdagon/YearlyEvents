@@ -38,21 +38,7 @@ export class YearlyEventsServer {
 			const normalizedName = normalizeName(name, city, state);
 			idea.normalizedName = normalizedName;
 
-			idea.notes = "";
-
-  		const maybeSimilarSubmission = await this.db.getSimilarSubmission(normalizedName);
-    	if (maybeSimilarSubmission) {
-    		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-    				maybeSimilarSubmission;
-  		  if (idea.city == similarSubmissionCity &&
-  		  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
-  		  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-  		  } else {
-  	  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + (similarSubmissionCity || "(none)") + ", " + (similarSubmissionState || "(none)") + ")";
-  	  	}
-  	  } else {
-  	  	// Do nothing
-  	  }
+  		idea.similars = await this.db.getSimilarSubmissionsByName(normalizedName);
     });
 
 		ideas.sort((a, b) => {
@@ -79,19 +65,8 @@ export class YearlyEventsServer {
 			const {name, city, state} = submission;
 			const normalizedName = normalizeName(name, city, state);
 			submission.normalizedName = normalizedName;
-			submission.notes = "";
 			console.log("looking for similars to ", submission);
-  		const maybeSimilarSubmission = await this.db.getSimilarSubmissionById(submission.submission_id);
-    	if (maybeSimilarSubmission) {
-    		const {name: similarSubmissionName, city: similarSubmissionCity, state: similarSubmissionState} =
-    				maybeSimilarSubmission;
-  		  if (submission.city == similarSubmissionCity &&
-  		  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
-  		  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
-  		  } else {
-  	  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + (similarSubmissionCity || "(none)") + ", " + (similarSubmissionState || "(none)") + ")";
-  	  	}
-		  }
+  		submission.similars = await this.db.getSimilarSubmissionById(submission.submission_id);
 		});
 		submissions.sort((a, b) => {
 			if (a.notes.length != b.notes.length) {
@@ -106,8 +81,6 @@ export class YearlyEventsServer {
     const events = await this.db.getConfirmedSubmissions();
 
     await parallelEachI(events, async (eventI, submission) => {
-      submission.notes = "";
-
       const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
       submission.confirmations = analyses;
 
@@ -127,17 +100,11 @@ export class YearlyEventsServer {
 
   async allFailed() {
     const submissions = await this.db.getFailedSubmissions();
-    submissions.forEach((submission) => {
-    	submission.notes = "";
-    })
     return submissions;
   }
 
   async failedNeedSubmissions() {
     const submissions = await this.db.getFailedNeedSubmissions();
-    submissions.forEach((submission) => {
-      submission.notes = "";
-    })
     return submissions;
   }
 
