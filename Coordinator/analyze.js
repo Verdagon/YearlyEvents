@@ -360,7 +360,8 @@ export async function analyzePageInner(
 		LAST_DATE_QUESTION,
 		NEXT_DATE_QUESTION,
 		MONTH_QUESTION,
-		SUMMARY_QUESTION
+		SUMMARY_QUESTION,
+    UNUSUAL_QUESTION
 	];
   if (extraStowawayQuestions) {
     questions = questions.concat(extraStowawayQuestions);
@@ -423,6 +424,9 @@ export async function analyzePageInner(
     logs(steps)("Error, summary missing or too short:", summaryAnswer);
     return {status: "errors", analysis};
   }
+
+  const unusualAnswer = questionToAnswer[unusual_QUESTION];
+  analysis.unusual = isKnownTrueOrNull(unusualAnswer) && unusualAnswer;
 
   const yearAnswer = questionToAnswer[YEAR_QUESTION];
   analysis.yearly = getStartBoolOrNull(yearAnswer);
