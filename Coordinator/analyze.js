@@ -148,6 +148,10 @@ export async function analyzePageOuter(
       logs(pageSteps, broadSteps)("Describe had errors, marking analysis errors.");
       await db.finishPageAnalysis(url, model, 'errors', pageSteps, null);
       return;
+    } else if (describeStatus == 'rejected') {
+      logs(pageSteps, broadSteps)("Describe rejected, marking analysis rejected.");
+      await db.finishPageAnalysis(url, model, 'rejected', pageSteps, null);
+      return;
     } else if (describeStatus == 'success') {
       // Proceed
     } else {
@@ -571,7 +575,7 @@ export async function describePage(
       description
     };
     logs(steps)(error);
-    return {status: "error", description, error};
+    return {status: "rejected", description, error};
   }
   if (description.trim().toLowerCase().startsWith("multiple")) {
     const error = {
@@ -579,7 +583,7 @@ export async function describePage(
       description
     };
     logs(steps)(error);
-    return {status: "error", description, error};
+    return {status: "rejected", description, error};
   }
   if (description.trim().length < 20) {
     const error = {
