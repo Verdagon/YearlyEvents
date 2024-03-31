@@ -145,11 +145,11 @@ export async function analyzePageOuter(
             url,
             pageText);
     if (describeStatus == 'error') {
-      logs(pageSteps, broadSteps)("Describe had errors, marking analysis errors.");
+      logs(pageSteps, broadSteps)("Describe had errors, marking analysis errors:", describeError);
       await db.finishPageAnalysis(url, model, 'errors', pageSteps, null);
       return;
     } else if (describeStatus == 'rejected') {
-      logs(pageSteps, broadSteps)("Describe rejected, marking analysis rejected.");
+      logs(pageSteps, broadSteps)("Describe rejected, marking analysis rejected:", describeError);
       await db.finishPageAnalysis(url, model, 'rejected', pageSteps, null);
       return;
     } else if (describeStatus == 'success') {
