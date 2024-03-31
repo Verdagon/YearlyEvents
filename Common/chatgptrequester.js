@@ -1,4 +1,6 @@
 
+import { Semaphore, parallelEachI } from "../Common/parallel.js"
+
 export class ChatGPTRequester {
   constructor(openai) {
     this.throttler = new Semaphore(null, 120);
