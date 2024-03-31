@@ -86,7 +86,7 @@ document.getElementById("conversation").value = JSON.stringify(<%~ it.conversati
 			data-description="<%= idea.description %>">
 		<div style="display: flex">
 			<div style="flex-grow: 1">
-				<b><%= idea.normalizedName %></b> in <%= idea.city %>, <%= idea.state %>:
+				<b><%= idea.normalizedName %></b> in <%= idea.city || "(none)" %>, <%= idea.state || "(none)" %>:
 			</div>
 			<div style="flex-shrink: 0">
         <button onclick="submitClicked(<%= i %>, 'approved', 2)">NEED</button>

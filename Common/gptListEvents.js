@@ -10,6 +10,7 @@ export async function makeNewConversation(db, question, seedState) {
 	if (seedState) {
 		const rows =
 				(await db.findApprovedSubmissionsAt(seedState, 30))
+          .filter(submission => submission.city && submission.state)
 					.map(submission => {
 						const description =
 								submission.description ||

@@ -108,13 +108,13 @@ export class LocalDb {
 
 	async insertSubmission(row) {
     return await this.maybeThrottle(async () => {
-      if (row.name != normalizeName(row.name, row.city, row.state)) {
+      if (row.city && row.state && row.name != normalizeName(row.name, row.city, row.state)) {
         throw "Name isnt normalized";
       }
-      if (row.state != normalizeState(row.state)) {
+      if (row.state && row.state != normalizeState(row.state)) {
         throw "State isnt normalized";
       }
-      if (row.city != normalizePlace(row.city)) {
+      if (row.city && row.city != normalizePlace(row.city)) {
         throw "City isnt normalized";
       }
   		await (this.target).into("Submissions")

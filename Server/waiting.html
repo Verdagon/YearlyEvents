@@ -145,7 +145,7 @@ Confirmed submissions:
       data-submission-id="<%= submission.submission_id %>">
     <div style="display: flex; align-items: center;">
       <div style="flex-grow: 1">
-        <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
+        <b><%= submission.name %></b> in <%= submission.city || "(none)" %>, <%= submission.state || "(none)" %>:
       </div>
       <div style="flex-shrink: 0; margin-right: 0.5em">
         <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
@@ -176,7 +176,7 @@ Confirmed submissions:
             <li>
               <%= similar.status %>:
               <a href="/submission?submission_id=<%= similar.submission_id %>"><%= similar.name %></a>
-              in <%= similar.city %>, <%= similar.state %> 
+              in <%= similar.city || "(none)" %>, <%= similar.state || "(none)" %> 
               <button onclick="markDuplicateSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Better</button>
             </li>
           <% }) %>
@@ -199,7 +199,7 @@ Unconsidered submissions:
 
     <div style="display: flex">
       <div style="flex-grow: 1">
-        <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
+        <b><%= submission.name %></b> in <%= submission.city || "(none)" %>, <%= submission.state || "(none)" %>:
       </div>
       <div style="flex-shrink: 0">
         <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 2)">NEED</button>
@@ -228,7 +228,7 @@ Failed NEED-level submissions:
       data-name="<%= submission.name %>"
       data-submission-id="<%= submission.submission_id %>">
     <div>
-      <%= submission.status %>: <b><%= submission.name %></b> in <%= submission.city %>, <%= submission.state %>:
+      <%= submission.status %>: <b><%= submission.name %></b> in <%= submission.city || "(none)" %>, <%= submission.state || "(none)" %>:
       <button onclick="burySubmissionClicked('<%= submission.submission_id %>')">Bury</button>
       <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Re-NEED</button>
       <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 0)">Re-approve</button>

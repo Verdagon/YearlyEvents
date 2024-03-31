@@ -179,7 +179,7 @@ export async function analyzePageOuter(
       logs(pageSteps, broadSteps)("Inner analyze had errors, marking analysis errors.");
       await db.finishPageAnalysis(url, model, 'errors', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'rejected') {
-      logs(pageSteps, broadSteps)("Inner analyze rejected, wasn't an event, rejecting analyses.");
+      logs(pageSteps, broadSteps)("Inner analyze rejected, rejecting analysis.");
       await db.finishPageAnalysis(url, model, 'errors', pageSteps, analysis);
     } else if (analyzeInnerStatus == 'success') {
       console.log("Inner analyze status success, marking page analysis success.");
@@ -409,9 +409,10 @@ export async function analyzePageInner(
 	analysis.state = isKnownTrueOrNull(stateAnswer) && stateAnswer;
 
   const nameAnswer = questionToAnswer[NAME_QUESTION];
-  analysis.name =
-      isKnownTrueOrNull(nameAnswer) &&
-      normalizeName(nameAnswer, analysis.city, analysis.state);
+  analysis.name = isKnownTrueOrNull(nameAnswer) && nameAnswer;
+  if (analysis.city && analysis.state) {
+    analysis.name = normalizeName(analysis.name, analysis.city, analysis.state);
+  }
   if (!analysis.name) {
     logs(steps)("Couldn't find name from page, rejecting.");
     return {status: "rejected", analysis};

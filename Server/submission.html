@@ -23,7 +23,7 @@
 
 <% if (it.submission) { %>
   <div>Submission:</div>
-  <div><%= it.submission.name %> in <%= it.submission.city %>, <%= it.submission.state %> (<%= it.submission.status %>)</div>
+  <div><%= it.submission.name %> in <%= it.submission.city || "(none)" %>, <%= it.submission.state || "(none)" %> (<%= it.submission.status %>)</div>
   <div>month: <%= it.submission.investigation && it.submission.investigation.month %></div>
   <div>num_errors: <%= it.submission.investigation && it.submission.investigation.num_errors %></div>
   <div>num_promising: <%= it.submission.investigation && it.submission.investigation.num_promising %></div>
