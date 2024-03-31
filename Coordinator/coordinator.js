@@ -235,7 +235,7 @@ try {
 	});
 
   console.log("Outcomes:");
-  for (const outcome in outcomes) {
+  for (const outcome of outcomes) {
     console.log("  " + outcome);
   }
 
