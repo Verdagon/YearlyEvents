@@ -1,7 +1,6 @@
 
-import { logs, normalizeState, distinct, VException } from "../Common/utils.js";
+import { logs, normalizeName, normalizePlace, normalizeState, distinct, VException } from "../Common/utils.js";
 import { analyzePageOuter, analyzeMatchOuter } from './analyze.js'
-import { normalizeName, normalizeState, normalizePlace } from "../Common/utils.js";
 import { getSearchResult } from './search.js'
 
 export async function investigate(
