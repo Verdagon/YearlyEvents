@@ -8,10 +8,10 @@ import fs from "fs/promises";
 // These key numbers are stored in the database.
 // If we want to change a question, best use a new number.
 
-const SUMMARIZE_PROMPT_VERSION = 1;
+const SUMMARIZE_PROMPT_VERSION = 2;
 const SUMMARIZE_PROMPT =
-		"Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, and the year it ended.";
-  //"Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
+		// "Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, and the year it ended.";
+    "Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
 
 const YEAR_QUESTION = "does the event happen every year? say \"yes\", \"no\", or if not known then \"unknown\".";
 const NAME_QUESTION = "what's the event's name?";
@@ -23,8 +23,7 @@ const NEXT_DATE_QUESTION = "when will the event happen again? say \"unknown\" if
 const MONTH_QUESTION = "what month does the event happen on? say \"unknown\" if not known.";
 const SUMMARY_QUESTION = "what's a one-sentence description of the event?";
 const UNUSUAL_QUESTION = "is there anything particularly unique or unusual about the event?";
-const MULTIPLE_EVENTS_QUESTION = "does the description describe multiple different events?";
-  // Maybe change different to unrelated?
+const MULTIPLE_EVENTS_QUESTION = "does the description describe multiple unrelated events?";
 
 function startsWithUnknown(line) {
 	return /unknown/i.test(line);
