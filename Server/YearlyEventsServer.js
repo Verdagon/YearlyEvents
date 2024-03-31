@@ -48,7 +48,7 @@ export class YearlyEventsServer {
   		  		normalizeState(idea.state) == normalizeState(similarSubmissionState)) {
   		  	idea.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
   		  } else {
-  	  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+  	  		idea.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + (similarSubmissionCity || "(none)") + ", " + (similarSubmissionState || "(none)") + ")";
   	  	}
   	  } else {
   	  	// Do nothing
@@ -89,7 +89,7 @@ export class YearlyEventsServer {
   		  		normalizeState(submission.state) == normalizeState(similarSubmissionState)) {
   		  	submission.notes = "(Already known " + maybeSimilarSubmission.status + " submission)";
   		  } else {
-  	  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + similarSubmissionCity + ", " + similarSubmissionState + ")";
+  	  		submission.notes = "(Similar known " + maybeSimilarSubmission.status + " submission: " + similarSubmissionName + " in " + (similarSubmissionCity || "(none)") + ", " + (similarSubmissionState || "(none)") + ")";
   	  	}
 		  }
 		});
