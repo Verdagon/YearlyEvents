@@ -89,11 +89,6 @@ export async function analyzePageOuter(
   let pageAnalysisStatus = null;
   let matchAnalysisStatus = null;
 
-  // We should only have all three or none
-  if (!!matchName != !!matchCity || !!matchName != !!matchState) {
-    throw logs(broadSteps)("Must have all or none of matchName, matchCity, matchState");
-  }
-
   try {
     await db.transaction(async (trx) => {
       const maybePageAnalysisRow = await trx.getPageAnalysis(url, model);
@@ -448,11 +443,15 @@ export async function analyzePageInner(
 }
 
 function makeMatchQuestions(matchName, matchCity, matchState) {
-  return [
-      "is it primarily referring to or describing or talking about the " + matchName + " event in " + matchCity + ", " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.",
-      "is it primarily referring to or describing or talking about the " + matchName + " event in " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.",
-      "is it primarily referring to or describing or talking about the " + matchName + " event? start your answer with \"yes\" or \"no\", if no then say why."
-  ];
+  const arr = [];
+  arr.push("is it primarily referring to or describing or talking about the " + matchName + " event? start your answer with \"yes\" or \"no\", if no then say why.");
+  if (matchState) {
+    arr.push("is it primarily referring to or describing or talking about the " + matchName + " event in " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.");
+  }
+  if (matchState && matchCity) {
+    arr.push("is it primarily referring to or describing or talking about the " + matchName + " event in " + matchCity + ", " + matchState + "? start your answer with \"yes\" or \"no\", if no then say why.");
+  }
+  return;
 }
 
 // Returns:
@@ -508,15 +507,19 @@ export async function analyzeMatchInner(
   if (matchesAnywhere) {
     matchness = 2;
   }
-  const matchesStateAnswer = questionToAnswer[matchesStateQuestion];
-  const matchesState = getStartBoolOrNull(matchesStateAnswer);
-  if (matchesState) {
-    matchness = 3;
+  if (matchState) {
+    const matchesStateAnswer = questionToAnswer[matchesStateQuestion];
+    const matchesState = getStartBoolOrNull(matchesStateAnswer);
+    if (matchesState) {
+      matchness = 3;
+    }
   }
-  const matchesCityAnswer = questionToAnswer[matchesCityQuestion];
-  const matchesCity = getStartBoolOrNull(matchesCityAnswer);
-  if (matchesCity) {
-    matchness = 4;
+  if (matchState && matchCity) {
+    const matchesCityAnswer = questionToAnswer[matchesCityQuestion];
+    const matchesCity = getStartBoolOrNull(matchesCityAnswer);
+    if (matchesCity) {
+      matchness = 4;
+    }
   }
 
   return matchness;
