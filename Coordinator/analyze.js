@@ -425,7 +425,7 @@ export async function analyzePageInner(
     return {status: "errors", analysis};
   }
 
-  const unusualAnswer = questionToAnswer[unusual_QUESTION];
+  const unusualAnswer = questionToAnswer[UNUSUAL_QUESTION];
   analysis.unusual = isKnownTrueOrNull(unusualAnswer) && unusualAnswer;
 
   const yearAnswer = questionToAnswer[YEAR_QUESTION];
