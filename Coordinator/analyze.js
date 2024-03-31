@@ -22,7 +22,7 @@ const LAST_DATE_QUESTION = "when was the last event? say \"unknown\" if not know
 const NEXT_DATE_QUESTION = "when will the event happen again? say \"unknown\" if not known.";
 const MONTH_QUESTION = "what month does the event happen on? say \"unknown\" if not known.";
 const SUMMARY_QUESTION = "what's a one-sentence description of the event?";
-const UNUSUAL_QUESTION = "is there anything particularly unique or unusual about the event?";
+const UNUSUAL_QUESTION = "what's the most unique, unusual, or surprising thing about the event?";
 const MULTIPLE_EVENTS_QUESTION = "does the description describe multiple unrelated events?";
 
 function startsWithUnknown(line) {
