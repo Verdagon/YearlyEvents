@@ -8,11 +8,9 @@ import fs from "fs/promises";
 // These key numbers are stored in the database.
 // If we want to change a question, best use a new number.
 
-const CLEAN_AND_SUMMARIZE_PROMPTS_VERSION = 3;
+const SUMMARIZE_PROMPT_VERSION = 3;
 const SUMMARIZE_PROMPT =
     "Below the dashes is text from a webpage. is it describing an event (such as a competition, gathering, festival, or celebration)? if it's not an event, please only say \"nothing\" and nothing else. if it describes multiple unrelated events, only say \"multiple\" and nothing else. if it is an event however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
-const CLEANING_PROMPT =
-    "Can you please clean up the below text?";
 
 const YEAR_QUESTION = "does the event happen every year? say \"yes\", \"no\", or if not known then \"unknown\".";
 const NAME_QUESTION = "what's the event's name?";
@@ -542,29 +540,24 @@ export async function describePage(
     throw "Steps null wtf";
   }
 
-  const maybeRow = await db.getCachedSummary(url, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
+  const maybeRow = await db.getCachedSummary(url, model, SUMMARIZE_PROMPT_VERSION);
   let description = maybeRow && maybeRow.response;
   if (description) {
     console.log("Using cached summary.");
     gptCacheCounter.count++;
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
-    const cleanedPageText =
-        await llmRequester.request(
-            CLEANING_PROMPT + "\n------\n" + page_text,
-            throttlerPriority,
-            maybeIdForLogging);
     description =
         await llmRequester.request(
-            SUMMARIZE_PROMPT + "\n------\n" + cleanedPageText,
+            SUMMARIZE_PROMPT + "\n------\n" + page_text,
             throttlerPriority,
             maybeIdForLogging);
-    console.log("question:", SUMMARIZE_PROMPT + "\n------\n" + cleanedPageText);
-    console.log("answer:", description);
+    // console.log("question:", SUMMARIZE_PROMPT + "\n------\n" + page_text);
+    // console.log("answer:", description);
     await db.cachePageSummary({
       url,
       model,
-      prompt_version: CLEAN_AND_SUMMARIZE_PROMPTS_VERSION,
+      prompt_version: SUMMARIZE_PROMPT_VERSION,
       status: 'success',
       response: description,
     });
@@ -623,12 +616,12 @@ export async function askQuestionsForPage(
   const questionToMaybeCachedAnswer = {};
   for (const question of questions) {
     const questionRow =
-        await db.getAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
+        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     if (questionRow) {
       console.log(("Resuming question row " + questionRow.url + ": " + questionRow.question).slice(0, 80));
     } else {
       console.log(("Creating analysis question row:" + question).slice(0, 80));
-      await db.createAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
+      await db.createAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     }
     if (questionRow && questionRow.answer) {
       questionToMaybeCachedAnswer[question] = questionRow.answer;
@@ -687,7 +680,7 @@ export async function askQuestionsForPage(
           };
           logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
           continue;
         }
         const answer = answerParts[2];
@@ -695,7 +688,7 @@ export async function askQuestionsForPage(
           // console.log("bork c", submissionId, url);
           questionToGptAnswer[question] = answer;
           await db.finishAnalysisQuestion(
-              url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'success', answer, null);
+              url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
           break;
         }
         throw logs(steps)("Couldn't answer only question?");
@@ -719,7 +712,7 @@ export async function askQuestionsForPage(
           };
           logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
           continue;
         }
         // console.log("bork g", submissionId, url);
@@ -734,7 +727,7 @@ export async function askQuestionsForPage(
             numQuestions: Object.keys(questionToGptAnswer).length
           };
           await db.finishAnalysisQuestion(
-            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
+            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
           continue;
         }
         // console.log("bork h", submissionId, url);
@@ -742,7 +735,7 @@ export async function askQuestionsForPage(
 
         questionToGptAnswer[question] = answer;
         // console.log("bork i", submissionId, url);
-        await db.finishAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'success', answer, null);
+        await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
       }
         // console.log("bork j", submissionId, url);
     }
@@ -753,7 +746,7 @@ export async function askQuestionsForPage(
   const questionToAnswer = {};
   for (const question of questions) {
     const questionRow =
-        await db.getAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
+        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
     if (questionRow == null) {
       const error = {
         "": "Question/answer not found!",
@@ -765,7 +758,7 @@ export async function askQuestionsForPage(
         questionToGptAnswer
       };
       await db.finishAnalysisQuestion(
-          url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
+          url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
       throw logs(false, steps)(error);
     }
     if (questionRow.status == 'success') {
