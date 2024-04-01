@@ -8,10 +8,11 @@ import fs from "fs/promises";
 // These key numbers are stored in the database.
 // If we want to change a question, best use a new number.
 
-const SUMMARIZE_PROMPT_VERSION = 2;
+const CLEAN_AND_SUMMARIZE_PROMPTS_VERSION = 3;
 const SUMMARIZE_PROMPT =
-		// "Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, and the year it ended.";
-    "Below the dashes is a webpage. is it describing a yearly event, yearly competition, yearly gathering, yearly festival, yearly celebration? if none of the above, please only say \"nothing\" and nothing else. if there are multiple, only say \"multiple\" and nothing else. if it is one of those things however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
+    "Below the dashes is text from a webpage. is it describing an event (such as a competition, gathering, festival, or celebration)? if it's not an event, please only say \"nothing\" and nothing else. if it describes multiple unrelated events, only say \"multiple\" and nothing else. if it is an event however, please give me a paragraph of max 20 sentences describing it, including the event's name, city, state, whether it happens every year, what month it's on, the first date of the event, most recent date of the event, future date of the event, the year it ended, anything surprising about it, and anything that makes it particularly unique or interesting.";
+const CLEANING_PROMPT =
+    "Can you please clean up the below text?";
 
 const YEAR_QUESTION = "does the event happen every year? say \"yes\", \"no\", or if not known then \"unknown\".";
 const NAME_QUESTION = "what's the event's name?";
@@ -541,37 +542,29 @@ export async function describePage(
     throw "Steps null wtf";
   }
 
-  const maybeRow = await db.getCachedSummary(url, model, SUMMARIZE_PROMPT_VERSION);
+  const maybeRow = await db.getCachedSummary(url, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
   let description = maybeRow && maybeRow.response;
-  // Fourth Annual Treasure Hunt
-  // This year $25,000 is up for grabs to the first person or group to correctly use the
-  // clues within the poem to find the chest hidden somewhere in Utah. Every Friday we
-  // will email out a hint so make sure you are subscribed below . We will also be
-  // dropping random hints on Instagram so make you follow both Dave & John. We
-  // will label the hints so you won’t have to second guess every story we share. We
-  // hope everyone has a great hunt and can’t wait to follow along. Good luck!
-  // A few things t o remember:
-  // 1. We will never hide the chest on private property or in a state or national park.
-  // 2. You will never have to purchase anything to solve the clues in the poem.
-  // 3. We will never hide the chest at a ski resort.
-  // 4. When someone finds the chest, we will announce it as soon as we can. So you can assume if we haven’t announced that it's been found, then the chest is still at large.
-
   if (description) {
     console.log("Using cached summary.");
     gptCacheCounter.count++;
   } else {
     logs(steps)({ "": "Asking GPT to describe page text at " + url, "pageTextUrl": url });
-    description =
+    const cleanedPageText =
         await llmRequester.request(
-            SUMMARIZE_PROMPT + "\n------\n" + description,
+            CLEANING_PROMPT + "\n------\n" + page_text,
             throttlerPriority,
             maybeIdForLogging);
-    console.log("question:", SUMMARIZE_PROMPT + "\n------\n" + page_text);
+    description =
+        await llmRequester.request(
+            SUMMARIZE_PROMPT + "\n------\n" + cleanedPageText,
+            throttlerPriority,
+            maybeIdForLogging);
+    console.log("question:", SUMMARIZE_PROMPT + "\n------\n" + cleanedPageText);
     console.log("answer:", description);
     await db.cachePageSummary({
       url,
       model,
-      prompt_version: SUMMARIZE_PROMPT_VERSION,
+      prompt_version: CLEAN_AND_SUMMARIZE_PROMPTS_VERSION,
       status: 'success',
       response: description,
     });
@@ -630,12 +623,12 @@ export async function askQuestionsForPage(
   const questionToMaybeCachedAnswer = {};
   for (const question of questions) {
     const questionRow =
-        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
+        await db.getAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
     if (questionRow) {
       console.log(("Resuming question row " + questionRow.url + ": " + questionRow.question).slice(0, 80));
     } else {
       console.log(("Creating analysis question row:" + question).slice(0, 80));
-      await db.createAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
+      await db.createAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
     }
     if (questionRow && questionRow.answer) {
       questionToMaybeCachedAnswer[question] = questionRow.answer;
@@ -694,7 +687,7 @@ export async function askQuestionsForPage(
           };
           logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
+            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
           continue;
         }
         const answer = answerParts[2];
@@ -702,7 +695,7 @@ export async function askQuestionsForPage(
           // console.log("bork c", submissionId, url);
           questionToGptAnswer[question] = answer;
           await db.finishAnalysisQuestion(
-              url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
+              url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'success', answer, null);
           break;
         }
         throw logs(steps)("Couldn't answer only question?");
@@ -726,7 +719,7 @@ export async function askQuestionsForPage(
           };
           logs(steps)(error);
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
+            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
           continue;
         }
         // console.log("bork g", submissionId, url);
@@ -741,7 +734,7 @@ export async function askQuestionsForPage(
             numQuestions: Object.keys(questionToGptAnswer).length
           };
           await db.finishAnalysisQuestion(
-            url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
+            url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
           continue;
         }
         // console.log("bork h", submissionId, url);
@@ -749,7 +742,7 @@ export async function askQuestionsForPage(
 
         questionToGptAnswer[question] = answer;
         // console.log("bork i", submissionId, url);
-        await db.finishAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION, 'success', answer, null);
+        await db.finishAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'success', answer, null);
       }
         // console.log("bork j", submissionId, url);
     }
@@ -760,7 +753,7 @@ export async function askQuestionsForPage(
   const questionToAnswer = {};
   for (const question of questions) {
     const questionRow =
-        await db.getAnalysisQuestion(url, question, model, SUMMARIZE_PROMPT_VERSION);
+        await db.getAnalysisQuestion(url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION);
     if (questionRow == null) {
       const error = {
         "": "Question/answer not found!",
@@ -772,7 +765,7 @@ export async function askQuestionsForPage(
         questionToGptAnswer
       };
       await db.finishAnalysisQuestion(
-          url, question, model, SUMMARIZE_PROMPT_VERSION, 'error', null, error);
+          url, question, model, CLEAN_AND_SUMMARIZE_PROMPTS_VERSION, 'error', null, error);
       throw logs(false, steps)(error);
     }
     if (questionRow.status == 'success') {

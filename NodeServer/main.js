@@ -146,10 +146,11 @@ const nodeServer = http.createServer(async function(req, res) {
         const confirmedSubmissions = await server.confirmedSubmissions();
         const unconsideredSubmissions = await server.unconsidered();
         const failedNeedSubmissions = await server.failedNeedSubmissions();
+        const failedNeedLeads = await server.failedNeedLeads();
         const numApprovedSubmissions = await server.numApprovedSubmissions();
         const numCreatedInvestigations = await server.numCreatedInvestigations();
         const pageHtml = await getResource("waiting.html");
-        const response = eta.renderString(pageHtml, { confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations });
+        const response = eta.renderString(pageHtml, { failedNeedLeads, confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations });
         console.log("Response:", response);
         res.write(response);
       } break;

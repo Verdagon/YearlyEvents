@@ -108,6 +108,10 @@ export class YearlyEventsServer {
     return submissions;
   }
 
+  async failedNeedLeads() {
+    return await this.db.getFailedNeedLeads();
+  }
+
   async numApprovedSubmissions() {
     return await this.db.numApprovedSubmissions();
   }

@@ -289,6 +289,19 @@ Failed NEED-level submissions:
   </div>
 <% }) %>
 
+<% it.failedNeedLeads.forEach(function(lead, i){ %>
+  <div
+      class="idea"
+      id="lead<%= lead.lead_id %>"
+      data-name="<%= lead.name %>"
+      data-lead-id="<%= lead.lead_id %>">
+    <div>
+      <%= lead.status %>: <a href="<%~ lead.url %>"><%~ lead.url %></a>
+    </div>
+    <div><%= JSON.stringify(lead.steps) %></div>
+  </div>
+<% }) %>
+
 
 <template x-component="dropdown">
   <div x-data="{ ...dropdown(), ...$el.parentElement.data() }">

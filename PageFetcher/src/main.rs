@@ -111,21 +111,31 @@ fn main() {
 		  		continue;
     		}
     	}
-		  let data =
-		  		match tab.print_to_pdf(None) {
-		    		Ok(d) => d,
-		    		Err(err) => {
-		    			handle_error_maybe_requeue_b(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "pdfing tab", &err);
-				  		continue;
-		    		}
-		  		};
-		  match fs::write(&req.output_path, data) {
-    		Ok(()) => (),
-    		Err(err) => {
-    			handle_error_maybe_requeue_a(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
-		  		continue;
-    		}
-		  }
+		  // let data =
+		  // 		match tab.print_to_pdf(None) {
+		  //   		Ok(d) => d,
+		  //   		Err(err) => {
+		  //   			handle_error_maybe_requeue_b(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "pdfing tab", &err);
+			// 	  		continue;
+		  //   		}
+		  // 		};
+
+      let data =
+          match tab.get_content() {
+            Err(err) => {
+              handle_error_maybe_requeue_b(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "getting html content", &err);
+              continue;
+            }
+            Ok(html) => html
+          };
+
+      match fs::write(&req.output_path, data) {
+       Ok(()) => (),
+       Err(err) => {
+         handle_error_maybe_requeue_a(&mut requests_queue, &mut should_restart_chrome, &mut batch_had_timeouts, req, "writing pdf file", Box::new(err));
+         continue;
+       }
+      }
 
 		  println!("{} success {} {}", req.uuid, req.url, req.output_path);
 		}

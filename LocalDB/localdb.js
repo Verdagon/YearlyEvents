@@ -575,6 +575,17 @@ export class LocalDb {
     });
   }
 
+  async getFailedNeedLeads() {
+    return await this.maybeThrottle(async () => {
+      return await (this.target).select().from("Leads")
+          .whereNot('future_submission_need', 0)
+          .whereNot('status', "confirmed")
+          .whereNot('status', "approved")
+          .whereNot('status', "created")
+          .whereNot('status', 'buried');
+    });
+  }
+
   async getFailedNeedSubmissions() {
     return await this.maybeThrottle(async () => {
       return await (this.target).select().from("Submissions")
