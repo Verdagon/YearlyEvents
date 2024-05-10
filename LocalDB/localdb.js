@@ -488,13 +488,22 @@ export class LocalDb {
     });
   }
 
-  async getUnfinishedPageLeads() {
+  async getUnfinishedPageLeads(retryErrors) {
     return await this.maybeThrottle(async () => {
-      return (
-          await (this.target).select("PageLeads.*").from("PageLeads")
-              .where({"PageLeads.status": 'created'})
-              .leftJoin('Submissions', 'PageLeads.id', 'Submissions.submission_id')
-              .whereNull('Submissions.submission_id'))
+      let query = (this.target).select("PageLeads.*").from("PageLeads");
+      if (retryErrors) {
+        query = query.where(function() {
+          this.where({"PageLeads.status": 'created'}).orWhere({status: 'errors'});
+        });
+      } else {
+        query = query.where({"PageLeads.status": 'created'})
+      }
+      query =
+          query
+            .leftJoin('Submissions', 'PageLeads.id', 'Submissions.submission_id')
+            .whereNull('Submissions.submission_id')
+
+      return (await query)
           .map(row => {
             if (row.steps) {
               row.steps = JSON.parse(row.steps);
