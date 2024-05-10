@@ -27,12 +27,12 @@ async function runCommandForStatus(program, args) {
 }
 
 async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
-  const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
-  console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
+  const htmlOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".html"
+  console.log("Asking for html for " + url + " to " + htmlOutputPath);
   try {
     console.log("Fetch expensive", maybeIdForLogging, "chromeFetcher:", url);
     // debugger;
-    await chromeFetcher.send(url.trim() + " " + pdfOutputPath.trim());
+    await chromeFetcher.send(url.trim() + " " + htmlOutputPath.trim());
   } catch (err) {
     const error =
         "Bad fetch/browse for url " + url + ": " + 
@@ -44,11 +44,11 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   }
 
   const txt_path = scratchDir + "/" + url.replaceAll("/", "").replace(/\W+/ig, "-") + ".txt"
-  const commandArgs = ["./PdfToText/main.py", pdfOutputPath, txt_path];
-  const pdftotextExitCode = await runCommandForStatus("python3", commandArgs)
-  console.log("Ran PDF-to-text, exit code:", pdftotextExitCode)
-  if (pdftotextExitCode !== 0) {
-    const error = "Bad PDF-to-text for url " + url + " pdf path " + pdfOutputPath;
+  const commandArgs = ["./PdfToText/main.py", htmlOutputPath, txt_path];
+  const extractorExitCode = await runCommandForStatus("python3", commandArgs)
+  console.log("Ran text extractor, exit code:", extractorExitCode)
+  if (extractorExitCode !== 0) {
+    const error = "Bad text extractor for url " + url + " html path " + htmlOutputPath;
     console.log(error);
     return {text: null, error};
   }
