@@ -275,8 +275,6 @@ fn handle_error_maybe_requeue_a(
 		req: Request,
 		operation: &str,
 		err: Box<dyn Error>) {
-  eprintln!("Error while {} for request {}: {:?}", operation, req.uuid, err);
-
 	// These don't work for some reason...
 	// if err.downcast_ref::<Box<util::Timeout>>().is_some() ||
 	// 	  err.downcast_ref::<Box<ConnectionClosed>>().is_some() {
@@ -289,7 +287,7 @@ fn handle_error_maybe_requeue_a(
 		if format!("{:?}", err).contains("underlying connection is closed") {
       panic!("wtf {:?}", err);
 		}
-		println!("{} error Unknown error while {}, see logs.", req.uuid, operation)
+		println!("{} error Unknown error while {}: {:?}", req.uuid, operation, err);
 	}
 }
 

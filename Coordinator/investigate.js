@@ -1,10 +1,9 @@
 
 import { logs, normalizeName, normalizePlace, normalizeState, distinct, VException } from "../Common/utils.js";
 import { analyzePageOuter, analyzeMatchOuter } from './analyze.js'
-import { getSearchResult } from './search.js'
+import { getSearchResultOuter } from './search.js'
 
 export async function investigate(
-    openai,
     scratchDir,
     db,
     googleSearchApiKey,
@@ -13,7 +12,8 @@ export async function investigate(
     searchCacheCounter,
     chromeFetcher,
     chromeCacheCounter,
-    llmRequester,
+    modelToLlmRequester,
+    retryErrors,
     throttlerPriority,
     gptCacheCounter,
     event_i,
@@ -22,7 +22,7 @@ export async function investigate(
     matchState,
     maybeUrl,
     submissionId,
-    model) {
+    overrideModel) {
   let investigationStatus = null;
   let broadSteps = [];
   let pageAnalyses = []
@@ -32,114 +32,35 @@ export async function investigate(
   let unanimousMonth = null;
 
   await db.transaction(async (trx) => {
-    const maybeInvestigation = await trx.getInvestigation(submissionId, model);
+    const maybeInvestigation = await trx.getInvestigation(submissionId);
     if (maybeInvestigation) {
       investigationStatus = maybeInvestigation.status;
       broadSteps = maybeInvestigation.steps || [];
       pageAnalyses = maybeInvestigation.pageAnalyses || [];
     } else {
       investigationStatus = 'created';
-      await trx.startInvestigation(submissionId, model);
+      await trx.startInvestigation(submissionId);
     }
   });
 
   try {
     const googleQuery = matchName + " " + matchCity + " " + matchState;
-    logs(broadSteps)("Googling:", googleQuery);
-    const searcherResult =
-        await getSearchResult(
-            db, googleSearchApiKey, fetchThrottler, searchThrottler, searchCacheCounter, throttlerPriority, submissionId, googleQuery);
-    if (searcherResult == null) {
-      logs(broadSteps)("Bad search for event ", matchName);
-      await db.finishInvestigation(submissionId, model, 'errors', null, broadSteps);
+    const urls =
+        await getSearchResultOuter(
+            db,
+            googleSearchApiKey,
+            fetchThrottler,
+            searchThrottler,
+            searchCacheCounter,
+            throttlerPriority,
+            submissionId,
+            broadSteps,
+            maybeUrl,
+            (await db.getInvestigationAnalyses(submissionId, 4)).map(row => row.url),
+            googleQuery);
+    if (urls == null) {
+      await db.finishInvestigation(submissionId, 'errors', null, broadSteps);
       return;
-    }
-    const unfilteredResponseUrls = searcherResult.response;
-
-    // Order them by shortest first, shorter URLs tend to be more canonical
-    unfilteredResponseUrls.sort((a, b) => a.length - b.length);
-
-    // If the submission came with a URL, move it to the top of the list.
-    if (maybeUrl) {
-      if (!unfilteredResponseUrls.includes(maybeUrl)) {
-        unfilteredResponseUrls.unshift(maybeUrl);
-      }
-    }
-
-    logs(broadSteps)("Google result URLs:", unfilteredResponseUrls);
-
-    // Make sure we don't overwrite any existing page analyses
-    const urls = 
-        (await db.getInvestigationAnalyses(submissionId, model))
-        .map(row => row.url);
-    // Add new rows for new URLs
-    // We don't parallelize because we want to short-circuit once we hit 7
-    for (const url of unfilteredResponseUrls) {
-      if (urls.length >= 7) {
-        console.log("Ignoring url, already at limit.")
-        // Limit to 7
-        break;
-      }
-      if (urls.includes(url)) {
-        console.log("Skipping already included URL:", url);
-        continue;
-      }
-      if (url == "") {
-        logs(broadSteps)("Skipping blank url");
-        continue;
-      }
-      const blacklistedDomains = [
-        "youtube.com",
-        "twitter.com"
-      ];
-      const urlLowercase = url.toLowerCase();
-      if (blacklistedDomains.filter(entry => urlLowercase.includes(entry)).length) {
-        logs(broadSteps)("Skipping blacklisted domain:", url);
-        continue;
-      }
-      const cachedRow = await db.getPageText(url);
-      if (cachedRow && cachedRow.text) {
-        // We have it cached, so it must be a good url, proceed.
-      } else {
-        // We don't have it, so see if we can do a basic request to it
-        await fetchThrottler.prioritized(throttlerPriority, async () => {
-          try {
-            console.log("Checking url", url);
-            let finished = false;
-            const controller = new AbortController();
-            const abortTimeoutId = setTimeout(() => {
-              if (!finished) {
-                console.log("Aborting lagging request to", url);
-                controller.abort()
-              }
-            }, 30000);
-            const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-            controller.abort();
-            finished = true;
-            if (!response.ok) {
-              logs(broadSteps)("Skipping non-ok'd url:", url);
-              return;
-            }
-            const contentType = response.headers.get('content-type');
-            if (!contentType) {
-              logs(broadSteps)("No content-type, skipping:", url);
-              return;
-            }
-            if (!contentType.includes('text/html')) {
-              logs(broadSteps)("Skipping non-html response:", url);
-              return;
-            }
-            // proceed
-          } catch (error) {
-            logs(broadSteps)("Skipping error'd url:", url, "error:", error);
-            return;
-          }
-          // proceed
-        });
-        // proceed
-      }
-      console.log("Adding url", url);
-      urls.push(url);
     }
 
     let months = [];
@@ -149,83 +70,11 @@ export async function investigate(
     let alreadyConfirmed = false;
     for (const [url_i, url] of urls.entries()) {
       if (alreadyConfirmed) {
-        await db.finishMatchAnalysis(submissionId, url, model, 'moot', [], {});
-        await db.finishPageAnalysis(url, model, 'moot', [], {});
+        await db.finishMatchAnalysis(submissionId, url, 'moot', [], {});
+        await db.finishPageAnalysis(url, 'moot', [], {});
       } else {
         // This will update the rows in the database.
-        await analyzePageOuter(
-            openai,
-            scratchDir,
-            db,
-            googleSearchApiKey,
-            fetchThrottler,
-            searchThrottler,
-            searchCacheCounter,
-            chromeFetcher,
-            chromeCacheCounter,
-            llmRequester,
-            throttlerPriority,
-            gptCacheCounter,
-            model,
-            event_i,
-            matchName,
-            matchCity,
-            matchState,
-            submissionId,
-            broadSteps,
-            url_i,
-            url);
-        const pageAnalysisRow =
-            await db.getPageAnalysis(url, model);
-        if (pageAnalysisRow.status == 'created') {
-          console.log("Analysis row is status created, pausing investigation.");
-          // If it's still created status, then we're waiting on something external.
-          // Update the steps at least and then return.
-          await db.finishInvestigation(
-              submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
-          return;
-        } else if (pageAnalysisRow.status == 'errors') {
-          console.log("Counting error from url:", url);
-          num_errors++;
-          continue;
-        } else if (pageAnalysisRow.status == 'rejected') {
-          console.log("Counting reject from url:", url);
-          continue;
-        } else if (pageAnalysisRow.status == 'success') {
-          // Proceed
-        } else {
-          throw "Weird status from analyze: " + pageAnalysisRow.status;
-        }
-
-        if (!matchName) {
-          throw "No match name wtf";
-        }
-        if (!matchState || !matchCity) {
-          // This can happen if someone submits a lead and we can't figure out the city or state from it.
-          // We'll just jump straight to the rejected conclusion here.
-          // However, if the page analysis came up with a name,city,state on its own,
-          // let's add that as an other-event. If we're lucky, it's what the lead originally was
-          // referring to.
-          // Note that the page analysis might itself not know the city or state.
-          logs(broadSteps)(
-              "No matchCity/matchState, so adding unrelated event:",
-              pageAnalysisRow.analysis.name,
-              pageAnalysisRow.analysis.city,
-              pageAnalysisRow.analysis.state,
-              pageAnalysisRow.analysis.summary);
-          await addOtherEventSubmission(
-              db,
-              url,
-              pageAnalysisRow.analysis.name,
-              pageAnalysisRow.analysis.city,
-              pageAnalysisRow.analysis.state,
-              pageAnalysisRow.analysis.summary);
-          continue;
-        }
-
-        // This will update the rows in the database.
         await analyzeMatchOuter(
-            openai,
             scratchDir,
             db,
             googleSearchApiKey,
@@ -234,11 +83,12 @@ export async function investigate(
             searchCacheCounter,
             chromeFetcher,
             chromeCacheCounter,
-            llmRequester,
+            modelToLlmRequester,
+            retryErrors,
             throttlerPriority,
             gptCacheCounter,
             submissionId,
-            model,
+            overrideModel,
             event_i,
             matchName,
             matchCity,
@@ -246,14 +96,15 @@ export async function investigate(
             broadSteps,
             url_i,
             url);
+
         const matchAnalysisRow =
-            await db.getMatchAnalysis(submissionId, url, model);
+            await db.getMatchAnalysis(submissionId, url);
         if (matchAnalysisRow.status == 'created') {
           console.log("Analysis row is status created, pausing investigation.");
           // If it's still created status, then we're waiting on something external.
           // Update the steps at least and then return.
           await db.finishInvestigation(
-              submissionId, model, 'created', {month: unanimousMonth}, broadSteps);
+              submissionId, 'created', {month: unanimousMonth}, broadSteps);
           return;
         } else if (matchAnalysisRow.status == 'errors') {
           console.log("Counting error from url:", url);
@@ -267,6 +118,10 @@ export async function investigate(
         } else {
           throw "Weird status from analyze: " + matchAnalysisRow.status;
         }
+
+        // We know we successfully measured the matchness, let's grab the dependee
+        // page analysis too
+        const pageAnalysisRow = await db.getPageAnalysis(url);
 
         if (matchAnalysisRow.matchness == 4) { // matches city
           // Good, proceed
@@ -315,17 +170,17 @@ export async function investigate(
     if (num_confirms) {
       months = distinct(months);
       unanimousMonth = months.length == 1 ? months[0] : "";
-      logs(broadSteps)("Unanimous month?:", unanimousMonth);
+      logs(broadSteps)("Found", num_confirms, "confirms, unanimous month:", unanimousMonth);
 
-      await db.finishInvestigation(submissionId, model, 'confirmed', {month: unanimousMonth}, broadSteps);
+      await db.finishInvestigation(submissionId, 'confirmed', {month: unanimousMonth}, broadSteps);
       return;
     }
     if (num_errors == 0) {
       logs(broadSteps)("Didn't find enough confirming " + matchName + ", concluding failed.");
       // If we get here, then things are final and we don't have enough confirms.
-      await db.finishInvestigation(submissionId, model, 'failed', {month: unanimousMonth}, broadSteps);
+      await db.finishInvestigation(submissionId, 'failed', {month: unanimousMonth}, broadSteps);
     } else {
-      await db.finishInvestigation(submissionId, model, 'errors', {month: unanimousMonth}, broadSteps);
+      await db.finishInvestigation(submissionId, 'errors', {month: unanimousMonth}, broadSteps);
     }
   } catch (error) {
     // Make sure the error's contents is put into the steps.
@@ -335,7 +190,7 @@ export async function investigate(
     } else {
       console.log("Already logged error:", error);
     }
-    await db.finishInvestigation(submissionId, model, 'errors', {month: unanimousMonth}, broadSteps);
+    await db.finishInvestigation(submissionId, 'errors', {month: unanimousMonth}, broadSteps);
   }
 }
 
@@ -349,6 +204,7 @@ async function addOtherEventSubmission(db, url, name, city, state, summary) {
     status: 'created',
     url,
     origin_query: null,
-    need: 0
+    need: 0,
+    scrutinize: 0
   });
 }

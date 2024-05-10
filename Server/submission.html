@@ -24,21 +24,21 @@
 <% if (it.submission) { %>
   <div>Submission:</div>
   <div><%= it.submission.name %> in <%= it.submission.city || "(none)" %>, <%= it.submission.state || "(none)" %> (<%= it.submission.status %>)</div>
-  <div>month: <%= it.submission.investigation && it.submission.investigation.month %></div>
-  <div>num_errors: <%= it.submission.investigation && it.submission.investigation.num_errors %></div>
-  <div>num_promising: <%= it.submission.investigation && it.submission.investigation.num_promising %></div>
+  <div>month: <%= it.investigation && it.investigation.month %></div>
+  <div>num_errors: <%= it.investigation && it.investigation.num_errors %></div>
+  <div>num_promising: <%= it.investigation && it.investigation.num_promising %></div>
 
-  <% it.submission.investigations.forEach(function(investigation){ %>
+  <% if (it.investigation) { %>
   	<div class="investigation">
   	<details>
-  		<summary><%= investigation.model %>:</summary>
+  		<summary>Investigation:</summary>
   		<div>
 
         <details>
           <summary>Show broad steps</summary>
           <div>
             <ul>
-              <% investigation.steps && investigation.steps.forEach(function(step) { %>
+              <% it.investigation.steps && it.investigation.steps.forEach(function(step) { %>
                 <li>
                   <% if (Array.isArray(step)) { %>
                     <%= JSON.stringify(step) %>
@@ -51,7 +51,13 @@
                         <% } else if (key == 'details') { %>
                           <details>
                             <summary>Show full text</summary>
-                            <div><%= member %></div>
+                            <div>
+                              <% if (typeof member == 'object') { %>
+                                <%= JSON.stringify(member) %>
+                              <% } else { %>
+                                <%= member %>
+                              <% } %>
+                            </div>
                           </details>
                         <% } else { %>
                           <b>Unknown key</b> <%= key %>: <%= member %>
@@ -67,9 +73,9 @@
           </div>
         </details>
 
-  			<% investigation.pageAnalyses.forEach(function(analysis){ %>
+  			<% it.investigation.analyses.forEach(function(analysis){ %>
   				<div class="analysis">
-  					<div><%= analysis.status %>: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
+  					<div><%= analysis.status %> matchness <%= analysis.matchness %>: <a href="<%= analysis.url %>" target="_blank"><%= analysis.url %></a></div>
   					<div>
   						<b>name:</b> <%= analysis && analysis.analysis && analysis.analysis.name %>
   					</div>
@@ -89,20 +95,21 @@
   					</div>
   					<div><b>summary:</b> <%= analysis && analysis.analysis && analysis.analysis.summary %></div>
             <div><b>unusual:</b> <%= analysis && analysis.analysis && analysis.analysis.unusual %></div>
-  					<div>
-  						<b>description:</b> <%= analysis && analysis.analysis && analysis.analysis.description %>
-  					</div>
-  					<div>
-  						<b>matches city:</b> <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.city %>,
-  						<b>state:</b> <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.state %>,
-  						<b>anywhere:</b> <%= analysis && analysis.analysis && analysis.analysis.matches && analysis.analysis.matches.anywhere %>
-  					</div>
+            
+            <% if (analysis && analysis.analysis && analysis.analysis.description) { %>
+              <details>
+                <summary>Show description</summary>
+                <div><%= analysis && analysis.analysis && analysis.analysis.description %></div>
+              </details>
+            <% } else { %>
+              (no description?)
+            <% } %>
 
   					<details>
-  					  <summary>Show steps</summary>
+  					  <summary>Show Page Analysis Steps</summary>
   					  <div>
   							<ul>
-  								<% analysis.steps.forEach(function(step) { %>
+  								<% analysis.page_steps.forEach(function(step) { %>
   									<li>
                       <% if (Array.isArray(step)) { %>
                         <%= JSON.stringify(step) %>
@@ -115,7 +122,13 @@
   													<% } else if (key == 'details') { %>
   														<details>
   														  <summary>Show full text</summary>
-  														  <div><%= member %></div>
+                                <div>
+                                  <% if (typeof member == 'object') { %>
+                                    <%= JSON.stringify(member) %>
+                                  <% } else { %>
+                                    <%= member %>
+                                  <% } %>
+                                </div>
   														</details>
   													<% } else { %>
   														<b>Unknown key</b> <%= key %>: <%= member %>
@@ -131,6 +144,45 @@
   						</div>
   					</details>
 
+            <details>
+              <summary>Show Match Analysis Steps</summary>
+              <div>
+                <ul>
+                  <% analysis.match_steps.forEach(function(step) { %>
+                    <li>
+                      <% if (Array.isArray(step)) { %>
+                        <%= JSON.stringify(step) %>
+                      <% } else if (typeof step == 'object' && step[""] !== undefined) { %>
+                        <%= step[""] %>
+                        <% Object.entries(step).forEach(([key, member]) => { %>
+                          <% if (key) { %>
+                            <% if (key == 'pageTextUrl') { %>
+                              <a href="/pagetext?url=<%= member %>">(page text)</a>
+                            <% } else if (key == 'details') { %>
+                              <details>
+                                <summary>Show full text</summary>
+                                <div>
+                                  <% if (typeof member == 'object') { %>
+                                    <%= JSON.stringify(member) %>
+                                  <% } else { %>
+                                    <%= member %>
+                                  <% } %>
+                                </div>
+                              </details>
+                            <% } else { %>
+                              <b>Unknown key</b> <%= key %>: <%= member %>
+                            <% } %>
+                          <% } %>
+                        <% }) %>
+                      <% } else { %>
+                        <%= step %>
+                      <% } %>
+                    </li>
+                  <% }) %>
+                </ul>
+              </div>
+            </details>
+
   					<details>
   					  <summary>Show page text</summary>
   					  <div>
@@ -143,7 +195,7 @@
   		</div>
   		
   	</div>
-  <% }) %>
+  <% } %>
 <% } else { %>
   <div>(No submission)</div>
 <% } %>

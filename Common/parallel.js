@@ -4,17 +4,19 @@ export function delay(ms) {
 }
 
 export function makeMsThrottler(msBetweenRequests) {
-	let lastThrottleMillis = Date.now()
+	let nextAvailability = Date.now()
 	return async () => {
-        if (msBetweenRequests) {
-    		const now = Date.now()
-    		const millisSinceLastThrottle = now - lastThrottleMillis;
-    		// Lets only make a request every second or so, since we only get 60 RPS to chatgpt.
-    		if (millisSinceLastThrottle < msBetweenRequests) {
-    			await delay(msBetweenRequests - millisSinceLastThrottle);
-    		}
-    		lastThrottleMillis = now;
-        }
+    if (!msBetweenRequests) {
+      // Do nothing
+    } else {
+  		const now = Date.now()
+      const msUntilNextAvailability = nextAvailability - now;
+      nextAvailability = Math.max(now, nextAvailability) + msBetweenRequests;
+      if (msUntilNextAvailability >= 0) {
+        await delay(msUntilNextAvailability);
+        console.log("Delayed", msBetweenRequests, "to", Date.now());
+  		}
+    }
 	}
 }
 
@@ -86,34 +88,36 @@ export class Semaphore {
         });
     }
 
-    tryNext() {
-        if (!this.currentRequests.length) {
-            return;
-        } else if (this.runningRequests < this.maxConcurrentRequests || this.maxConcurrentRequests == null) {
-            let highestPriorityFound = this.currentRequests[0].priority;
-            let highestPriorityIndex = 0;
-            if (this.prioritizing) {
-                for (let i = 1; i < this.currentRequests.length; i++) {
-                    if (this.currentRequests[i].priority > highestPriorityFound) {
-                        highestPriorityFound = this.currentRequests[i].priority;
-                        highestPriorityIndex = i;
-                    }
+    async tryNext() {
+      if (!this.currentRequests.length) {
+        return;
+      } else if (this.runningRequests < this.maxConcurrentRequests || this.maxConcurrentRequests == null) {
+        let highestPriorityFound = this.currentRequests[0].priority;
+        let highestPriorityIndex = 0;
+        if (this.prioritizing) {
+            for (let i = 1; i < this.currentRequests.length; i++) {
+                if (this.currentRequests[i].priority > highestPriorityFound) {
+                    highestPriorityFound = this.currentRequests[i].priority;
+                    highestPriorityIndex = i;
                 }
             }
-            let { resolve, reject, fnToCall } = this.currentRequests[highestPriorityIndex];
-            this.currentRequests.splice(highestPriorityIndex, 1);
-
-            this.runningRequests++;
-
-            (this.throttler)()
-                .then(fnToCall)
-                .then((res) => resolve(res))
-                .catch((err) => reject(err))
-                .finally(() => {
-                    this.runningRequests--;
-                    this.tryNext();
-                });
         }
+        let {resolve, reject, fnToCall} =
+            this.currentRequests[highestPriorityIndex];
+        this.currentRequests.splice(highestPriorityIndex, 1);
+
+        this.runningRequests++;
+
+        try {
+          await (this.throttler)();
+          resolve(fnToCall());
+        } catch (err) {
+          reject(err);
+        } finally {
+          this.runningRequests--;
+          this.tryNext();
+        }
+      }
     }
 }
 

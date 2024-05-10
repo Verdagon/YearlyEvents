@@ -30,7 +30,7 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   const pdfOutputPath = scratchDir + "/result" + eventI + "-" + resultI + ".pdf"
   console.log("Asking for pdf for " + url + " to " + pdfOutputPath);
   try {
-    console.log("Expensive", maybeIdForLogging, "chromeFetcher:", url);
+    console.log("Fetch expensive", maybeIdForLogging, "chromeFetcher:", url);
     // debugger;
     await chromeFetcher.send(url.trim() + " " + pdfOutputPath.trim());
   } catch (err) {
@@ -63,14 +63,18 @@ async function getPageTextInner(scratchDir, db, chromeFetcher, chromeCacheCounte
   return {text, error: null};
 }
 
-export async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, maybeIdForLogging, steps, eventI, resultI, url) {
+export async function getPageText(scratchDir, db, chromeFetcher, chromeCacheCounter, throttlerPriority, retryErrors, maybeIdForLogging, steps, eventI, resultI, url) {
   // This used to be wrapped in a transaction but I think it was causing the connection
   // pool to get exhausted.
 
   const cachedPageTextRow = await db.getPageText(url);
   if (cachedPageTextRow) {
-    chromeCacheCounter.count++;
-    return cachedPageTextRow;
+    if (!cachedPageTextRow.text && retryErrors) {
+      // Retry it
+    } else {
+      chromeCacheCounter.count++;
+      return cachedPageTextRow;
+    }
   }
 
   const {text, error} =

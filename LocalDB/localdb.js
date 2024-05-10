@@ -62,7 +62,7 @@ export class LocalDb {
     });
   }
 
-	async getSimilarSubmissionById(id) {
+	async getSimilarSubmissionsById(id) {
     if (!id) {
       throw "getSimilarSubmissionById no ID";
     }
@@ -76,7 +76,7 @@ export class LocalDb {
   				        this.on("s1.name", "=", "s2.name")
   				            .andOn("s1.submission_id", "!=", "s2.submission_id");
   				    });
-  	  return results[0] || null;
+  	  return results || [];
     });
 	}
 
@@ -153,18 +153,18 @@ export class LocalDb {
       });
 
       for (const matchAnalysisRow of await this.getMatchAnalysesForSubmission(submissionId)) {
-        const {submission_id, url, model, status, steps, matchness} = matchAnalysisRow;
+        const {submission_id, url, status, steps, matchness} = matchAnalysisRow;
 
         const matchAnalysisRowForMainSubmission =
-            await this.getMatchAnalysis(mainSubmissionId, url, model);
+            await this.getMatchAnalysis(mainSubmissionId, url);
         if (matchAnalysisRowForMainSubmission) {
           // Do nothing, trust what's already there
-          console.log("Match analysis already exists for", submission_id, model, url);
+          console.log("Match analysis already exists for", submission_id, url);
         } else {
           // Make a new analysis for the main submission
-          console.log("Making new", status, "match analysis for", submission_id, model, url);
-          await this.startMatchAnalysis(mainSubmissionId, url, model);
-          await this.finishMatchAnalysis(mainSubmissionId, url, model, status, steps, matchness);
+          console.log("Making new", status, "match analysis for", submission_id, url);
+          await this.startMatchAnalysis(mainSubmissionId, url);
+          await this.finishMatchAnalysis(mainSubmissionId, url, status, steps, matchness);
         }
       }
 
@@ -197,14 +197,32 @@ export class LocalDb {
     });
   }
 
-	async getApprovedSubmissionsOfNeed(need) {
+	async getProcessibleSubmissions(status, need, filterSubmissionId, scrutinize, retryErrors, limit) {
     return await this.maybeThrottle(async () => {
-  		return await (this.target).select().from("Submissions")
-  	      .whereNotNull("name")
-  	      .whereNotNull("state")
-  	      .whereNotNull("city")
-  	      .where({status: 'approved'})
-          .where('need', '>=', need);
+      let query = (this.target).select().from("Submissions").whereNotNull("name");
+      if (status != null) {
+        if (retryErrors) {
+          query = query.where(function() {
+            this.where({status}).orWhere({status: 'errors'});
+          });
+        } else {
+          query = query.where({status});
+        }
+      }
+      if (need != null) {
+        query = query.where('need', '>=', need);
+      }
+      if (filterSubmissionId != null) {
+        query = query.where('submission_id', filterSubmissionId);
+      }
+      if (scrutinize != null) {
+        query = query.where('scrutinize', '=', scrutinize);
+      }
+      if (limit) {
+        query = query.limit(limit);
+      }
+      console.log("q:", query.toString());
+  		return await query;
     });
 	}
 
@@ -231,10 +249,27 @@ export class LocalDb {
     });
 	}
 
-  async getCachedSummary(url, model, promptVersion) {
+  async getCachedPageSummary(url, model, promptVersion) {
     return await this.maybeThrottle(async () => {
       const result =
           await (this.target).from("SummarizeCache").select()
+              .where({url, model, prompt_version: promptVersion});
+      return (result && result[0]) || null;
+    });
+  }
+
+  async cachePageCategory(row) {
+    return await this.maybeThrottle(async () => {
+      await (this.target).into("CategoryCache")
+          .insert(row)
+          .onConflict(['url', 'prompt_version', 'model']).merge();
+    });
+  }
+
+  async getCachedPageCategory(url, model, promptVersion) {
+    return await this.maybeThrottle(async () => {
+      const result =
+          await (this.target).from("CategoryCache").select()
               .where({url, model, prompt_version: promptVersion});
       return (result && result[0]) || null;
     });
@@ -248,25 +283,33 @@ export class LocalDb {
     });
 	}
 
-  async startInvestigation(submissionId, model) {
+  // The url field is a hint about what url to try first for the event
+  async updateSubmissionUrl(submissionId, url) {
+    return await this.maybeThrottle(async () => {
+      await (this.target)("Submissions")
+          .where({'submission_id': submissionId})
+          .update({ url: url });
+    });
+  }
+
+  async startInvestigation(submissionId) {
     return await this.maybeThrottle(async () => {
       // Do this in a transaction so we can detect any conflicts here
       await (this.target).into("Investigations")
           .insert({
             submission_id: submissionId,
             status: 'created',
-            model: model,
             steps: null,
             investigation: null
           });
     });
   }
 
-  async getInvestigation(submissionId, model) {
+  async getInvestigation(submissionId) {
     return await this.maybeThrottle(async () => {
       const row =
           (await (this.target).select().from("Investigations")
-              .where({submission_id: submissionId, model}))
+              .where({submission_id: submissionId}))
               .map(row => {
                 if (row.steps) {
                   row.steps = JSON.parse(row.steps);
@@ -277,10 +320,10 @@ export class LocalDb {
     });
   }
 
-  async finishInvestigation(submissionId, model, status, investigation, steps) {
+  async finishInvestigation(submissionId, status, investigation, steps) {
     return await this.maybeThrottle(async () => {
       await (this.target)("Investigations")
-          .where({submission_id: submissionId, model: model})
+          .where({submission_id: submissionId})
           .update({
             status: status,
             steps: JSON.stringify(steps),
@@ -289,21 +332,37 @@ export class LocalDb {
     });
   }
 
-  async getInvestigationAnalyses(submissionId, model) {
+  async getInvestigationAnalyses(submissionId, minimumMatchness) {
     return await this.maybeThrottle(async () => {
-      return (
-          await (this.target)
-            .select()
+      let query =
+          (this.target)
+            .select(
+                "m.url as url",
+                "submission_id",
+                "m.steps as match_steps",
+                "m.status as status",
+                "m.matchness as matchness",
+                "p.steps as page_steps",
+                "p.analysis as analysis")
             .from("MatchAnalyses as m")
-            .where({"m.submission_id": submissionId, "m.model": model})
-            .where('matchness', '>=', 4)
-            .join("PageAnalyses as p", function() {
-                this.on("p.url", "=", "m.url")
-                    .andOn("p.model", "=", "m.model");
-            }))
+            .where({"m.submission_id": submissionId});
+      if (minimumMatchness) {
+        query = query.where('matchness', '>=', minimumMatchness);
+      }
+      query =
+          query.join("PageAnalyses as p", function() {
+            this.on("p.url", "=", "m.url");
+          });
+      console.log("getInvestigationAnalyses:", query.toString());
+      return (await query)
           .map(row => {
-            if (row.steps) {
-              row.steps = JSON.parse(row.steps);
+            if (row.match_steps) {
+              row.match_steps = JSON.parse(row.match_steps);
+            }
+            if (row.page_steps) {
+              row.page_steps = JSON.parse(row.page_steps);
+            }
+            if (row.analysis) {
               row.analysis = JSON.parse(row.analysis);
             }
             return row;
@@ -311,10 +370,10 @@ export class LocalDb {
     });
   }
 
-  async getLeadByUrl(url) {
+  async getPageLeadByUrl(url) {
     return await this.maybeThrottle(async () => {
       const rows =
-          (await (this.target).select().from("Leads")
+          (await (this.target).select().from("PageLeads")
               .where({url}))
           .map(row => {
             if (row.steps) {
@@ -326,10 +385,10 @@ export class LocalDb {
     });
   }
 
-  async getLead(id) {
+  async getPageLead(id) {
     return await this.maybeThrottle(async () => {
       const rows =
-          (await (this.target).select().from("Leads")
+          (await (this.target).select().from("PageLeads")
               .where({id}))
             .map(row => {
               if (row.steps) {
@@ -341,9 +400,9 @@ export class LocalDb {
     });
   }
 
-  async addLead(id, url, status, steps, future_submission_status, future_submission_need) {
+  async addPageLead(id, url, status, steps, future_submission_status, future_submission_need) {
     return await this.maybeThrottle(async () => {
-      await (this.target).into("Leads")
+      await (this.target).into("PageLeads")
           .insert({
             id,
             url,
@@ -355,29 +414,101 @@ export class LocalDb {
     });
   }
 
-  async updateLead(id, status, steps) {
+  async updatePageLead(id, status, steps) {
     return await this.maybeThrottle(async () => {
       const updated =
-          await (this.target)("Leads")
+          await (this.target)("PageLeads")
               .where({id})
               .update({
                 status,
                 steps: JSON.stringify(steps),
               });
-      // console.log(updated + " rows updated by updateLead(" + id + ", " + status + ", ...)");
+      // console.log(updated + " rows updated by updatePageLead(" + id + ", " + status + ", ...)");
       if (!updated) {
-        throw "No rows updated by updateLead(" + id + ", " + status + ", ...)";
+        throw "No rows updated by updatePageLead(" + id + ", " + status + ", ...)";
       }
     });
   }
 
-  async getUnfinishedLeads() {
+  async getNameLeadByName(name) {
+    return await this.maybeThrottle(async () => {
+      const rows =
+          (await (this.target).select().from("NameLeads")
+              .where({name}))
+          .map(row => {
+            if (row.steps) {
+              row.steps = JSON.parse(row.steps);
+            }
+            return row;
+          });
+      return rows && rows[0] || null;
+    });
+  }
+
+  async getNameLead(id) {
+    return await this.maybeThrottle(async () => {
+      const rows =
+          (await (this.target).select().from("NameLeads")
+              .where({id}))
+            .map(row => {
+              if (row.steps) {
+                row.steps = JSON.parse(row.steps);
+              }
+              return row;
+            });
+      return rows && rows[0] || null;
+    });
+  }
+
+  async addNameLead(id, name, status, steps) {
+    return await this.maybeThrottle(async () => {
+      await (this.target).into("NameLeads")
+          .insert({
+            id,
+            name,
+            status,
+            steps: JSON.stringify(steps)
+          });
+    });
+  }
+
+  async updateNameLead(id, status, steps) {
+    return await this.maybeThrottle(async () => {
+      const updated =
+          await (this.target)("NameLeads")
+              .where({id})
+              .update({
+                status,
+                steps: JSON.stringify(steps),
+              });
+      // console.log(updated + " rows updated by updateNameLead(" + id + ", " + status + ", ...)");
+      if (!updated) {
+        throw "No rows updated by updateNameLead(" + id + ", " + status + ", ...)";
+      }
+    });
+  }
+
+  async getUnfinishedPageLeads() {
     return await this.maybeThrottle(async () => {
       return (
-          await (this.target).select("Leads.*").from("Leads")
-              .where({"Leads.status": 'created'})
-              .leftJoin('Submissions', 'Leads.id', 'Submissions.submission_id')
+          await (this.target).select("PageLeads.*").from("PageLeads")
+              .where({"PageLeads.status": 'created'})
+              .leftJoin('Submissions', 'PageLeads.id', 'Submissions.submission_id')
               .whereNull('Submissions.submission_id'))
+          .map(row => {
+            if (row.steps) {
+              row.steps = JSON.parse(row.steps);
+            }
+            return row;
+          });
+    });
+  }
+
+  async getUnfinishedNameLeads() {
+    return await this.maybeThrottle(async () => {
+      return (
+          await (this.target).select("NameLeads.*").from("NameLeads")
+              .where({"NameLeads.status": 'created'}))
           .map(row => {
             if (row.steps) {
               row.steps = JSON.parse(row.steps);
@@ -402,11 +533,11 @@ export class LocalDb {
     });
   }
 
-  async getPageAnalysis(url, model) {
+  async getPageAnalysis(url) {
     return await this.maybeThrottle(async () => {
       const row =
           (await (this.target).select().from("PageAnalyses")
-              .where({url, model}))
+              .where({url}))
               .map(row => {
                 if (row.steps) {
                   row.steps = JSON.parse(row.steps);
@@ -418,23 +549,21 @@ export class LocalDb {
     });
   }
 
-  async startPageAnalysis(url, model) {
+  async startPageAnalysis(url) {
     return await this.maybeThrottle(async () => {
       await (this.target).into("PageAnalyses")
           .insert({
             url,
-            model,
             status: 'created'
           });
     });
   }
 
-  async finishPageAnalysis(url, model, status, steps, analysis) {
+  async finishPageAnalysis(url, status, steps, analysis) {
     return await this.maybeThrottle(async () => {
       await (this.target)("PageAnalyses")
           .where({
-            url: url,
-            model: model
+            url: url
           })
           .update({
             status: status,
@@ -444,11 +573,11 @@ export class LocalDb {
     });
   }
 
-  async getMatchAnalysis(submissionId, url, model) {
+  async getMatchAnalysis(submissionId, url) {
     return await this.maybeThrottle(async () => {
       const row =
           (await (this.target).select().from("MatchAnalyses")
-              .where({submission_id: submissionId, url, model}))
+              .where({submission_id: submissionId, url}))
               .map(row => {
                 if (row.steps) {
                   row.steps = JSON.parse(row.steps);
@@ -473,13 +602,12 @@ export class LocalDb {
     });
   }
 
-  async startMatchAnalysis(submissionId, url, model) {
+  async startMatchAnalysis(submissionId, url) {
     return await this.maybeThrottle(async () => {
       await (this.target).into("MatchAnalyses")
           .insert({
             submission_id: submissionId,
             url,
-            model,
             steps: JSON.stringify([]),
             status: 'created',
             matchness: null
@@ -487,10 +615,10 @@ export class LocalDb {
     });
   }
 
-  async finishMatchAnalysis(submissionId, url, model, status, steps, matchness) {
+  async finishMatchAnalysis(submissionId, url, status, steps, matchness) {
     return await this.maybeThrottle(async () => {
       await (this.target)("MatchAnalyses")
-          .where({ submission_id: submissionId, url, model })
+          .where({ submission_id: submissionId, url })
           .update({
             status: status,
             steps: JSON.stringify(steps),
@@ -514,14 +642,17 @@ export class LocalDb {
 
   async getAnalysisQuestion(url, question, model, summarizePromptVersion) {
     return await this.maybeThrottle(async () => {
-      const rows = (await (this.target).select()
+      const query = 
+          (this.target).select()
           .from("AnalyzeCache")
           .where({
             url,
             question,
             model,
             summarize_prompt_version: summarizePromptVersion
-          }))
+          });
+      // console.log("q:", query.toString());
+      const rows = (await query)
           .map(row => {
             row.error = JSON.parse(row.error);
             return row;
@@ -532,7 +663,8 @@ export class LocalDb {
 
   async createAnalysisQuestion(url, question, model, summarizePromptVersion) {
     return await this.maybeThrottle(async () => {
-      await (this.target).into("AnalyzeCache")
+      const query =
+         (this.target).into("AnalyzeCache")
           .insert({
             url,
             question,
@@ -543,12 +675,15 @@ export class LocalDb {
             error: null
           })
           .onConflict(['url', 'question', 'model', 'summarize_prompt_version']).merge();
+      // console.log("q:", query.toString());
+      return await query;
     });
   }
 
-  async finishAnalysisQuestion(url, question, model, summarizePromptVersion, status, answer, errorText) {
+  async finishAnalysisQuestion(url, question, model, summarizePromptVersion, status, answerRaw, answer, errorText) {
     return await this.maybeThrottle(async () => {
-      await (this.target)("AnalyzeCache")
+      const query =
+          (this.target)("AnalyzeCache")
           .where({
             url,
             question,
@@ -556,10 +691,13 @@ export class LocalDb {
             summarize_prompt_version: summarizePromptVersion
           })
           .update({
-            answer,
+            answer: answer == null ? null : answer.toString(),
+            answer_raw: answerRaw,
             status,
-            error: JSON.stringify(errorText)
+            error: errorText == null ? null : (typeof errorText == 'object' ? JSON.stringify(errorText) : errorText.toString())
           });
+      // console.log("q:", query.toString());
+      return await query;
     });
   }
 
@@ -577,7 +715,7 @@ export class LocalDb {
 
   async getFailedNeedLeads() {
     return await this.maybeThrottle(async () => {
-      return await (this.target).select().from("Leads")
+      return await (this.target).select().from("PageLeads")
           .whereNot('future_submission_need', 0)
           .whereNot('status', "confirmed")
           .whereNot('status', "approved")
@@ -590,9 +728,10 @@ export class LocalDb {
     return await this.maybeThrottle(async () => {
       return await (this.target).select().from("Submissions")
           .whereNot('need', 0)
+          .whereNot('status', "created")
           .whereNot('status', "confirmed")
           .whereNot('status', "approved")
-          .whereNot('status', "created")
+          .whereNot('status', "published")
           .whereNot('status', 'buried');
     });
   }
@@ -618,6 +757,29 @@ export class LocalDb {
       return result && result[0] && result[0].count;
     });
   }
+
+  async numCreatedPageLeads() {
+    return await this.maybeThrottle(async () => {
+      const result =
+          await (this.target)("PageLeads")
+              .count('id as count')
+              .where('status', 'created');
+      // console.log("result:", result);
+      return result && result[0] && result[0].count;
+    });
+  }
+
+  async numCreatedNameLeads() {
+    return await this.maybeThrottle(async () => {
+      const result =
+          await (this.target)("NameLeads")
+              .count('id as count')
+              .where('status', 'created');
+      // console.log("result:", result);
+      return result && result[0] && result[0].count;
+    });
+  }
+
 
   async getEventConfirmations(eventId) {
     return await this.maybeThrottle(async () => {
@@ -683,6 +845,25 @@ export class LocalDb {
             return row;
           });;
       return (result && result[0]) || null;
+    });
+  }
+
+  async getScrutiny(submissionId) {
+    return await this.maybeThrottle(async () => {
+      return (await (this.target)
+        .select('a1.question', 'a1.model', 'a1.answer', 'a1.url')
+        .from('AnalyzeCache as a1')
+        .join('AnalyzeCache as a2', function() {
+          this.on('a1.url', '=', 'a2.url')
+            .andOn('a1.question', '=', 'a2.question')
+            .andOn('a1.model', '<', 'a2.model')
+            .andOnRaw("replace(lower(a1.answer), '.', '') != replace(lower(a2.answer), '.', '')");
+        })
+        .whereIn('a1.url', function() {
+          this.select('m.url')
+            .from('MatchAnalyses as m')
+            .where('m.submission_id', '=', submissionId);
+        }));
     });
   }
 }

@@ -26,7 +26,8 @@ export async function addSubmission(db, givenSubmission) {
 			status,
 			url,
 			origin_query,
-      need
+      need,
+      scrutinize: 0
 		};
 		await trx.insertSubmission(row);
     // console.log("Added submission");

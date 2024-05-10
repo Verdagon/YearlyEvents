@@ -66,6 +66,53 @@ async function buryConfirmedSubmission(index) {
     div.innerHTML = "<div>Error: " + name + "</div>" + e;
   }
 }
+async function restartWithUrl(button, submissionId) {
+  const div = document.getElementById("submission" + submissionId);
+  const name = div.dataset.name;
+  try {
+    console.log("this", button);
+    console.log("this", button.previousElementSibling);
+    console.log("this", button.previousElementSibling.nodeName);
+    console.log("this", button.previousElementSibling.value);
+    const input = button.previousElementSibling;
+    if (input.nodeName.toLowerCase() != 'input') {
+      throw "Cant find input";
+    }
+    const url = input.value;
+    if (!url.startsWith("http")) {
+      throw "Bad url";
+    }
+    div.innerHTML = "<div>Restarting " + name + " with better url</div>...";
+    const response =
+        await fetch("/restartWithUrl?submission_id=" + encodeURIComponent(submissionId) + "&url=" + encodeURIComponent(url));
+    const responseText = await response.text();
+    if (response.status != "200") {
+      throw responseText;
+    }
+    div.innerHTML = "<div>Restarted " + name + " with url " + url + "</div>" + responseText;
+  } catch (e) {
+    console.log(e);
+    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+  }
+}
+async function broadenSubmissionClicked(index) {
+  const div = document.getElementById("submission" + index);
+  const name = div.dataset.name;
+  const submissionId = div.dataset.submissionId;
+  div.innerHTML = "<div>Broadening: " + name + "</div>...";
+  try {
+    const response =
+        await fetch("/broaden?submission_id=" + encodeURIComponent(submissionId));
+    const responseText = await response.text();
+    if (response.status != "200") {
+      throw responseText;
+    }
+    div.innerHTML = "<div>Broadened: " + name + "</div>" + responseText;
+  } catch (e) {
+    console.log(e);
+    div.innerHTML = "<div>Error: " + name + "</div>" + e;
+  }
+}
 
 async function approveSubmissionClicked(index, need) {
   const div = document.getElementById("submission" + index);
@@ -136,7 +183,7 @@ async function burySubmissionClicked(index) {
   </span></template>
 </span></template>
 
-<template x-component="borkdown">
+<template x-component="steps">
   <div x-data="{ ...$el.parentElement.data() }">
     <template x-if="content.length">
       <ul>
@@ -164,7 +211,7 @@ async function burySubmissionClicked(index) {
   </div>
 </template>
 
-<x-borkdown json-content='["Step 1", { "": "Step 2 details", "pageTextUrl": "http://example.com", "details": "Some details" }, ["Step 3a", "Step 3b"] ]'></x-borkdown>
+<x-steps json-content='["Step 1", { "": "Step 2 details", "pageTextUrl": "http://example.com", "details": "Some details" }, ["Step 3a", "Step 3b"] ]'></x-steps>
 
 <div>
   <a href="/askGpt.html">Ask</a> |
@@ -172,6 +219,9 @@ async function burySubmissionClicked(index) {
   <a href="/waiting.html">Waiting</a>
 </div>
 
+<p>
+<%= it.numCreatedPageLeads %> page leads waiting, <%= it.numCreatedNameLeads %> name leads waiting.
+</p>
 <p>
 <%= it.numApprovedSubmissions %> approved submissions waiting for coordinator, <%= it.numCreatedInvestigations %> in progress.
 </p>
@@ -204,11 +254,24 @@ Confirmed submissions:
           <a href="<%~ analysis.url %>" target="_blank"><%~ analysis.url %></a>:
         </div>
         <div style="flex-shrink: 0">
-          <button onclick="publishConfirmedSubmission('<%= submission.submission_id %>', '<%= analysis.analysis.name %>', '<%~ analysis.url %>')">Publish</button>
+          <button onclick="publishConfirmedSubmission('<%= submission.submission_id %>', '<%= analysis.analysis && analysis.analysis.name && analysis.analysis.name.replaceAll("'", "\\'") %>', '<%~ analysis.url %>')">Publish</button>
         </div>
       </div>
+      <div><%= analysis.analysis.name %>: <%= analysis.analysis.summary %></div>
+      <div><%= analysis.analysis.unusual %></div>
       <div>
-        <%= analysis.analysis.name %>: <%= analysis.analysis.summary %> / <%= analysis.analysis.unusual %>
+        <% if (analysis.analysis.firstDate) { %>
+          <b>First:</b> <%= analysis.analysis.firstDate %>
+        <% } %>
+        <% if (analysis.analysis.lastDate) { %>
+          <b>Last:</b> <%= analysis.analysis.lastDate %>
+        <% } %>
+        <% if (analysis.analysis.nextDate) { %>
+          <b>Next:</b> <%= analysis.analysis.nextDate %>
+        <% } %>
+        <% if (analysis.analysis.canceled) { %>
+          <b>Canceled!</b>
+        <% } %>
       </div>
     <% }) %>
     <% if (submission.similars.length) { %>
@@ -226,6 +289,8 @@ Confirmed submissions:
         </ul>
       </p>
     <% } %>
+    <input type="text" name="url" />
+    <button onclick="restartWithUrl(this, '<%= submission.submission_id %>')">Use + Restart</button>
   </div>
 <% }) %>
 
@@ -256,7 +321,21 @@ Unconsidered submissions:
         <a href="<%~ submission.url %>"><%~ submission.url %></a>
       </div>
     <div><%= submission.description %></div>
-    <div><%= submission.notes %></div>
+    <% if (submission.similars.length) { %>
+      <p>
+        Similars:
+        <ul>
+          <% submission.similars.forEach(function(similar){ %>
+            <li>
+              <%= similar.status %>:
+              <a href="/submission?submission_id=<%= similar.submission_id %>"><%= similar.name %></a>
+              in <%= similar.city || "(none)" %>, <%= similar.state || "(none)" %> 
+              <button onclick="markDuplicateSubmission('<%= submission.submission_id %>', '<%= similar.submission_id %>')">Is Better</button>
+            </li>
+          <% }) %>
+        </ul>
+      </p>
+    <% } %>
   </div>
 <% }) %>
 
@@ -273,7 +352,9 @@ Failed NEED-level submissions:
     <div>
       <%= submission.status %>: <b><%= submission.name %></b> in <%= submission.city || "(none)" %>, <%= submission.state || "(none)" %>:
       <button onclick="burySubmissionClicked('<%= submission.submission_id %>')">Bury</button>
-      <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Re-NEED</button>
+      <button onclick="broadenSubmissionClicked('<%= submission.submission_id %>')">Broaden</button>
+      <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 2)">Re-NEED</button>
+      <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 1)">Re-Want</button>
       <button onclick="approveSubmissionClicked('<%= submission.submission_id %>', 0)">Re-approve</button>
       <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
     </div>
@@ -284,7 +365,6 @@ Failed NEED-level submissions:
         <a href="<%~ submission.url %>"><%~ submission.url %></a>
       </div>
     <% } %>
-    <div>
     <div><%= submission.notes %></div>
   </div>
 <% }) %>

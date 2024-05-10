@@ -9,6 +9,8 @@
   "keywords": [],
   "type": "module",
   "dependencies": {
+    "@azure/openai": "^1.0.0-beta.11",
+    "@google/generative-ai": "^0.3.1",
     "knex": "^2.5.1",
     "openai": "^3.3.0",
     "sqlite3": "^5.1.6",

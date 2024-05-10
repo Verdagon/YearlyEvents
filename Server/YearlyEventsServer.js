@@ -38,15 +38,20 @@ export class YearlyEventsServer {
 			const normalizedName = normalizeName(name, city, state);
 			idea.normalizedName = normalizedName;
 
-  		idea.similars = await this.db.getSimilarSubmissionsByName(normalizedName);
+      if (!normalizedName) {
+        console.log("Skipping null name A");
+        idea.similars = [];
+      } else {
+    		idea.similars = await this.db.getSimilarSubmissionsByName(normalizedName);
+      }
     });
 
-		ideas.sort((a, b) => {
-			if (a.notes.length != b.notes.length) {
-				return a.notes.length - b.notes.length;
-			}
-			return a.name.localeCompare(b.name);
-		});
+		// ideas.sort((a, b) => {
+		// 	if (a.notes.length != b.notes.length) {
+		// 		return a.notes.length - b.notes.length;
+		// 	}
+		// 	return a.name.localeCompare(b.name);
+		// });
 
 		const conversationJsonStr = JSON.stringify(conversation);
 
@@ -65,14 +70,8 @@ export class YearlyEventsServer {
 			const {name, city, state} = submission;
 			const normalizedName = normalizeName(name, city, state);
 			submission.normalizedName = normalizedName;
-			console.log("looking for similars to ", submission);
-  		submission.similars = await this.db.getSimilarSubmissionById(submission.submission_id);
-		});
-		submissions.sort((a, b) => {
-			if (a.notes.length != b.notes.length) {
-				return a.notes.length - b.notes.length;
-			}
-			return a.name.localeCompare(b.name);
+  		submission.similars = await this.db.getSimilarSubmissionsById(submission.submission_id);
+      console.log("looking for similars to ", normalizeName, "got", submission.similars);
 		});
     return submissions;
   }
@@ -81,11 +80,15 @@ export class YearlyEventsServer {
     const events = await this.db.getConfirmedSubmissions();
 
     await parallelEachI(events, async (eventI, submission) => {
-      const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
+      const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 4);
       submission.confirmations = analyses;
 
       const similars = [];
       for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
+        if (!otherName) {
+          console.log("Skipping null name A");
+          continue;
+        }
         for (const similar of await this.db.getSimilarSubmissionsByName(otherName)) {
           if (similar.submission_id != submission.submission_id) {
             similars.push(similar);
@@ -97,6 +100,31 @@ export class YearlyEventsServer {
 
     return events;
   }
+
+  // async scrutinies() {
+  //   const events = await this.db.getUnresolvedDisagreements();
+
+  //   await parallelEachI(events, async (eventI, submission) => {
+  //     const analyses = await this.db.getInvestigationAnalyses(submission.submission_id, 'gpt-3.5-turbo');
+  //     submission.confirmations = analyses;
+
+  //     const similars = [];
+  //     for (const otherName of distinct(analyses.map(row => row.analysis.name))) {
+  //       if (!otherName) {
+  //         console.log("Skipping null name A");
+  //         continue;
+  //       }
+  //       for (const similar of await this.db.getSimilarSubmissionsByName(otherName)) {
+  //         if (similar.submission_id != submission.submission_id) {
+  //           similars.push(similar);
+  //         }
+  //       }
+  //     }
+  //     submission.similars = similars;
+  //   });
+
+  //   return events;
+  // }
 
   async allFailed() {
     const submissions = await this.db.getFailedSubmissions();
@@ -119,50 +147,59 @@ export class YearlyEventsServer {
   async numCreatedInvestigations() {
     return await this.db.numCreatedInvestigations();
   }
+  
+  async numCreatedPageLeads() {
+    return await this.db.numCreatedPageLeads();
+  }
+  
+  async numCreatedNameLeads() {
+    return await this.db.numCreatedNameLeads();
+  }
+
+  async getPageText(url) {
+    return await this.db.getPageText(url);
+  }
 
 	async submission(submissionId) {
-    const lead = await this.db.getLead(submissionId);
+    const lead = await this.db.getPageLead(submissionId);
     if (lead) {
       lead.pageAnalyses = await this.db.getPageAnalysesByUrl(lead.url);
     }
 
     const submission = await this.db.getSubmission(submissionId);
-    if (submission) {
-      submission.investigations = [];
-      for (const investigation of await this.db.getInvestigations(submissionId)) {
-      	investigation.pageAnalyses =
-            await this.db.getInvestigationAnalyses(submissionId, investigation.model);
-        await parallelEachI(investigation.pageAnalyses, async (analysisI, analysis) => {
-          const pageTextRow = await this.db.getPageText(analysis.url);
-          analysis.pageText = pageTextRow && pageTextRow.text;
-          analysis.pageTextError = pageTextRow && pageTextRow.error;
-          return pageTextRow;
-        });
-        investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
-        if (!Array.isArray(investigation.steps)) {
-          console.log("investigation steps isnt array?", JSON.stringify(investigation.steps));
-          investigation.steps = [];
-        }
-      	submission.investigations.push(investigation);
+    let investigation = await this.db.getInvestigation(submissionId);
+    if (investigation) {
+    	investigation.analyses =
+          await this.db.getInvestigationAnalyses(submissionId, 0);
+      await parallelEachI(investigation.analyses, async (analysisI, analysis) => {
+        const pageTextRow = await this.db.getPageText(analysis.url);
+        analysis.pageText = pageTextRow && pageTextRow.text;
+        analysis.pageTextError = pageTextRow && pageTextRow.error;
+        return pageTextRow;
+      });
+      investigation.steps = investigation.steps || investigation.broadSteps || investigation.broad_steps || [];
+      if (!Array.isArray(investigation.steps)) {
+        console.log("investigation steps isnt array?", JSON.stringify(investigation.steps));
+        investigation.steps = [];
       }
     }
 
     const pageHtml = await this.getResource("submission.html");
-		const response = this.eta.renderString(pageHtml, { lead, submission });
+		const response = this.eta.renderString(pageHtml, { lead, submission, investigation });
     console.log("Response:", response);
     return response;
   }
 
   async submitLead(url, futureSubmissionStatus, futureSubmissionNeed) {
     return await this.db.transaction(async (trx) => {
-      const maybeLead = await trx.getLeadByUrl(url);
+      const maybeLead = await trx.getPageLeadByUrl(url);
       if (maybeLead) {
         return maybeLead.id;
       }
       const id = crypto.randomUUID();
       const steps = [];
       logs(steps)("Created lead", url, futureSubmissionStatus, "need:", futureSubmissionNeed);
-      await trx.addLead(
+      await trx.addPageLead(
           id, url, 'created', steps, futureSubmissionStatus, futureSubmissionNeed);
       return id;
     });
@@ -185,6 +222,11 @@ export class YearlyEventsServer {
     await this.db.publishSubmission(eventId, bestName, bestUrl);
   }
 
+  async restartWithUrl(submissionId, url) {
+    await this.db.updateSubmissionUrl(submissionId, url);
+    await this.db.updateSubmissionStatus(submissionId, 'approved');
+  }
+
   // async rejectEvent(eventId) {
   //   await this.db.rejectEvent(eventId);
   // }
@@ -205,5 +247,27 @@ export class YearlyEventsServer {
 
   async bury(submissionId) {
     await this.db.burySubmission(submissionId);
+  }
+
+  async broaden(submissionId) {
+    return await this.db.transaction(async (trx) => {
+      const submission = await trx.getSubmission(submissionId);
+      if (submission == null) {
+        throw "No submission with id " + submissionId;
+      }
+      const steps = [];
+      const maybeLead = await trx.getNameLeadByName(submission.name);
+      if (maybeLead) {
+        await trx.burySubmission(submissionId);
+        logs(steps)("Buried submission", submission.name);
+        return maybeLead.id;
+      }
+      const leadId = submissionId;
+      await trx.addNameLead(leadId, submission.name, 'created', steps);
+      logs(steps)("Created name lead", submission.name);
+      await trx.burySubmission(submissionId);
+      logs(steps)("Buried submission", submission.name);
+      return leadId;
+    });    
   }
 }

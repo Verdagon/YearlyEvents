@@ -143,16 +143,38 @@ const nodeServer = http.createServer(async function(req, res) {
       } break;
 
       case "/waiting.html": {
+        // const scrutinies = await server.scrutinies();
         const confirmedSubmissions = await server.confirmedSubmissions();
         const unconsideredSubmissions = await server.unconsidered();
         const failedNeedSubmissions = await server.failedNeedSubmissions();
         const failedNeedLeads = await server.failedNeedLeads();
         const numApprovedSubmissions = await server.numApprovedSubmissions();
         const numCreatedInvestigations = await server.numCreatedInvestigations();
+        const numCreatedPageLeads = await server.numCreatedPageLeads();
+        const numCreatedNameLeads = await server.numCreatedNameLeads();
         const pageHtml = await getResource("waiting.html");
-        const response = eta.renderString(pageHtml, { failedNeedLeads, confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations });
+        const response = eta.renderString(pageHtml, { failedNeedLeads, confirmedSubmissions, unconsideredSubmissions, failedNeedSubmissions, numApprovedSubmissions, numCreatedInvestigations, numCreatedPageLeads, numCreatedNameLeads });
         console.log("Response:", response);
         res.write(response);
+      } break;
+
+      case "/pagetext": {
+        const {url} = queryParams;
+        if (url == null) throw "Missing url!";
+        const row = await server.getPageText(url);
+        console.log("Row:", row);
+        if (row) {
+          if (row.text) {
+            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.write(row.text);
+          } else {
+            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.write("Error: " + row.error);
+          }
+        } else {
+          res.writeHead(400, {'Content-Type': 'text/html'});
+          res.write("Not found!");
+        }
       } break;
 
 	    case "/submission": {
@@ -232,6 +254,24 @@ const nodeServer = http.createServer(async function(req, res) {
         res.write(submissionId)
 	    } break;
 
+      case "/restartWithUrl": {
+        const {submission_id: submissionId, url} = queryParams;
+        // const urlencodedBody = await readPostData(req);
+        // if (!urlencodedBody) {
+        //   throw "Invalid, no POST body!";
+        // }
+        // const body = querystring.parse(urlencodedBody);
+        // if (!body) {
+        //   throw "Invalid encoded body:" + urlencodedBody;
+        // }
+        // const {submission_id: submissionId, url} = body;
+        if (submissionId == null) throw "Missing submission_id!";
+        if (url == null) throw "Missing url!";
+
+        await server.restartWithUrl(submissionId, url);
+        res.writeHead(200);
+      } break;
+
 	    // case "/rejectEvent": {
 	    //   const {submission_id: submissionId} = queryParams;
 	    //   if (submissionId == null) throw "Missing submission_id!";
@@ -264,6 +304,13 @@ const nodeServer = http.createServer(async function(req, res) {
         const {submission_id: submissionId} = queryParams;
         if (submissionId == null) throw "Missing submission_id!";
         await server.bury(submissionId);
+      } break;
+
+      case "/broaden": {
+        const {submission_id: submissionId} = queryParams;
+        if (submissionId == null) throw "Missing submission_id!";
+        console.log("Broadening!")
+        await server.broaden(submissionId);
       } break;
 
 	    default: {
