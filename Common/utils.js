@@ -2,9 +2,15 @@
 import terminate from 'terminate';
 import { execFile, spawn } from 'node:child_process'
 
+function isWordChars(char) {
+  return /\w+/.test(char);
+}
+
 export function unprependi(str, prefix, minLength) {
-  const regex = new RegExp(`^${prefix}\\b`, 'i');
-  const result = regex.test(str);
+  const result =
+      isWordChars(prefix) ?
+      (new RegExp(`^${prefix.toLowerCase()}\\b`, 'i')).test(str.toLowerCase()) :
+      str.toLowerCase().startsWith(prefix.toLowerCase());
 	if (result) {
 		const result = str.substring(prefix.length);
 		if (minLength != null) {
