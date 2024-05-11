@@ -730,6 +730,7 @@ export class LocalDb {
           .whereNot('status', "confirmed")
           .whereNot('status', "approved")
           .whereNot('status', "created")
+          .whereNot('status', "success")
           .whereNot('status', 'buried');
     });
   }
