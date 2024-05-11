@@ -56,7 +56,7 @@ export class ChatGPTRequester {
   	  	console.log("Error:", error);
   	    if (numAttempts < 3) {
   	    	console.log("Was an error, trying again...");
-  	    	return await this.requestInner(query, maxTokens, throttlerPriority, maybeIdForLogging, numAttempts + 1);
+  	    	return await this.requestInner(slicedQuery, maxTokens, throttlerPriority, maybeIdForLogging, numAttempts + 1);
   	    } else {
   	    	console.log("Too many attempts, stopping.");
   		    if (typeof error.json === "function") {

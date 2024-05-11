@@ -742,6 +742,7 @@ export class LocalDb {
           .whereNot('status', "created")
           .whereNot('status', "confirmed")
           .whereNot('status', "approved")
+          .whereNot('status', "duplicate")
           .whereNot('status', "published")
           .whereNot('status', 'buried');
     });
