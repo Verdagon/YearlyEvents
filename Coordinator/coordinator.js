@@ -231,7 +231,7 @@ try {
 			await makeLineServerProcess(
 					'./PageFetcher/target/debug/page_fetcher', [], 'Ready');
 
-  let unfinishedPageLeads = await db.getUnfinishedPageLeads();
+  let unfinishedPageLeads = await db.getUnfinishedPageLeads(retryErrors);
   console.log(unfinishedPageLeads.length, "unfinished page leads.");
   await parallelEachI(unfinishedPageLeads, async (leadIndex, lead) => {
     let broadSteps = lead.steps;
