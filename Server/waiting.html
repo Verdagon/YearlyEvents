@@ -244,6 +244,7 @@ Confirmed submissions:
         <a href="/submission?submission_id=<%= submission.submission_id %>">Submission</a>
       </div>
       <div style="flex-shrink: 0">
+        <button onclick="broadenSubmissionClicked('<%= submission.submission_id %>')">Broaden</button>
         <button onclick="buryConfirmedSubmission('<%= submission.submission_id %>')">Reject</button>
       </div>
     </div>
