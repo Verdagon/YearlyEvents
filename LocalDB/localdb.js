@@ -493,7 +493,8 @@ export class LocalDb {
       let query = (this.target).select("PageLeads.*").from("PageLeads");
       if (retryErrors) {
         query = query.where(function() {
-          this.where({"PageLeads.status": 'created'}).orWhere({status: 'errors'});
+          this.where({"PageLeads.status": 'created'})
+              .orWhere({"PageLeads.status": 'errors'});
         });
       } else {
         query = query.where({"PageLeads.status": 'created'})
