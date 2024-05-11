@@ -3,7 +3,9 @@ import terminate from 'terminate';
 import { execFile, spawn } from 'node:child_process'
 
 export function unprependi(str, prefix, minLength) {
-	if (str.toLowerCase().startsWith(prefix.toLowerCase())) {
+  const regex = new RegExp(`^${prefix}\\b`, 'i');
+  const result = regex.test(str);
+	if (result) {
 		const result = str.substring(prefix.length);
 		if (minLength != null) {
 			if (result.length >= minLength) {
