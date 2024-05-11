@@ -1,26 +1,26 @@
 import { normalizeName } from "./utils.js";
 
-export async function makeNewConversation(db, question, seedState) {
+export async function makeNewConversation(db, question) {
 	const query =
 			question + ". Do not number the responses, and please format " +
 			"the response in headerless semicolon-separated CSV format where the four columns are the name, " +
 			"the city, the state, and a max two-sentence description including anything unique or unusual. Please say nothing else.";
 	const conversation = [{role: "user", content: query}];
 
-	if (seedState) {
-		const rows =
-				(await db.findApprovedSubmissionsAt(seedState, 30))
-          .filter(submission => submission.city && submission.state)
-					.map(submission => {
-						const description =
-								submission.description ||
-										("Event where folks gather to partake in " + submission.name + " in " + submission.city);
-						return submission.name + ";" + submission.city + ";" + submission.state + ";" + description;
-					})
-					.join("\n");
-		conversation.push({ "role": "assistant", "content": rows });
-		conversation.push({ "role": "user", "content": "More, please." });
-	}
+	// if (seedState) {
+	// 	const rows =
+	// 			(await db.findApprovedSubmissionsAt(seedState, 30))
+  //         .filter(submission => submission.city && submission.state)
+	// 				.map(submission => {
+	// 					const description =
+	// 							submission.description ||
+	// 									("Event where folks gather to partake in " + submission.name + " in " + submission.city);
+	// 					return submission.name + ";" + submission.city + ";" + submission.state + ";" + description;
+	// 				})
+	// 				.join("\n");
+	// 	conversation.push({ "role": "assistant", "content": rows });
+	// 	conversation.push({ "role": "user", "content": "More, please." });
+	// }
 
 	return conversation;
 }

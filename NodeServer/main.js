@@ -90,8 +90,9 @@ const nodeServer = http.createServer(async function(req, res) {
 	      if (!body) {
 	      	throw "Invalid encoded body:" + urlencodedBody;
 	      }
-	      const seedState = body.seed_state;
-	      // seedState is optional
+	      // const seedState = body.seed_state;
+	      // // seedState is optional
+
 	      const query = body.query;
 	      if (!query) {
 	        throw "Missing query!";
@@ -105,7 +106,7 @@ const nodeServer = http.createServer(async function(req, res) {
 	      }
 	      console.log("Query:", query);
 	      console.log("Conversation:", conversation);
-	      const response = await server.eventsFromGpt(db, conversation, seedState, query);
+	      const response = await server.eventsFromGpt(db, conversation, query);
 	      console.log("Response:", response);
 	      res.write(response);
 	    } break;

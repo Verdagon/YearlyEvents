@@ -56,18 +56,18 @@ async function submitClicked(id, status, need) {
 			<input style="flex-grow: 1; margin-left: 0.5em" name="query" type="text" value="<%= it.query %>"/>
 		</div>
 	</div>
-	<div style="display: flex;  align-items: center;">
+	<!--div style="display: flex;  align-items: center;">
 		<div style="flex-shrink: 0">Seed location: </div>
 		<div style="flex-grow: 1; display: flex;">
 			<input style="width: 100%; margin-left: 0.5em" name="seed_state" type="text" value="<%= it.seedState %>"/>
 		</div>
-	</div>
+	</div-->
 	<div><input type="submit"/></div>
 </form>
 
 <form method="POST" action="/eventsFromGpt.html">
 <input type="hidden" name="query" type="text" value="<%= it.query %>"/>
-<input type="hidden" name="seed_state" type="text" value="<%= it.seedState %>"/>
+<!--input type="hidden" name="seed_state" type="text" value="<%= it.seedState %>"/-->
 <input type="hidden" id="conversation" name="conversation" value=""/>
 <div><input type="submit" value="More"/></div>
 </form>

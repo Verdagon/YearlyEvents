@@ -26,11 +26,11 @@ export class YearlyEventsServer {
 		this.llmRequester = new Semaphore(null, 120);
 	}
 
-	async eventsFromGpt(db, pastConversation, seedState, query) {
+	async eventsFromGpt(db, pastConversation, query) {
 		console.log("received past conversation:", pastConversation);
 		const conversation =
 				pastConversation == null ?
-						await makeNewConversation(db, query, seedState) :
+						await makeNewConversation(db, query) :
 						continuedConversation(pastConversation);
     const ideas = await gptListEvents(this.openai, this.llmRequester, conversation);
 		await parallelEachI(ideas, async (ideaIndex, idea) => {
@@ -59,7 +59,7 @@ export class YearlyEventsServer {
     const response =
         this.eta.renderString(
             pageHtml,
-            { ideas, query, conversation: conversationJsonStr, seedState });
+            { ideas, query, conversation: conversationJsonStr });
     return response;
   }
 
