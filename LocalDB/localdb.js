@@ -62,38 +62,45 @@ export class LocalDb {
     });
   }
 
-	async getSimilarSubmissionsById(id) {
+	async getSimilarSubmissions(notId, maybeName, maybeUrl) {
     if (!id) {
       throw "getSimilarSubmissionById no ID";
     }
     return await this.maybeThrottle(async () => {
-  		const results =
-  				await (this.target)
-  						.from("Submissions as s1")
-  						.select("s2.*")
-  						.where("s1.submission_id", id)
-  				    .join("Submissions as s2", function() {
-  				        this.on("s1.name", "=", "s2.name")
-  				            .andOn("s1.submission_id", "!=", "s2.submission_id");
-  				    });
-  	  return results || [];
+			let query = (this.target)
+          .select('*')
+          .from('Submissions')
+          .where('id', '!=', notId)
+          .andWhere(function() {
+            if (maybeName && maybeUrl) {
+              this.where('name', maybeName).orWhere('url', maybeUrl);
+            } else if (maybeName) {
+              this.where('name', maybeName);
+            } else if (maybeUrl) {
+              this.where('url', maybeUrl);
+            } else {
+              console.error("Wat getSimilarSubmissions no maybeName or maybeUrl");
+              process.exit(1);
+            }
+          });
+  	  return (await query) || [];
     });
 	}
 
-  async getSimilarSubmissionsByUrl(url) {
-    if (!url) {
-      throw "getSimilarSubmissionByUrl no url";
-    }
-    return await this.maybeThrottle(async () => {
-      const results =
-          await (this.target)
-              .from("Submissions as s")
-              .select('s.*')
-              .crossJoin('MatchAnalyses as m', 's.url', '=', 'm.url')
-              .where('s.url', '=', url);
-      return results || [];
-    });
-  }
+  // async getSimilarSubmissionsByUrl(url) {
+  //   if (!url) {
+  //     throw "getSimilarSubmissionByUrl no url";
+  //   }
+  //   return await this.maybeThrottle(async () => {
+  //     const results =
+  //         await (this.target)
+  //             .from("Submissions as s")
+  //             .select('s.*')
+  //             .crossJoin('MatchAnalyses as m', 's.url', '=', 'm.url')
+  //             .where('s.url', '=', url);
+  //     return results || [];
+  //   });
+  // }
 
 	async getSimilarSubmissionByIdAndStatus(id, status) {
     return await this.maybeThrottle(async () => {
