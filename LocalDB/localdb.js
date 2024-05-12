@@ -63,8 +63,8 @@ export class LocalDb {
   }
 
 	async getSimilarSubmissions(notId, maybeName, maybeUrl) {
-    if (!id) {
-      throw "getSimilarSubmissionById no ID";
+    if (!notId) {
+      throw "getSimilarSubmissionById no notId";
     }
     return await this.maybeThrottle(async () => {
 			let query = (this.target)
