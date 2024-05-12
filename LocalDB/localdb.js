@@ -88,7 +88,7 @@ export class LocalDb {
       const results =
           await (this.target)
               .from("Submissions as s")
-              .select('s.name', 's.submission_id')
+              .select('s.*')
               .crossJoin('MatchAnalyses as m', 's.url', '=', 'm.url')
               .where('s.url', '=', url);
       return results || [];
