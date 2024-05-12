@@ -80,6 +80,21 @@ export class LocalDb {
     });
 	}
 
+  async getSimilarSubmissionsByUrl(url) {
+    if (!url) {
+      throw "getSimilarSubmissionByUrl no url";
+    }
+    return await this.maybeThrottle(async () => {
+      const results =
+          await (this.target)
+              .from("Submissions as s")
+              .select('s.name', 's.submission_id')
+              .crossJoin('MatchAnalyses as m', 's.url', '=', 'm.url')
+              .where('s.url', '=', url);
+      return results || [];
+    });
+  }
+
 	async getSimilarSubmissionByIdAndStatus(id, status) {
     return await this.maybeThrottle(async () => {
   		const results =

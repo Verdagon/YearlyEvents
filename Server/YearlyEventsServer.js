@@ -71,6 +71,11 @@ export class YearlyEventsServer {
 			const normalizedName = normalizeName(name, city, state);
 			submission.normalizedName = normalizedName;
   		submission.similars = await this.db.getSimilarSubmissionsById(submission.submission_id);
+      if (submission.url) {
+        submission.similars =
+            submission.similars.concat(
+                await this.db.getSimilarSubmissionsByUrl(submission.url));
+      }
       console.log("looking for similars to ", normalizeName, "got", submission.similars);
 		});
     return submissions;
