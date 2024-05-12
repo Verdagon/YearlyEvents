@@ -70,7 +70,7 @@ export class LocalDb {
 			let query = (this.target)
           .select('*')
           .from('Submissions')
-          .where('submission_id', '!=', notId)
+          .where('submission_id', '!=', notId) 
           .andWhere(function() {
             if (maybeName && maybeUrl) {
               this.where('name', maybeName).orWhere('url', maybeUrl);
